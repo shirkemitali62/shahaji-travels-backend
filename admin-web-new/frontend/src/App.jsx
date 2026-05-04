@@ -632,7 +632,41 @@ function OffersAdminPage({ showToast }) {
   }
 
   // REPLACE the submit function inside BusesPage
-
+async function submit() {
+  if (!form.title.trim() || !form.code.trim()) {
+    showToast("Title and Code are required!", "error"); return;
+  }
+  if (!form.discount) {
+    showToast("Discount value is required!", "error"); return;
+  }
+  setLoading(true);
+  try {
+    if (editing) {
+      await apiFetch("/api/offers/" + (editing._id || editing.id), {
+        method: "PUT",
+        body: JSON.stringify(form),
+      });
+      setOffers(prev => prev.map(o =>
+        String(o._id || o.id) === String(editing._id || editing.id)
+          ? { ...o, ...form }
+          : o
+      ));
+      showToast("Offer updated!");
+    } else {
+      const res = await apiFetch("/api/offers", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      setOffers(prev => [res.offer || res || { ...form, _id: Date.now() }, ...prev]);
+      showToast("Offer added!");
+    }
+    setForm(emptyForm);
+    setEditing(null);
+  } catch (e) {
+    showToast("Save failed: " + e.message, "error");
+  }
+  setLoading(false);
+}
   async function toggleActive(id, current) {
     try {
       await apiFetch("/api/offers/" + id, {
