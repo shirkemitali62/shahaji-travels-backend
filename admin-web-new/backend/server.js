@@ -9,11 +9,19 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 if (!admin.apps.length) {
-  const serviceAccount = require("./shahaji-travels-firebase-adminsdk.json");
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log("✅ Firebase Admin initialized");
+  try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log("✅ Firebase Admin initialized");
+    } else {
+      console.log("⚠️ Firebase not configured - FCM disabled");
+    }
+  } catch (e) {
+    console.log("⚠️ Firebase init failed:", e.message);
+  }
 }
 const app = express();
 const PORT = process.env.PORT || 5000;
