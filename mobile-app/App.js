@@ -405,10 +405,9 @@ const isCashAllowed = (cashSettings, phone) => {
 };
 
 // ─── SHARE TICKET PDF ─────────────────────────────────────────────
-const shareTicketPDF = async (ticket, user, showAlert, setLoading, setLoadMsg) => {
+const shareTicketPDF = async (ticket, user, selectedBus, showAlert, setLoading, setLoadMsg) => {
   try {
-    const html = buildTicketHTML({ ticket, user });
-
+  const html = buildTicketHTML({ ticket, user, selectedBus });
     if (Platform.OS === "web") {
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url  = URL.createObjectURL(blob);
@@ -987,13 +986,13 @@ React.useEffect(() => {
       </Animated.View>
 
       {/* ── NAVBAR ── */}
-    <View style={s.navbar}>
+   <View style={s.navbar}>
   <TouchableOpacity onPress={openDrawer} style={s.navMenuBtn}>
     <Text style={s.navMenuIcon}>☰</Text>
   </TouchableOpacity>
   <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 8 }}>
-    <LogoImage width={34} height={34} borderRadius={6} />
-    <Text style={s.navTitle}>Shahaji Travels</Text>
+    <LogoImage width={28} height={28} borderRadius={5} />
+    <Text style={[s.navTitle, { fontSize: 14 }]}>Shahaji Travels</Text>
   </View>
   {/* 🔔 NOTIFICATION BELL */}
   <TouchableOpacity
@@ -1846,10 +1845,10 @@ const Seat = ({ id, booked, selected, blocked, female, onPress, price, isSleeper
 };
 const { height } = Dimensions.get("window");
 const DESIGN_HEIGHT = 820; // thoda adjust karu shakto
-const scale = height / DESIGN_HEIGHT;
+const scale = 1;
 const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onToggle, seatPrice, sleeperPrice, isSleeper, seatGenderMap, blockedSeats = [] }) => (
-  <View style={{ flex: 1, overflow: "hidden" }}>
-    <View style={{ transform: [{ scale }], alignSelf: "center" }}>
+  <View style={{ flex: 1, overflow: "visible" }}>
+    <View style={{ transform: [{ scale: 1 }], alignSelf: "center" }}>
       <View style={deckSt.wrap}>
         <View style={deckSt.header}>
           <Text style={deckSt.title} numberOfLines={2}>
@@ -3064,8 +3063,19 @@ const handleConfirmBooking = async () => {
   }
 
   // ── Cash → confirm modal directly ────────────────────────
+ // ── Cash → OTP verify करा मग confirm ────────────────────
   if (paymentMethod === "Cash") {
-    setShowConfirmModal(true);
+    setOtpValue("");
+    setOtpSending(true);
+    try {
+      await sendOtp(passengerInfo.phone);
+      setOtpSending(false);
+      setShowOtpModal(true);
+      startOtpTimer();
+    } catch (err) {
+      setOtpSending(false);
+      showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
+    }
     return;
   }
 
@@ -4191,34 +4201,15 @@ ListEmptyComponent={
                     gap: 12, marginBottom: 4,
                   }}
                   activeOpacity={0.75}
-                  onPress={async () => {
-                    try {
-                      if (IS_WEB) {
-                        window.location.href = url;
-                        return;
-                      }
-                      if (Platform.OS === "ios") {
-                        const canOpen = await Linking.canOpenURL(url);
-                        if (canOpen) {
-                          await Linking.openURL(url);
-                        } else {
-                          await Linking.openURL(`upi://pay?${upiBase}`);
-                        }
-                        return;
-                      }
-                      // Android
-                      await Linking.openURL(url);
-                    } catch {
-                      try {
-                        await Linking.openURL(`upi://pay?${upiBase}`);
-                      } catch {
-                        showAlert(
-                          "Cannot Open",
-                          `${app.name} manually open करा आणि ₹${getFinalAmount()} pay करा\nUPI ID: ${qrSettings?.upiId || "kavirajbarge@ybl"}`
-                        );
-                      }
-                    }
-                  }}
+                 onPress={async () => {
+  const amt = getFinalAmount();
+  const upiStr = `upi://pay?pa=${qrSettings?.upiId || "kavirajbarge@ybl"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+  try {
+    await Linking.openURL(upiStr);
+  } catch {
+    showAlert("Cannot Open", `UPI app manually open करा\n₹${amt} pay करा\nUPI ID: ${qrSettings?.upiId || "kavirajbarge@ybl"}`);
+  }
+}}
                 >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
@@ -5304,20 +5295,15 @@ ListEmptyComponent={
                 <TouchableOpacity key={i}
                   style={{ flexDirection: "row", alignItems: "center", backgroundColor: app.bg, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: app.border, gap: 12, marginBottom: 4 }}
                   activeOpacity={0.75}
-                  onPress={async () => {
-                    try {
-                      if (IS_WEB) { window.location.href = url; return; }
-                      if (Platform.OS === "ios") {
-                        const canOpen = await Linking.canOpenURL(url);
-                        await Linking.openURL(canOpen ? url : `upi://pay?${upiBase}`);
-                        return;
-                      }
-                      await Linking.openURL(url);
-                    } catch {
-                      try { await Linking.openURL(`upi://pay?${upiBase}`); }
-                      catch { showAlert("Cannot Open", `${app.name} manually open करा\n₹${amt} → ${qrSettings?.upiId || "kavirajbarge@ybl"}`); }
-                    }
-                  }}
+                onPress={async () => {
+  const amt = getFinalAmount();
+  const upiStr = `upi://pay?pa=${qrSettings?.upiId || "kavirajbarge@ybl"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+  try {
+    await Linking.openURL(upiStr);
+  } catch {
+    showAlert("Cannot Open", `UPI app manually open करा\n₹${amt} pay करा\nUPI ID: ${qrSettings?.upiId || "kavirajbarge@ybl"}`);
+  }
+}}
                 >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
@@ -5468,7 +5454,7 @@ ListEmptyComponent={
 </Modal>
 
   {/* ── DEBIT / CREDIT CARD ── */}
-  {paymentMethodsAllowed.razorpay && (
+ {paymentMethodsAllowed.razorpay && IS_WEB && (
     <TouchableOpacity
       onPress={() => setPaymentMethod("Card")}
       activeOpacity={0.85}
@@ -5896,7 +5882,7 @@ ListEmptyComponent={
             </View>
           </View>
           <PrimaryButton title="📄 Download Ticket PDF"
-            onPress={()=>shareTicketPDF(ticket, user, selectedBus, showAlert, setLoading, setLoadMsg)}
+           onPress={()=>shareTicketPDF(ticket, user, showAlert, setLoading, setLoadMsg)}
             style={{marginTop:16}}/>
           <TouchableOpacity style={[s.primaryBtn,{marginTop:10,backgroundColor:C.white,borderWidth:1.5,borderColor:C.border}]}
             onPress={()=>{setSelectedSeats([]);setSelectedBus(null);setTicket(null);setScreen("home");}}>
@@ -5995,7 +5981,7 @@ const s = StyleSheet.create({
   primaryBtn:{backgroundColor:C.red,borderRadius:14,paddingVertical:16,alignItems:"center",justifyContent:"center"},
   primaryBtnDisabled:{opacity:0.4},
   primaryBtnText:{color:C.white,fontWeight:"700",fontSize:F.sm,letterSpacing:0.3},
-  secHeader:{flexDirection:"row",alignItems:"center",backgroundColor:C.red,paddingHorizontal:14,paddingVertical:14},
+ secHeader:{flexDirection:"row",alignItems:"center",backgroundColor:C.red,paddingHorizontal:14,paddingVertical:8,paddingTop:Platform.OS==="android"?38:12},
   backBtn:{width:36,height:36,borderRadius:18,backgroundColor:"rgba(255,255,255,0.2)",justifyContent:"center",alignItems:"center",marginRight:12},
   backBtnText:{color:C.white,fontSize:26,fontWeight:"700",lineHeight:30},
   secHeaderTitle:{color:C.white,fontWeight:"700",fontSize:F.lg},
@@ -6027,8 +6013,7 @@ const s = StyleSheet.create({
   authInput:{borderWidth:1.5,borderColor:C.border,borderRadius:12,paddingHorizontal:14,paddingVertical:13,fontSize:F.sm,color:C.text,backgroundColor:C.white,marginBottom:2},
   passRow:{flexDirection:"row",marginBottom:2},
   eyeBtn:{borderWidth:1.5,borderColor:C.border,borderLeftWidth:0,borderTopRightRadius:12,borderBottomRightRadius:12,paddingHorizontal:14,justifyContent:"center",backgroundColor:C.white},
-  navbar:{backgroundColor:C.red,flexDirection:"row",alignItems:"center",paddingHorizontal:16,paddingVertical:13},
-  navMenuBtn:{marginRight:14},
+ navbar:{backgroundColor:C.red,flexDirection:"row",alignItems:"center",paddingHorizontal:16,paddingVertical:8,paddingTop:Platform.OS==="android"?40:10},
   navMenuIcon:{color:C.white,fontSize:24,fontWeight:"700"},
   navTitle:{color:C.white,fontSize:F.lg,fontWeight:"800",letterSpacing:0.3},
   navWallet:{backgroundColor:"rgba(255,255,255,0.18)",borderRadius:20,paddingHorizontal:12,paddingVertical:5},
