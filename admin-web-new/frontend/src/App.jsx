@@ -3803,7 +3803,8 @@ function BusesPage({ buses, saveBus, deleteBus }) {
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortOrder,    setSortOrder]    = useState("latest");
- 
+  const [loading,      setLoading]      = useState(false);
+
   const busIsSleeperOnly   = isSleeperOnly(form.type);
   const busIsSeaterSleeper = isSeaterSleeper(form.type);
 
@@ -3873,7 +3874,6 @@ async function submit() {
       setLoading(false);
     }
   }
-  
   return (
     <div className="page">
       <div className="page-header"><h1>Buses</h1><p>Total: {buses.length}</p></div>
@@ -4000,20 +4000,12 @@ async function submit() {
       <div className="section-card">
         <div className="section-title">Bus List ({filtered.length})</div>
         <div style={{ overflowX: "auto" }}>
-          
-<table className="data-table" style={{ tableLayout:"fixed", width:"100%" }}>
-  <thead>
-    <tr>
-      <th style={{width:32}}>#</th>
-      <th style={{width:"16%"}}>Name</th>
-      <th style={{width:"13%"}}>Number</th>
-      <th style={{width:"14%"}}>Type</th>
-      <th style={{width:"11%"}}>Date</th>
-      <th style={{width:52}}>Seats</th>
-      <th style={{width:"13%"}}>Price</th>
-      <th style={{width:80}}>Status</th>
-      <th style={{width:"15%"}}>Actions</th>
-    </tr>
+          <table className="data-table">
+            <thead>
+             <tr>
+  <th>#</th><th>Name</th><th>Number</th><th>Type</th>
+  <th>Date</th><th>Seats</th><th>Price</th><th>Status</th><th>Actions</th>
+</tr>
             </thead>
             <tbody>
               {filtered.length ? filtered.map((b, i) => {
@@ -4031,17 +4023,7 @@ async function submit() {
 <tr key={b._id || b.id || i}>
   <td>{i + 1}</td>
   <td><b>{b.name || "—"}</b></td>
-
-<td>
-  <button
-    style={{ background:"none", border:"none", cursor:"pointer", padding:0 }}
-    onClick={() => setViewBus(b)}
-  >
-    <code style={{ color:"var(--blue)", textDecoration:"underline dotted" }}>
-      {b.number || b.busNumber || b.numberPlate || "—"}
-    </code>
-  </button>
-</td>
+  <td><code>{b.number || b.busNumber || b.numberPlate || "—"}</code></td>
   <td>{b.type || "—"}</td>
   <td>
     <span style={{
@@ -4103,6 +4085,151 @@ window.scrollTo({ top: 0, behavior: "smooth" });
     </div>
   );
 }
+
+// ===================== ROUTES PAGE =====================
+function RoutesPage({ routes, saveRoute, deleteRoute }) {
+  const emptyForm = { 
+  from: "", to: "", 
+  boardingPoints: [], 
+  droppingPoints: [], 
+  distance: "", 
+  status: "Active" 
+};
+  const [form,         setForm]         = useState(emptyForm);
+  const [editing,      setEditing]      = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [sortOrder,    setSortOrder]    = useState("latest");
+
+  const filtered = useMemo(() => {
+    let list = [...routes];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(r =>
+        (r.name || "").toLowerCase().includes(q) ||
+        (r.from || "").toLowerCase().includes(q) ||
+        (r.to || "").toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter !== "All") list = list.filter(r => (r.status || "Active") === statusFilter);
+    list.sort((a, b) => sortOrder === "latest"
+      ? new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      : new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+    );
+    return list;
+  }, [routes, search, statusFilter, sortOrder]);
+
+  function submit() {
+    if (!form.from || !form.to) { alert("From and To are required!"); return; }
+    saveRoute(
+      { ...form, name: form.from + " to " + form.to },
+      editing ? (editing._id || editing.id) : null
+    );
+    setForm(emptyForm); setEditing(null);
+  }
+
+  function addPoint(field, val) {
+    if (!val) return;
+    const pt = MASTER_POINTS.find(p => p.mr === val) || { mr: val, en: val };
+    if (!form[field].some(p => (p.mr || p) === pt.mr))
+      setForm(f => ({ ...f, [field]: [...f[field], pt] }));
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header"><h1>Routes</h1><p>Manage all routes</p></div>
+      <div className="form-card">
+        <div className="form-title">{editing ? "✏️ Edit Route" : "➕ Add Route"}</div>
+        <div className="form-grid">
+          <Input label="From *" value={form.from} onChange={v => setForm(f => ({ ...f, from: v }))} placeholder="Pune" />
+          <Input label="To *"   value={form.to}   onChange={v => setForm(f => ({ ...f, to: v }))}   placeholder="Kolhapur" />
+          {["boardingPoints","droppingPoints"].map(field => (
+            <div key={field} className="form-group">
+              <label className="form-label">
+                {field === "boardingPoints" ? "Boarding Points" : "Dropping Points"}
+              </label>
+              <select className="form-select" value=""
+                onChange={e => addPoint(field, e.target.value)}>
+                <option value="">+ Add point</option>
+                {MASTER_POINTS.map((item, i) => (
+                  <option key={i} value={item.mr}>{pointLabel(item)}</option>
+                ))}
+              </select>
+              <div className="chip-wrap">
+                {form[field].map((item, i) => (
+                  <span key={i} className="chip">
+                    {pointLabel(item)}
+                    <button type="button"
+                      onClick={() => setForm(f => ({ ...f, [field]: f[field].filter((_, j) => j !== i) }))}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+          <Input label="Distance (km)" value={form.distance}
+            onChange={v => setForm(f => ({ ...f, distance: v }))} type="number" />
+          <Select label="Status" value={form.status}
+            onChange={v => setForm(f => ({ ...f, status: v }))} options={["Active","Inactive"]} />
+        </div>
+        <div className="form-actions">
+          <button className="btn-primary" onClick={submit}>{editing ? "Update Route" : "Add Route"}</button>
+          {editing && (
+            <button className="btn-secondary" onClick={() => { setEditing(null); setForm(emptyForm); }}>Cancel</button>
+          )}
+        </div>
+      </div>
+
+      <Toolbar search={search} setSearch={setSearch} searchPlaceholder="Search route"
+        filterValue={statusFilter} setFilterValue={setStatusFilter} filterOptions={["All","Active","Inactive"]}
+        sortOrder={sortOrder} setSortOrder={setSortOrder} />
+
+      <div className="section-card">
+        <div className="section-title">Route List ({filtered.length})</div>
+        <table className="data-table">
+          <thead>
+            <tr><th>Route Name</th><th>From</th><th>To</th><th>Distance</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {filtered.length ? filtered.map(r => (
+              <tr key={r._id || r.id}>
+                <td><b>{r.name || `${r.from} to ${r.to}`}</b></td>
+                <td>{r.from || "—"}</td>
+                <td>{r.to || "—"}</td>
+                <td>{r.distance ? r.distance + " km" : "—"}</td>
+                <td>{statusBadge(r.status || "Active")}</td>
+                <td>
+                  <div className="action-btns">
+                    <button className="btn-sm btn-edit" onClick={() => {
+                      setEditing(r);
+                      setForm({
+                        from: r.from || "", to: r.to || "",
+                        boardingPoints: r.boardingPoints || [],
+                        droppingPoints: r.droppingPoints || [],
+                        distance: r.distance || "", status: r.status || "Active",
+                      });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}>Edit</button>
+                    <button className="btn-sm btn-del"
+                      onClick={() => { if (window.confirm("Delete this route?")) deleteRoute(r._id || r.id); }}>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )) : (
+              <tr><td colSpan="6">
+                <div className="empty-state"><div className="empty-icon">📍</div><div className="empty-text">No routes yet</div></div>
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 
 // ===================== ROUTES PAGE =====================
 function RoutesPage({ routes, saveRoute, deleteRoute }) {
