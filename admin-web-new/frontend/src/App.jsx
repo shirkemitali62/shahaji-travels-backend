@@ -3803,8 +3803,7 @@ function BusesPage({ buses, saveBus, deleteBus }) {
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortOrder,    setSortOrder]    = useState("latest");
-  const [loading, setLoading] = useState(false);  // ✅ हे ADD कर
-    // ✅ हे पण ADD कर (table मध्ये setViewBus वापरला आहे)
+ 
   const busIsSleeperOnly   = isSleeperOnly(form.type);
   const busIsSeaterSleeper = isSeaterSleeper(form.type);
 
