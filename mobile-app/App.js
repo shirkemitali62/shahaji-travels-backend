@@ -5882,8 +5882,9 @@ ListEmptyComponent={
             </View>
           </View>
           <PrimaryButton title="📄 Download Ticket PDF"
-           onPress={()=>shareTicketPDF(ticket, user, showAlert, setLoading, setLoadMsg)}
+           onPress={()=>shareTicketPDF(ticket, user, selectedBus, showAlert, setLoading, setLoadMsg)}
             style={{marginTop:16}}/>
+            
           <TouchableOpacity style={[s.primaryBtn,{marginTop:10,backgroundColor:C.white,borderWidth:1.5,borderColor:C.border}]}
             onPress={()=>{setSelectedSeats([]);setSelectedBus(null);setTicket(null);setScreen("home");}}>
             <Text style={[s.primaryBtnText,{color:C.text}]}>← Back to Home</Text>
