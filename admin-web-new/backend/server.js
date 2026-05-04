@@ -33,7 +33,7 @@ app.use("/tickets", express.static(ticketsDir));
 
 // ─── MONGODB CONNECTION ────────────────────────────────────────────
 const MONGO_URI = process.env.MONGO_URI ||
-  "mongodb://mitali27:MITALI27@ac-nzzrlco-shard-00-00.jxe13f4.mongodb.net:27017,ac-nzzrlco-shard-00-01.jxe13f4.mongodb.net:27017,ac-nzzrlco-shard-00-02.jxe13f4.mongodb.net:27017/shahaji?ssl=true&replicaSet=atlas-525bs5-shard-0&authSource=admin&retryWrites=true&w=majority";
+  "mongodb://mitali27:Shahaji2027@ac-nzzrlco-shard-00-00.jxe13f4.mongodb.net:27017,ac-nzzrlco-shard-00-01.jxe13f4.mongodb.net:27017,ac-nzzrlco-shard-00-02.jxe13f4.mongodb.net:27017/shahaji?ssl=true&replicaSet=atlas-525bs5-shard-0&authSource=admin&retryWrites=true&w=majority";
 mongoose
   .connect(MONGO_URI, {
     serverSelectionTimeoutMS: 30000,
