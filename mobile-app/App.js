@@ -438,24 +438,12 @@ const shareTicketPDF = async (ticket, user, selectedBus, showAlert, setLoading, 
     const fileName = `ShahajTravels_${ticket?.bookingId || Date.now()}.pdf`;
 
     if (Platform.OS === "android") {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== "granted") {
-        setLoading(false);
-        showAlert("Permission Denied", "Storage permission is required to save PDF.");
-        return;
-      }
-      setLoadMsg("Saving to Downloads...");
-      const cacheUri = FileSystem.cacheDirectory + fileName;
-      await FileSystem.copyAsync({ from: pdfUri, to: cacheUri });
-      const asset = await MediaLibrary.createAssetAsync(cacheUri);
-      try {
-        const album = await MediaLibrary.getAlbumAsync("Download");
-        if (album) { await MediaLibrary.addAssetsToAlbumAsync([asset], album, false); }
-        else { await MediaLibrary.createAlbumAsync("Download", asset, false); }
-      } catch (albumErr) { console.warn("Album error:", albumErr.message); }
+      setLoadMsg("Saving PDF...");
+      const destUri = FileSystem.documentDirectory + fileName;
+      await FileSystem.copyAsync({ from: pdfUri, to: destUri });
       setLoading(false);
-      const contentUri = await FileSystem.getContentUriAsync(cacheUri);
-      showAlert("✅ PDF Downloaded!", `"${fileName}"\n\nFiles > Downloads मध्ये save झाली!\n\nOpen करायची?`, [
+      const contentUri = await FileSystem.getContentUriAsync(destUri);
+      showAlert("✅ PDF Downloaded!", `"${fileName}" save झाली!\n\nOpen करायची?`, [
         { text: "Cancel", style: "cancel" },
         { text: "📂 Open PDF", onPress: async () => {
           try {
