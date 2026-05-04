@@ -1,4 +1,4 @@
-const API = "https://coucha-mythologically-brittany.ngrok-free.dev ";
+const API = "https://shahaji-travels-backend.onrender.com";
 
 
 // Dashboard
