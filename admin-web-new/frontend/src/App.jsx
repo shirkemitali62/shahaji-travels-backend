@@ -632,49 +632,7 @@ function OffersAdminPage({ showToast }) {
   }
 
   // REPLACE the submit function inside BusesPage
-async function submit() {
-  if (!form.name.trim() || !form.number.trim()) {
-    alert("Bus Name and Number Plate are required!"); return;
-  }
-  // ADD date validation
-  if (!form.date) {
-    alert("Please select a travel date for this bus!"); return;
-  }
-  setLoading(true);
-  try {
-    const sleeperPr = Number(form.sleeperPrice) || 0;
-    const seaterPr  = Number(form.seaterPrice)  || 0;
-    const upperPr   = Number(form.upperPrice)   || 0;
 
-    await saveBus({
-  name:          form.name.trim(),
-  number:        form.number.trim(),
-  busNumber:     form.number.trim(),
-  numberPlate:   form.number.trim(),
-  type:          form.type,
-  seats:         Number(form.seats) || 40,
-  totalSeats:    Number(form.seats) || 40,
-  sleeperPrice:  busIsSleeperOnly ? sleeperPr : upperPr,
-  seaterPrice:   busIsSleeperOnly ? sleeperPr : seaterPr,
-  price:         busIsSleeperOnly ? sleeperPr : seaterPr,
-  status:        form.status,
-  departureTime: form.departureTime || "",
-  arrivalTime:   form.arrivalTime   || "",
-    from: form.departure,
-  to: form.arrival,
-
-  departure: form.departure,
-  arrival: form.arrival,
-
-  date:          form.date          || "",
- 
-}, editing ? (editing._id || editing.id) : null);
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setLoading(false);
-  }
-}
   async function toggleActive(id, current) {
     try {
       await apiFetch("/api/offers/" + id, {
