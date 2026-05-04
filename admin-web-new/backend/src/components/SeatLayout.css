@@ -1,0 +1,61 @@
+.seat-layout-wrapper {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.trip-info-box {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.legend {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deck-section {
+  margin-top: 20px;
+}
+
+.seat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 70px);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.seat-btn {
+  border: none;
+  border-radius: 12px;
+  height: 50px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seat-btn.available {
+  background: #d1fae5;
+}
+
+.seat-btn.selected {
+  background: #93c5fd;
+}
+
+.seat-btn.booked {
+  background: #fca5a5;
+  cursor: not-allowed;
+}

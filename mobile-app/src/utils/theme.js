@@ -1,0 +1,18 @@
+export const COLORS = {
+  bg: '#071120',
+  card: '#0E1A2D',
+  card2: '#13233C',
+  primary: '#3B82F6',
+  primaryDark: '#2563EB',
+  accent: '#22C55E',
+  danger: '#EF4444',
+  warning: '#F59E0B',
+  text: '#F8FAFC',
+  sub: '#94A3B8',
+  border: '#1E3355',
+  white: '#FFFFFF',
+  chip: '#17263F',
+  selected: '#1D4ED8',
+  booked: '#7F1D1D',
+  available: '#123B2B',
+};

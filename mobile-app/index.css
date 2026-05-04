@@ -1,0 +1,111 @@
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #E84B1A #f5f5f5;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #E84B1A;
+  border-radius: 10px;
+  border: 2px solid #f5f5f5;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #c43d14;
+}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media screen and (max-width: 768px) {
+
+  /* Admin Panel mobile */
+  .topbar {
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  .topbar-search {
+    display: none;
+  }
+
+  .admin-info {
+    display: none;
+  }
+
+  .page-content {
+    padding: 16px;
+  }
+
+  .page-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .page-hero h1 {
+    font-size: 24px;
+  }
+
+  .page-hero-search {
+    width: 100%;
+  }
+
+  .form-card {
+    padding: 20px 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .table-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .back-btn span {
+    display: none;
+  }
+
+  .topbar {
+    height: 56px;
+  }
+}
