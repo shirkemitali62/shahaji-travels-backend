@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 
 // ===================== CONSTANTS =====================
-const BASE_URL = import.meta.env.VITE_API_URL ||"https://cycle-giving-flags-humor.trycloudflare.com";
+const BASE_URL = import.meta.env.VITE_API_URL ||"https://shahaji-travels-backend.onrender.com";
 
 const defaultSettings = {
   companyName: "Shahaji Travels",
@@ -5771,7 +5771,7 @@ onClick={() => generateReportPDF(reportStats, activeTab, selectedDate, reportSta
 async function save() {
   setSettings(form);
 
-  await fetch("https://cycle-giving-flags-humor.trycloudflare.com/api/settings", {
+  await fetch("https://shahaji-travels-backend.onrender.com/api/settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

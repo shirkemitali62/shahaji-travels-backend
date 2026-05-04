@@ -5,7 +5,7 @@
 // ============================================================
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ||
-  "https://cycle-giving-flags-humor.trycloudflare.com"; // ← replace with your actual server URL
+  "https://shahaji-travels-backend.onrender.com";
 
 // ─── HELPER ────────────────────────────────────────────────────────
 async function request(path, options = {}) {

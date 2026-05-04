@@ -2,7 +2,7 @@
 // ✅ Testing: OTP terminal मध्ये print होतो
 // ✅ Production: MSG91 ने replace करा
 
-const API_BASE = "https://cycle-giving-flags-humor.trycloudflare.com";
+const API_BASE = "https://shahaji-travels-backend.onrender.com";
 
 export const sendOtp = async (phone) => {
   const cleaned = String(phone).replace(/\D/g, "").slice(-10);

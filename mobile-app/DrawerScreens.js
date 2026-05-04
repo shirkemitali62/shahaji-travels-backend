@@ -220,7 +220,7 @@ export const MyBookingsScreen = ({ visible, onClose, user, api }) => {
 const loadBookings = async () => {
   setLoading(true);
   try {
-    const res = await fetch("https://exist-subscribers-barnes-electricity.trycloudflare.com/api/bookings");
+    const res = await fetch("https://shahaji-travels-backend.onrender.com/api/bookings");
     const data = await res.json();
 
     console.log("ALL BOOKINGS:", data);
@@ -748,7 +748,7 @@ export const CustomerCareScreen = ({ visible, onClose }) => {
 
   // ✅ Settings fetch (MOVE HERE)
  useEffect(() => {
-  fetch("https://exist-subscribers-barnes-electricity.trycloudflare.com/api/settings")
+  fetch("https://shahaji-travels-backend.onrender.com/api/settings")
     .then(res => res.json())
     .then(data => setSettings(data))
     .catch(err => console.log(err));

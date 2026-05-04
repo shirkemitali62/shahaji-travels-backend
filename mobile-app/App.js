@@ -40,7 +40,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
-const API_BASE = "https://cycle-giving-flags-humor.trycloudflare.com";
+const API_BASE = "https://shahaji-travels-backend.onrender.com";
 const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === "web";
 
@@ -718,7 +718,7 @@ const lastNotifIdRef = React.useRef(null);
 
         // 3. Popular routes from API
         try {
-          const API_BASE = "https://cycle-giving-flags-humor.trycloudflare.com";
+          const API_BASE = "https://shahaji-travels-backend.onrender.com";
           const routeRes = await fetch(`${API_BASE}/api/popular-routes?active=true`);
           const routeData = await routeRes.json();
           const routeList = Array.isArray(routeData) ? routeData : (routeData.routes || routeData.data || []);
@@ -2511,7 +2511,7 @@ useEffect(() => {
     setPaymentMethod("UPI"); // fallback
   }
 }, [cashAllowed]);
-const API_BASE_URL = "https://cycle-giving-flags-humor.trycloudflare.com";
+const API_BASE_URL = "https://shahaji-travels-backend.onrender.com";
 
 // FCM Token Register करा
 async function registerForPushNotifications(userId = "", phone = "") {
@@ -3238,8 +3238,8 @@ const handleRazorpayPayment = async () => {
   }
 };
 const API_BASE = Platform.OS === "web"
-  ? "https://cycle-giving-flags-humor.trycloudflare.com"  // ✅ web la pan same
-  : "https://cycle-giving-flags-humor.trycloudflare.com"; // ✅ mobile la same
+  ? "https://shahaji-travels-backend.onrender.com"  // ✅ web la pan same
+  : "https://shahaji-travels-backend.onrender.com"; // ✅ mobile la same
  const doBooking = async (razorpayPaymentId = null) => {
   setLoading(true); setLoadMsg(t.bookingSeats || "Booking...");
   
