@@ -7689,7 +7689,9 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg2);
-  margin-top: auto;   /* ← नेहमी bottom ला push करतो */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 .admin-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .admin-avatar {
@@ -7754,7 +7756,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   .sidebar-logo { padding: 12px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg2); }
   .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 12px 10px 16px; overflow-y: auto; background: var(--bg2); }
   .nav-item { width: 100%; display: flex !important; align-items: center; padding: 12px 14px; margin: 0; min-height: 46px; }
-/* @media (max-width: 768px) मध्ये sidebar-footer ला हे add करा */
+
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid var(--border);
