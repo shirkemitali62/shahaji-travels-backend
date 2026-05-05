@@ -131,6 +131,27 @@ const busSchema = new mongoose.Schema({
 
 delete mongoose.models.Bus;
 const Bus = mongoose.model("Bus", busSchema);
+const upiPaymentSchema = new mongoose.Schema({
+  bookingId:   { type: String, required: true, unique: true },
+  orderId:     { type: String, default: "" },
+  utr:         { type: String, default: "", trim: true, uppercase: true },
+  amount:      { type: Number, required: true },
+  payeeName:   { type: String, default: "Shahaji Travels" },
+  upiId:       { type: String, default: "" },
+  status:      { type: String, enum: ["pending", "success", "failed", "expired"], default: "pending" },
+  userId:      { type: String, default: "" },
+  phone:       { type: String, default: "" },
+  busId:       { type: String, default: "" },
+  journeyDate: { type: String, default: "" },
+  retryCount:  { type: Number, default: 0 },
+  verifiedAt:  { type: Date, default: null },
+  expiresAt:   { type: Date, default: () => new Date(Date.now() + 30 * 60 * 1000) },
+}, { timestamps: true });
+ 
+// UTR unique index (prevent duplicate payments)
+upiPaymentSchema.index({ utr: 1 }, { unique: true, sparse: true });
+ 
+const UPIPayment = mongoose.models.UPIPayment || mongoose.model("UPIPayment", upiPaymentSchema);
 
 const routeSchema = new mongoose.Schema({
   name:            { type: String, trim: true },
@@ -3131,6 +3152,242 @@ app.post("/api/admin/restore-silent", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+function isValidUTR(utr) {
+  if (!utr || typeof utr !== "string") return false;
+  const clean = utr.trim().toUpperCase().replace(/\s+/g, "");
+  // UTR formats:
+  // Bank UTR: 22 chars alphanumeric (HDFC, ICICI, etc.)
+  // PhonePe:  starts with T + digits (T2405121234567890123)
+  // GPay:     starts with numbers, 12-25 chars
+  // Paytm:    alphanumeric 12-25 chars
+  if (clean.length < 8 || clean.length > 35) return false;
+  if (!/^[A-Z0-9]+$/.test(clean)) return false;
+  return true;
+}
+ 
+// ── POST /api/upi/init-payment ───────────────────────────────────────────────
+// Creates a pending payment record before user opens UPI app
+app.post("/api/upi/init-payment", async (req, res) => {
+  try {
+    const { bookingId, amount, userId, phone, busId, journeyDate } = req.body;
+ 
+    if (!bookingId || !amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: "bookingId and amount are required" });
+    }
+ 
+    // Check if already exists (idempotent)
+    let payment = await UPIPayment.findOne({ bookingId });
+    if (payment) {
+      if (payment.status === "success") {
+        return res.json({ success: true, alreadyPaid: true, payment });
+      }
+      // Reset expiry for retry
+      payment.expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      payment.retryCount += 1;
+      await payment.save();
+      return res.json({ success: true, payment, isRetry: true });
+    }
+ 
+    // Fetch UPI settings from DB
+    const qrSettings = await QRSettings.findOne();
+    const upiId   = qrSettings?.upiId   || "kavirajbarge@ybl";
+    const payeeName = qrSettings?.upiName || "SHAHAJI TRAVELS";
+ 
+    payment = await UPIPayment.create({
+      bookingId,
+      amount: Number(amount),
+      userId:      userId      || "",
+      phone:       phone       || "",
+      busId:       busId       || "",
+      journeyDate: journeyDate || "",
+      upiId,
+      payeeName,
+      status: "pending",
+    });
+ 
+    res.status(201).json({ success: true, payment });
+  } catch (err) {
+    if (err.code === 11000) {
+      const existing = await UPIPayment.findOne({ bookingId: req.body.bookingId });
+      return res.json({ success: true, payment: existing, isDuplicate: true });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+ 
+// ── POST /api/upi/verify-payment ─────────────────────────────────────────────
+// Called when user submits UTR after completing UPI payment
+app.post("/api/upi/verify-payment", async (req, res) => {
+  try {
+    const { bookingId, utr, amount } = req.body;
+ 
+    if (!bookingId || !utr) {
+      return res.status(400).json({ success: false, message: "bookingId and utr are required" });
+    }
+ 
+    const cleanUTR = utr.trim().toUpperCase().replace(/\s+/g, "");
+ 
+    // 1. Validate UTR format
+    if (!isValidUTR(cleanUTR)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid UTR format. Please enter the correct transaction ID from your UPI app.",
+        errorCode: "INVALID_UTR_FORMAT"
+      });
+    }
+ 
+    // 2. Check for duplicate UTR (another booking already used this UTR)
+    const duplicatePayment = await UPIPayment.findOne({
+      utr: cleanUTR,
+      status: "success",
+      bookingId: { $ne: bookingId }
+    });
+    if (duplicatePayment) {
+      return res.status(400).json({
+        success: false,
+        message: "This UTR has already been used for another booking. Please contact support.",
+        errorCode: "DUPLICATE_UTR"
+      });
+    }
+ 
+    // 3. Find this booking's payment record
+    const payment = await UPIPayment.findOne({ bookingId });
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found. Please start booking again.",
+        errorCode: "PAYMENT_NOT_FOUND"
+      });
+    }
+ 
+    // 4. Already verified?
+    if (payment.status === "success") {
+      return res.json({
+        success: true,
+        alreadyVerified: true,
+        message: "Payment already verified.",
+        payment
+      });
+    }
+ 
+    // 5. Expired?
+    if (new Date() > payment.expiresAt) {
+      payment.status = "expired";
+      await payment.save();
+      return res.status(400).json({
+        success: false,
+        message: "Payment session expired (30 min limit). Please start a new booking.",
+        errorCode: "PAYMENT_EXPIRED"
+      });
+    }
+ 
+    // 6. Amount mismatch check (if amount provided)
+    if (amount && Math.abs(Number(amount) - payment.amount) > 1) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount mismatch. Expected ₹${payment.amount}, got ₹${amount}.`,
+        errorCode: "AMOUNT_MISMATCH"
+      });
+    }
+ 
+    // 7. Mark payment as SUCCESS
+    payment.utr        = cleanUTR;
+    payment.status     = "success";
+    payment.verifiedAt = new Date();
+    await payment.save();
+ 
+    // 8. Confirm the booking in Booking collection
+    const booking = await Booking.findOne({
+      $or: [
+        { bookingCode: bookingId },
+        { pnr: bookingId }
+      ]
+    });
+ 
+    if (booking) {
+      booking.paymentStatus = "Paid";
+      booking.bookingStatus = "Confirmed";
+      booking.conductorNote = `UPI UTR: ${cleanUTR}`;
+      await booking.save();
+ 
+      // FCM notification to admin
+      try {
+        await sendFCMToAll(
+          "💰 UPI Payment Verified!",
+          `${booking.passengerName} | ₹${payment.amount} | UTR: ${cleanUTR.slice(0, 12)}...`
+        );
+        await Notification.create({
+          title:   "💰 UPI Payment Confirmed",
+          message: `${booking.passengerName} ने ₹${payment.amount} pay केले. UTR: ${cleanUTR}`,
+          type:    "info",
+        });
+      } catch (_) {}
+    }
+ 
+    res.json({
+      success:   true,
+      message:   "Payment verified successfully! Your booking is confirmed.",
+      payment,
+      booking:   booking || null,
+      bookingId,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+ 
+// ── GET /api/upi/payment-status/:bookingId ───────────────────────────────────
+// Poll this to check if admin manually confirmed payment
+app.get("/api/upi/payment-status/:bookingId", async (req, res) => {
+  try {
+    const payment = await UPIPayment.findOne({ bookingId: req.params.bookingId });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
+    }
+    res.json({ success: true, status: payment.status, payment });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+ 
+// ── POST /api/upi/admin-confirm/:bookingId ───────────────────────────────────
+// Admin manually confirms a UTR-based payment from admin panel
+app.post("/api/upi/admin-confirm/:bookingId", async (req, res) => {
+  try {
+    const { utr } = req.body;
+    const payment = await UPIPayment.findOne({ bookingId: req.params.bookingId });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
+    }
+ 
+    payment.status     = "success";
+    payment.utr        = utr ? utr.trim().toUpperCase() : payment.utr || "ADMIN_CONFIRMED";
+    payment.verifiedAt = new Date();
+    await payment.save();
+ 
+    // Confirm booking
+    await Booking.updateOne(
+      { $or: [{ bookingCode: req.params.bookingId }, { pnr: req.params.bookingId }] },
+      { paymentStatus: "Paid", bookingStatus: "Confirmed" }
+    );
+ 
+    res.json({ success: true, message: "Payment confirmed by admin", payment });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+ 
+// ── GET /api/upi/pending-verifications ──────────────────────────────────────
+// Admin: list all pending UPI payments awaiting verification
+app.get("/api/upi/pending-verifications", async (req, res) => {
+  try {
+    const pending = await UPIPayment.find({ status: "pending" }).sort({ createdAt: -1 });
+    res.json({ success: true, payments: pending, count: pending.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+ 
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message:`Route ${req.method} ${req.path} not found` });

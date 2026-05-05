@@ -40,6 +40,12 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
+import {
+  useUPIPayment,
+  UPIPaymentModal,
+  UTRVerificationModal,
+} from "./src/hooks/useUPIPayment";
+ 
 const API_BASE = "https://shahaji-travels-backend.onrender.com";
 const { width: SW, height: SH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === "web";
@@ -2391,7 +2397,17 @@ const [otpVerifying,   setOtpVerifying]   = useState(false);
 const [otpResendTimer, setOtpResendTimer] = useState(0);
 const otpTimerRef = useRef(null);
 
-
+const {
+    upiModalVisible,  setUPIModalVisible,
+    utrModalVisible,  setUTRModalVisible,
+    utrValue,         setUTRValue,
+    paymentState,     currentPayment,
+    qrSettings:       upiQrSettings,
+    pollCount,
+    initPayment,      openUPIApp,
+    verifyUTR,        startPolling,
+    stopPolling,      resetPayment,
+  } = useUPIPayment({ showAlert, setLoading, setLoadMsg });
 // ← इथे add करा
 const startOtpTimer = () => {
   setOtpResendTimer(30);
@@ -2647,6 +2663,8 @@ useEffect(() => {
   };
 
   const handleLogoutConfirm = () => {
+     resetPayment();   // ← ADD THIS LINE at the top
+    stopPolling(); 
   setUser(null);
   setWallet(0);
   setTicket(null);
@@ -3064,32 +3082,101 @@ const handleQRBooking = async () => {
   }
 };
 const handleConfirmBooking = async () => {
-  // ── Validations ──────────────────────────────────────────
-  if (!selectedSeats.length)
-    return showAlert(t.errorTitle, "Please select a seat.");
-  if (!passengerInfo.name.trim())
-    return showAlert(t.errorTitle, "Enter passenger name.");
-  if (!passengerInfo.phone.trim() || passengerInfo.phone.length < 10)
-    return showAlert(t.errorTitle, "Enter valid 10-digit phone.");
-  if (!passengerInfo.age.trim())
-    return showAlert(t.errorTitle, "Enter passenger age.");
-  if (!selectedBoarding?.id)
-    return showAlert(t.errorTitle, "Please select boarding point.");
-  if (!selectedDropping?.id)
-    return showAlert(t.errorTitle, "Please select dropping point.");
-
-  // ── QR Payment → show QR modal directly (no OTP before scan) ──
-  if (paymentMethod === "QR_UPI") {
-    setQrUtrNumber("");
-    setQrPaymentDone(false);
-    setShowQRModal(true);
-    return;
-  }
-
-  // ── Cash → confirm modal directly ────────────────────────
- // ── Cash → OTP verify करा मग confirm ────────────────────
-  if (paymentMethod === "Cash") {
-    setOtpValue("");
+    // ── Validations ──────────────────────────────────────────────────────
+    if (!selectedSeats.length)
+      return showAlert("Error", "Please select a seat.");
+    if (!passengerInfo.name.trim())
+      return showAlert("Error", "Enter passenger name.");
+    if (!passengerInfo.phone.trim() || passengerInfo.phone.length < 10)
+      return showAlert("Error", "Enter valid 10-digit phone.");
+    if (!passengerInfo.age.trim())
+      return showAlert("Error", "Enter passenger age.");
+    if (!selectedBoarding?.id)
+      return showAlert("Error", "Please select boarding point.");
+    if (!selectedDropping?.id)
+      return showAlert("Error", "Please select dropping point.");
+ 
+    const finalAmount = getFinalAmount();
+ 
+    // ── QR / UPI payment ────────────────────────────────────────────────
+    if (paymentMethod === "QR_UPI") {
+      setLoading(true);
+      setLoadMsg("Initializing payment...");
+ 
+      try {
+        // 1. Create booking in PENDING state first
+        const bookingData = buildBookingPayload(); // see STEP 4 below
+        const bookingRes  = await api.createBooking(bookingData);
+        const newBookingId = bookingRes.bookingId || bookingRes.booking?.bookingCode;
+ 
+        if (!newBookingId) throw new Error("Could not create booking record");
+ 
+        // 2. Initialize UPI payment record on backend
+        await initPayment({
+          bookingId:   newBookingId,
+          amount:      finalAmount,
+          userId:      user?._id || "",
+          phone:       passengerInfo.phone,
+          busId:       String(selectedBus?._id || selectedBus?.id || ""),
+          journeyDate: search.date,
+        });
+ 
+        setLoading(false);
+ 
+        // 3. Store temp ticket data for display after verification
+        const tempTicket = {
+          ...bookingData,
+          bookingId:     newBookingId,
+          busName:       selectedBus?.name || "Shahaji Travels",
+          busType:       selectedBus?.type || "AC Sleeper",
+          selectedSeats,
+          departure:     selectedBus?.departure,
+          arrival:       selectedBus?.arrival,
+          duration:      selectedBus?.duration,
+          route:         `${search.from} → ${search.to}`,
+          date:          search.date,
+          amount:        finalAmount,
+          paymentMode:   "QR_UPI",
+          bookingStatus: "Pending",
+        };
+        setTicket(tempTicket);
+ 
+        // 4. Open UPI modal
+        setUPIModalVisible(true);
+ 
+        // 5. Start polling for admin confirmation (Option B — runs in background)
+        startPolling(newBookingId, (confirmedPayment) => {
+          // Admin confirmed payment via admin panel
+          setTicket(prev => ({ ...prev, bookingStatus: "Confirmed", paymentMode: "QR_UPI" }));
+          setUTRModalVisible(false);
+          setUPIModalVisible(false);
+          setBookedSeats(prev => [...prev, ...selectedSeats]);
+          setScreen("ticket");
+        });
+ 
+      } catch (err) {
+        setLoading(false);
+        showAlert("Error", err?.message || "Could not initialize payment.");
+      }
+      return;
+    }
+ 
+    // ── Cash → OTP ───────────────────────────────────────────────────────
+    if (paymentMethod === "Cash") {
+      setOtpSending(true);
+      try {
+        await sendOtp(passengerInfo.phone);
+        setOtpSending(false);
+        setShowOtpModal(true);
+        startOtpTimer();
+      } catch (err) {
+        setOtpSending(false);
+        showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
+      }
+      return;
+    }
+ 
+    // ── Other payment methods (Razorpay etc.) ────────────────────────────
     setOtpSending(true);
     try {
       await sendOtp(passengerInfo.phone);
@@ -3100,42 +3187,40 @@ const handleConfirmBooking = async () => {
       setOtpSending(false);
       showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
     }
-    return;
-  }
-
-  // ── UPI Validation ────────────────────────────────────────
-  if (["GPay", "PhonePe", "UPI"].includes(paymentMethod)) {
-    if (!passengerInfo.upiId?.trim())
-      return showAlert("UPI Error", "UPI ID enter करा.");
-    if (!passengerInfo.upiId.includes("@"))
-      return showAlert("UPI Error", "Valid UPI ID enter करा (example@upi).");
-  }
-
-  // ── Card Validation ───────────────────────────────────────
-  if (paymentMethod === "Card") {
-    if (!passengerInfo.cardNumber || passengerInfo.cardNumber.replace(/\s/g, "").length < 16)
-      return showAlert("Card Error", "16 digit card number enter करा.");
-    if (!passengerInfo.cardExpiry || passengerInfo.cardExpiry.length < 5)
-      return showAlert("Card Error", "Expiry date enter करा.");
-    if (!passengerInfo.cardCvv || passengerInfo.cardCvv.length < 3)
-      return showAlert("Card Error", "CVV enter करा.");
-    if (!passengerInfo.cardName?.trim())
-      return showAlert("Card Error", "Card holder name enter करा.");
-  }
-
-  // ── OTP for all remaining payment types ───────────────────
-  setOtpValue("");
-  setOtpSending(true);
-  try {
-    await sendOtp(passengerInfo.phone);
-    setOtpSending(false);
-    setShowOtpModal(true);
-    startOtpTimer();
-  } catch (err) {
-    setOtpSending(false);
-    showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
-  }
-};
+  };
+ const buildBookingPayload = () => ({
+    userId:        user?._id || user?.id || "",
+    customerName:  passengerInfo.name.trim(),
+    passengerName: passengerInfo.name.trim(),
+    mobile:        passengerInfo.phone,
+    phone:         passengerInfo.phone,
+    email:         passengerInfo.email || user?.email || "",
+    bus:           String(selectedBus?._id || selectedBus?.id || ""),
+    busName:       selectedBus?.name || "",
+    route:         selectedBus?.routeId || "",
+    trip:          selectedBus?.tripId  || "",
+    journeyDate:   search.date,
+    date:          search.date,
+    boardingPoint: selectedBoarding?.name || "",
+    droppingPoint: selectedDropping?.name || "",
+    passengers: [{
+      name:        passengerInfo.name.trim(),
+      age:         Number(passengerInfo.age),
+      gender:      passengerInfo.gender,
+      seatNumber:  selectedSeats[0] || "",
+      phone:       passengerInfo.phone,
+    }],
+    seatNumbers:   selectedSeats,
+    selectedSeats,
+    baseAmount:    baseAmount,
+    amount:        getFinalAmount(),
+    totalAmount:   getFinalAmount(),
+    paymentMethod: paymentMethod,
+    paymentMode:   paymentMethod,
+    paymentStatus: paymentMethod === "QR_UPI" ? "Pending" : "Paid",
+    bookingStatus: paymentMethod === "QR_UPI" ? "Pending" : "Confirmed",
+  });
+ 
 const handleRazorpayPayment = async () => {
   // Cash → direct confirm modal
  
@@ -3360,6 +3445,8 @@ totalAmount: getFinalAmount(),
     resetOtpState();
     setShowOtpModal(false);
     setShowConfirmModal(false);
+     resetPayment();          // clear UPI state
+    stopPolling();  
     
     try {
       await Notifications.scheduleNotificationAsync({
@@ -4396,6 +4483,68 @@ ListEmptyComponent={
     </View>
   </View>
 </Modal>
+
+        <UPIPaymentModal
+          visible={upiModalVisible}
+          onClose={() => {
+            setUPIModalVisible(false);
+            stopPolling();
+            resetPayment();
+          }}
+          amount={getFinalAmount()}
+          bookingId={ticket?.bookingId || ""}
+          qrSettings={upiQrSettings}
+          onAppOpened={async (appUrl) => {
+            // Called when user taps a UPI app button
+            await openUPIApp(appUrl);
+          }}
+        />
+ 
+        {/* ── UTR Verification Modal ── */}
+        <UTRVerificationModal
+          visible={utrModalVisible}
+          onClose={() => {
+            setUTRModalVisible(false);
+            stopPolling();
+            // Cancel booking — seats not confirmed
+            showAlert(
+              "Booking Cancelled",
+              "Payment not verified. If money was deducted, contact support with UTR.",
+              [{ text: "OK", onPress: () => { resetPayment(); setScreen("home"); } }]
+            );
+          }}
+          utrValue={utrValue}
+          setUTRValue={setUTRValue}
+          verifying={paymentState === "verifying"}
+          amount={getFinalAmount()}
+          bookingId={ticket?.bookingId || ""}
+          pollCount={pollCount}
+          onVerify={async (utr) => {
+            const result = await verifyUTR(utr);
+            if (result?.success) {
+              // Payment verified — finalize ticket
+              setTicket(prev => ({
+                ...prev,
+                bookingStatus: "Confirmed",
+                paymentMode:   "QR_UPI",
+                conductorNote: `UTR: ${utr.trim().toUpperCase()}`,
+              }));
+              setBookedSeats(prev => [...prev, ...selectedSeats]);
+              stopPolling();
+              setScreen("ticket");
+            }
+          }}
+          onPaidAlready={() => {
+            // User says payment was deducted but has no UTR yet
+            showAlert(
+              "💰 Money Deducted?",
+              "No problem! Check your UPI app → Transaction History → find the payment → copy the UTR / Reference ID and enter it here.",
+              [{ text: "OK, I'll find it" }]
+            );
+          }}
+        />
+ 
+ 
         <ConfirmBookingModal
           visible={showConfirmModal}
           onCancel={()=>setShowConfirmModal(false)}
