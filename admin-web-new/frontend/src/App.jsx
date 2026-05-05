@@ -197,15 +197,9 @@ function AdminQRSettings({ showToast }) {
         setQrFile(null);
        showToast("✅ Settings saved successfully!");
         // Auto backup
+       // Auto backup
         try {
-          const r = await fetch(`${BASE_URL}/api/admin/backup`);
-          const blob = await r.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `auto_backup_${new Date().toISOString().slice(0,10)}.json`;
-          a.click();
-          window.URL.revokeObjectURL(url);
+          await fetch(`${BASE_URL}/api/admin/backup-silent`, { method: "POST" });
         } catch(e) { console.log("backup skip:", e.message); }
       } else {
         showToast("Save failed: " + (data.message || "Unknown error"), "error");
@@ -1738,17 +1732,11 @@ function renderSeatBtnNew(seat, isSleeper) {
 // ── Auto Backup Helper ──
 async function triggerAutoBackup() {
   try {
-    const res = await fetch(`${BASE_URL}/api/admin/backup`);
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `auto_backup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // Silent backup — फक्त server ला ping कर, file download नाही
+    await fetch(`${BASE_URL}/api/admin/backup-silent`, { method: "POST" });
     console.log("✅ Auto backup done");
   } catch (e) {
-    console.log("Auto backup failed:", e.message);
+    console.log("Auto backup skip:", e.message);
   }
 }
   // ===================== BUSES CRUD =====================

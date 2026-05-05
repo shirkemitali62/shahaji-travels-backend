@@ -2941,6 +2941,33 @@ app.delete("/api/admin/devices/:id", async (req, res) => {
     res.json({ success: true, message: "Device removed" });
   } catch(err) { res.status(500).json({ message: err.message }); }
 });
+// SILENT AUTO BACKUP — MongoDB मध्ये save
+const backupSchema = new mongoose.Schema({
+  savedAt: { type: Date, default: Date.now },
+  buses: Array,
+  bookings: Array,
+  customers: Array,
+});
+const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);
+
+app.post("/api/admin/backup-silent", async (req, res) => {
+  try {
+    const [buses, bookings, customers] = await Promise.all([
+      mongoose.connection.db.collection("buses").find({}).toArray(),
+      Booking.find({}).lean(),
+      Customer.find({}).lean(),
+    ]);
+
+    // आधीचा backup delete कर — फक्त latest ठेव
+    await Backup.deleteMany({});
+    
+    await Backup.create({ buses, bookings, customers });
+    
+    res.json({ success: true, message: "Backup saved silently" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // ─── BACKUP & RESTORE ROUTES ─────────────────────────────────────
 
 // DOWNLOAD FULL BACKUP
