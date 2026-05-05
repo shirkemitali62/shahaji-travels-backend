@@ -1881,8 +1881,9 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
                     id={leftId}
                     isSleeper={isSleeper}
                    blocked={leftId && leftId !== "" && blockedSeats.includes(String(leftId))}
-                    booked={bookedSeats.includes(leftId)}
-                    selected={selectedSeats.includes(leftId)}
+                    
+booked={bookedSeats.map(s => String(s)).includes(String(leftId))}
+selected={selectedSeats.map(s => String(s)).includes(String(leftId))}
                     female={String(seatGenderMap?.[leftId]) === "Female" ? "Female" : "Male"}
                     onPress={onToggle}
                     price={price}
@@ -1984,8 +1985,9 @@ const SleeperDeckSection = ({
         style={{ width: SEAT_W, height: SEAT_H, margin: SEAT_GAP }} />
     );
 
-    const isBooked   = bookedSeats.includes(id);
-    const isSelected = selectedSeats.includes(id);
+// Seat component च्या आत — booked check
+const isBooked = bookedSeats.includes(String(id));
+const isSelected = selectedSeats.includes(String(id));
     const isFemale   = String(seatGenderMap?.[id]) === "Female";
     const isBlocked  = id && String(id).trim() !== "" && blockedSeats.includes(String(id));
 
@@ -2783,26 +2785,28 @@ setSelectedBus({
   seats: Array.isArray(bus.seats) ? bus.seats : [],
 });
     // Booked seats fetch
-    try {
-      const r = await api.getBookedSeats(bus.id || bus._id, search.date);
-      const rawSeats = r?.bookedSeats || [];
-      if (rawSeats.length > 0 && typeof rawSeats[0] === "object") {
-        bSeats = rawSeats.map(s => s.id || s.seatNumber);
-        rawSeats.forEach(s => { 
-          bGenderMap[s.id || s.seatNumber] = s.gender || "Male"; 
-        });
-      } else {
-        bSeats = rawSeats;
-        rawSeats.forEach(id => { 
-          bGenderMap[id] = "Male"; 
-        });
-      }
-    } catch {
-      bSeats = bus.bookedSeats || [];
-      bSeats.forEach(id => { 
-        bGenderMap[id] = "Male"; 
-      });
-    }
+   // booked seats fetch — existing try block replace करा
+try {
+  const r = await api.getBookedSeats(bus.id || bus._id, search.date);
+  const rawSeats = r?.bookedSeats || [];
+  if (rawSeats.length > 0 && typeof rawSeats[0] === "object") {
+    bSeats = rawSeats.map(s => String(s.id || s.seatNumber || ""));
+    rawSeats.forEach(s => { 
+      const id = String(s.id || s.seatNumber || "");
+      if (id) bGenderMap[id] = s.gender || "Male"; 
+    });
+  } else {
+    bSeats = rawSeats.map(s => String(s));  // ✅ String conversion
+    bSeats.forEach(id => { 
+      if (id) bGenderMap[id] = "Male"; 
+    });
+  }
+} catch {
+  bSeats = (bus.bookedSeats || []).map(s => String(s));
+  bSeats.forEach(id => { 
+    if (id) bGenderMap[id] = "Male"; 
+  });
+}
 
     // Boarding points fetch
     let bPts = [];

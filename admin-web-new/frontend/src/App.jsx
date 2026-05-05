@@ -1154,6 +1154,15 @@ function PopularRoutesPage({ showToast }) {
 // ===================== TICKET HELPERS =====================
 function generateTicket(booking) {
   const code = booking.bookingCode || booking.pnr || "BK000000";
+  
+  // Seat — फक्त seat number, R1·E नको
+  const seatDisplay = booking.seatNo || 
+    (booking.seatNumbers?.join(", ")) || "—";
+  
+  const payStatus = booking.paymentStatus === "Paid" 
+    ? "✅ पेमेंट जमा आहे" 
+    : "⚠️ पेमेंट बाकी आहे";
+
   const w = window.open("", "_blank");
   if (!w) return;
   const rows = [
@@ -1161,26 +1170,38 @@ function generateTicket(booking) {
     ["Passenger", booking.passengerName || "-"],
     ["Phone", booking.phone || "-"],
     ["Age / Gender", (booking.age || "-") + " / " + (booking.gender || "-")],
-    ["Seat", getSeatDisplayLabel(booking.seatNo)],
+    ["Seat", seatDisplay],
     ["Route", (booking.boardingPoint || "-") + " to " + (booking.droppingPoint || "-")],
     ["Journey Date", booking.journeyDate || booking.date || "-"],
     ["Bus No", booking.busNo || booking.bus || "-"],
     ["Amount", "Rs. " + (booking.amount || booking.totalAmount || 0)],
-    ["Payment", booking.paymentMode || booking.paymentMethod || "-"],
-    ["Status", booking.paymentStatus || "-"],
+    ["Payment Mode", booking.paymentMode || booking.paymentMethod || "-"],
+    ["Payment Status", payStatus],
+    ["Conductor Note", booking.conductorNote || "-"],
   ];
   w.document.write(
     "<html><head><title>Ticket - " + code + "</title><style>" +
     "body{font-family:Arial;padding:40px;max-width:600px;margin:auto}" +
-    "h1{text-align:center;color:#991b1b}" +
+    ".logo{text-align:center;margin-bottom:10px}" +
+    ".logo img{width:80px;height:80px;border-radius:12px}" +
+    "h1{text-align:center;color:#991b1b;margin:4px 0}" +
+    "h3{text-align:center;color:#555;margin:4px 0 20px}" +
     ".row{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:8px 0}" +
-    ".label{color:#666;font-size:13px}.value{font-weight:bold}" +
+    ".label{color:#666;font-size:13px}.value{font-weight:bold;text-align:right;max-width:60%}" +
     ".footer{text-align:center;margin-top:30px;color:#666;font-size:12px}" +
+    ".pay-ok{color:#16a34a;font-weight:bold}" +
+    ".pay-due{color:#dc2626;font-weight:bold}" +
     "@media print{button{display:none}}" +
     "</style></head><body>" +
-    "<h1>SHAHAJI TRAVELS</h1><h3 style='text-align:center'>Bus Ticket</h3>" +
+    "<div class='logo'>" +
+    "<img src='https://shahaji-travels-backend.onrender.com/tickets/logo.png' onerror=\"this.style.display='none'\" />" +
+    "</div>" +
+    "<h1>SHAHAJI TRAVELS</h1><h3>Bus Ticket</h3>" +
     rows.map(function(r) {
-      return "<div class='row'><span class='label'>" + r[0] + "</span><span class='value'>" + r[1] + "</span></div>";
+      let valClass = "";
+      if (r[1] && String(r[1]).includes("जमा")) valClass = " class='pay-ok'";
+      if (r[1] && String(r[1]).includes("बाकी")) valClass = " class='pay-due'";
+      return "<div class='row'><span class='label'>" + r[0] + "</span><span class='value'" + valClass + ">" + r[1] + "</span></div>";
     }).join("") +
     "<div class='footer'>Thank you for choosing Shahaji Travels!<br>Please arrive 15 minutes before departure.</div>" +
     "<br><button onclick='window.print()' style='display:block;margin:0 auto;padding:10px 30px;background:#991b1b;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px'>Print</button>" +
@@ -1188,18 +1209,35 @@ function generateTicket(booking) {
   );
   w.document.close();
 }
-
 function sendTicketOnWhatsApp(booking) {
   const code = booking.bookingCode || booking.pnr || "BK000000";
+  
+  // Seat display — R1·E हटवा, फक्त seat number
+  const seatDisplay = booking.seatNo || 
+    (booking.seatNumbers?.join(", ")) || "—";
+  
+  // Payment status
+  const payStatus = booking.paymentStatus === "Paid" 
+    ? "✅ पेमेंट जमा आहे" 
+    : "⚠️ पेमेंट बाकी आहे";
+  
+  // Conductor note
+  const conductorNote = booking.conductorNote 
+    ? `\n*नोट:* ${booking.conductorNote}` 
+    : "";
+
   const msg = encodeURIComponent(
     "*Shahaji Travels - Booking Confirmed!*\n\n" +
     "*Booking ID:* " + code + "\n" +
     "*Bus No:* " + (booking.busNo || booking.bus || "-") + "\n" +
     "*Passenger:* " + (booking.passengerName || "-") + "\n" +
-    "*Seat:* " + getSeatDisplayLabel(booking.seatNo) + "\n" +
+    "*Seat:* " + seatDisplay + "\n" +
     "*Route:* " + (booking.boardingPoint || "-") + " to " + (booking.droppingPoint || "-") + "\n" +
     "*Date:* " + (booking.journeyDate || booking.date || "-") + "\n" +
     "*Amount:* Rs. " + (booking.amount || booking.totalAmount || 0) + "\n" +
+    "*Payment:* " + (booking.paymentMode || booking.paymentMethod || "-") + "\n" +
+    payStatus +
+    conductorNote + "\n" +
     "*Manager:* 9766775660"
   );
   const phone = String(booking.phone || "").replace(/\D/g, "");
