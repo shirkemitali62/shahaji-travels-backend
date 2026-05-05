@@ -2020,18 +2020,24 @@ if (rawDate) {
 
         {/* ── MAIN CONTENT ── */}
         <main className="main">
-          <header className="topbar">
-            <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
-              <span /><span /><span />
-            </button>
-            <div className="topbar-titles">
-              <div className="topbar-title">{settings.companyName} — Admin</div>
-              <div className="topbar-sub">Professional Bus Booking Management</div>
-            </div>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              {loading && <span className="loading-pill">⟳ Syncing...</span>}
-            </div>
-          </header>
+         <header className="topbar">
+  <button className="hamburger-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+    <span /><span /><span />
+  </button>
+  <div className="topbar-titles">
+    <div className="topbar-title">{settings.companyName} — Admin</div>
+    <div className="topbar-sub">Professional Bus Booking Management</div>
+  </div>
+  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+    {loading && <span className="loading-pill">⟳ Syncing...</span>}
+    <button
+      className="topbar-logout-btn"
+      onClick={handleLogout}
+    >
+      🚪 Logout
+    </button>
+  </div>
+</header>
 
           <div className="content">
             {page === "dashboard" && <DashboardPage dashboard={dashboard} />}
@@ -8095,5 +8101,32 @@ code { font-family: 'Courier New', monospace; font-size: 12px; background: var(-
   color: #9ca3af;
   border: 1px dashed #6b7280;
   cursor: not-allowed;
+}
+  .topbar-logout-btn {
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #f87171;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+.topbar-logout-btn:hover {
+  background: rgba(239,68,68,0.28);
+}
+
+/* Mobile वर फक्त icon दाखव */
+@media (max-width: 768px) {
+  .topbar-logout-btn {
+    padding: 7px 10px;
+    font-size: 16px;
+  }
+  .topbar-logout-btn::after {
+    content: '';
+  }
 }
 `;
