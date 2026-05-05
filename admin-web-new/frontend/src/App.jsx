@@ -41,8 +41,7 @@ const menu = [
 // MIDDLE: seats 1-24 (2 per row: window+aisle)
 // BACK SLEEPER: Left col A1-A6, Right 2 cols A-L (lower+upper)
 
-const SS_LEFT_SINGLE = ["U1","U2","U3","U4","U5","U6","U7","U8","U9","U10","U11","U12"];
-
+const SS_LEFT_SINGLE = ["V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","V11","V12"];
 const SS_RIGHT_PAIRS = [
   { window: "1",  aisle: "2"  },
   { window: "3",  aisle: "4"  },
@@ -6647,7 +6646,10 @@ function BookingDetailModal({ item, onClose, onPrint, onWhatsApp }) {
         {/* Stats Row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
           {[
-            { icon: "🪑", label: "Seat", val: getSeatDisplayLabel(item.seatNo) },
+           { icon: "🪑", label: item.seatNumbers?.length > 1 ? `Seats (${item.seatNumbers.length})` : "Seat", 
+  val: item.seatNumbers?.length > 1 
+    ? item.seatNumbers.join(", ") 
+    : item.seatNo ? getSeatDisplayLabel(item.seatNo) : "—" },
             { icon: "💰", label: "Amount", val: "₹" + Number(item.amount || 0).toLocaleString() },
             { icon: "💳", label: "Payment", val: item.paymentMode || "—" },
           ].map(({ icon, label, val }) => (

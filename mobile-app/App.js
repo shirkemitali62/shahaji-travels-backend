@@ -1866,57 +1866,60 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           </View>
         </View>
         <View style={{ paddingHorizontal: 8, paddingTop: 4, paddingBottom: 10 }}>
-          {seats.map((row, ri) => {
-            const leftId = row[0];
-            const right1 = row[2];
-            const right2 = row[3];
-            const isEmptyRow = !leftId && !right1 && !right2;
-            if (isEmptyRow) return <View key={`empty_${ri}`} style={{ height: 12 }} />;
-            const price = isSleeper ? (Number(sleeperPrice) || 0) : (Number(seatPrice) || 0);
+         {seats.map((row, ri) => {
+  const leftId = row[0];
+  const right1 = row[2];
+  const right2 = row[3];
+  const isEmptyRow = !leftId && !right1 && !right2;
+  if (isEmptyRow) return <View key={`empty_${ri}`} style={{ height: 12 }} />;
+  const price = isSleeper ? (Number(sleeperPrice) || 0) : (Number(seatPrice) || 0);
 
-            return (
-              <View key={ri} style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
-                <View style={{ width: 44 }}>
-                  <Seat
-                    id={leftId}
-                    isSleeper={isSleeper}
-                   blocked={leftId && leftId !== "" && blockedSeats.includes(String(leftId))}
-                    
-booked={bookedSeats.map(s => String(s)).includes(String(leftId))}
-selected={selectedSeats.map(s => String(s)).includes(String(leftId))}
-                    female={String(seatGenderMap?.[leftId]) === "Female" ? "Female" : "Male"}
-                    onPress={onToggle}
-                    price={price}
-                  />
-                </View>
-                <View style={{ width: 16, alignItems: "center" }}>
-                  <View style={{ width: 1, height: 28, backgroundColor: "#E8E8E8" }} />
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Seat
-                    id={right1}
-                    isSleeper={isSleeper}
-                  blocked={right1 && right1 !== "" && blockedSeats.includes(String(right1))}
-                    booked={bookedSeats.includes(right1)}
-                    selected={selectedSeats.includes(right1)}
-                    female={String(seatGenderMap?.[right1]) === "Female" ? "Female" : "Male"}
-                    onPress={onToggle}
-                    price={price}
-                  />
-                  <Seat
-                    id={right2}
-                    isSleeper={isSleeper}
-                   blocked={right2 && right2 !== "" && blockedSeats.includes(String(right2))}
-                    booked={bookedSeats.includes(right2)}
-                    selected={selectedSeats.includes(right2)}
-                    female={String(seatGenderMap?.[right2]) === "Female" ? "Female" : "Male"}
-                    onPress={onToggle}
-                    price={price}
-                  />
-                </View>
-              </View>
-            );
-          })}
+  const bookedUpper   = bookedSeats.map(s => String(s).trim().toUpperCase());
+  const selectedUpper = selectedSeats.map(s => String(s).trim().toUpperCase());
+  const blockedUpper  = (blockedSeats || []).map(s => String(s).trim().toUpperCase());
+
+  return (
+    <View key={ri} style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
+      <View style={{ width: 44 }}>
+        <Seat
+          id={leftId}
+          isSleeper={isSleeper}
+          blocked={!!leftId && blockedUpper.includes(String(leftId).trim().toUpperCase())}
+          booked={!!leftId && bookedUpper.includes(String(leftId).trim().toUpperCase())}
+          selected={!!leftId && selectedUpper.includes(String(leftId).trim().toUpperCase())}
+          female={String(seatGenderMap?.[leftId]) === "Female" ? "Female" : "Male"}
+          onPress={onToggle}
+          price={price}
+        />
+      </View>
+      <View style={{ width: 16, alignItems: "center" }}>
+        <View style={{ width: 1, height: 28, backgroundColor: "#E8E8E8" }} />
+      </View>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Seat
+          id={right1}
+          isSleeper={isSleeper}
+          blocked={!!right1 && blockedUpper.includes(String(right1).trim().toUpperCase())}
+          booked={!!right1 && bookedUpper.includes(String(right1).trim().toUpperCase())}
+          selected={!!right1 && selectedUpper.includes(String(right1).trim().toUpperCase())}
+          female={String(seatGenderMap?.[right1]) === "Female" ? "Female" : "Male"}
+          onPress={onToggle}
+          price={price}
+        />
+        <Seat
+          id={right2}
+          isSleeper={isSleeper}
+          blocked={!!right2 && blockedUpper.includes(String(right2).trim().toUpperCase())}
+          booked={!!right2 && bookedUpper.includes(String(right2).trim().toUpperCase())}
+          selected={!!right2 && selectedUpper.includes(String(right2).trim().toUpperCase())}
+          female={String(seatGenderMap?.[right2]) === "Female" ? "Female" : "Male"}
+          onPress={onToggle}
+          price={price}
+        />
+      </View>
+    </View>
+  );
+})}
         </View>
         {/* Legend */}
         <View style={{
@@ -2703,9 +2706,8 @@ const handleSearch = async () => {
   }
 };
 
- const handleSelectBus = async (bus) => {
-  let busBlockedSeats = [];
-
+const handleSelectBus = async (bus) => {
+  // Reset all state
   setSelectedSeats([]); 
   setSeatGenderMap({});
   setSelectedBoarding(null); 
@@ -2718,7 +2720,12 @@ const handleSearch = async () => {
   setDroppingPoints([]); 
   setShowBusDetail(false);
   setLoading(true); 
-  setLoadMsg(t.loadingSeats || "Loading...");
+  setLoadMsg("Loading...");
+
+  // ✅ Variables आधी declare करा
+  let bSeats = [];
+  let bGenderMap = {};
+  let busBlockedSeats = [];
 
   // Cash Settings Fetch
   try {
@@ -2728,9 +2735,7 @@ const handleSearch = async () => {
       cashPaymentEnabled: settingsData.cashPaymentEnabled !== false,
       cashOverridePhones: settingsData.cashOverridePhones || [],
     });
-  } catch {
-    // default → cash enabled
-  }
+  } catch {}
 
   // QR Settings Fetch
   try {
@@ -2742,65 +2747,92 @@ const handleSearch = async () => {
   } catch {}
 
   try {
-    let bSeats = []; 
-    let bGenderMap = {};
-
     // Blocked seats fetch from bus API
-   // Blocked seats fetch from bus API
     try {
       const busRes = await fetch(`${API_BASE}/api/buses/${bus._id || bus.id}`);
       const busData = await busRes.json();
       const fetchedBus = busData.bus || busData;
-      
-      console.log("🚌 fetchedBus.blockedSeats:", fetchedBus.blockedSeats);
-      console.log("🚌 fetchedBus.seats:", JSON.stringify(fetchedBus.seats?.slice(0,3)));
 
       const fromBlockedArr = Array.isArray(fetchedBus.blockedSeats) 
         ? fetchedBus.blockedSeats.map(String) 
         : [];
-     const fromSeatsArr = Array.isArray(fetchedBus.seats)
-  ? fetchedBus.seats
-      .filter(s => s && s.isBlocked === true && s.seatNo && String(s.seatNo).trim() !== "")
-      .map(s => String(s.seatNo).trim())
-  : [];
-console.log("🔴 fromSeatsArr (isBlocked=true):", fromSeatsArr);
+
+      const fromSeatsArr = Array.isArray(fetchedBus.seats)
+        ? fetchedBus.seats
+            .filter(s => s && s.isBlocked === true && s.seatNo && String(s.seatNo).trim() !== "")
+            .map(s => String(s.seatNo).trim())
+        : [];
+
       busBlockedSeats = [...new Set([...fromBlockedArr, ...fromSeatsArr])];
-      console.log("✅ busBlockedSeats final:", busBlockedSeats);
       bus = { ...bus, blockedSeats: busBlockedSeats, seats: fetchedBus.seats || [] };
     } catch (e) {
       busBlockedSeats = Array.isArray(bus.blockedSeats) ? bus.blockedSeats.map(String) : [];
-      console.log("❌ Bus fetch error:", e.message);
     }
 
     // selectedBus set करा
     const finalBlocked = [...new Set([
-  ...(Array.isArray(bus.blockedSeats) ? bus.blockedSeats.map(String) : []),
-  ...busBlockedSeats,
-])].filter(s => s && s.trim() !== "" && s !== "undefined" && s !== "null");
-console.log("✅ finalBlocked seats:", JSON.stringify(finalBlocked));
+      ...(Array.isArray(bus.blockedSeats) ? bus.blockedSeats.map(String) : []),
+      ...busBlockedSeats,
+    ])].filter(s => s && s.trim() !== "" && s !== "undefined" && s !== "null");
 
-setSelectedBus({
-  ...bus,
-  blockedSeats: finalBlocked,
-  seats: Array.isArray(bus.seats) ? bus.seats : [],
-});
+    setSelectedBus({
+      ...bus,
+      blockedSeats: finalBlocked,
+      seats: Array.isArray(bus.seats) ? bus.seats : [],
+    });
+
     // Booked seats fetch
-   // booked seats fetch — existing try block replace करा
+    // Booked seats fetch - FIXED
 try {
-  const r = await api.getBookedSeats(bus.id || bus._id, search.date);
+  const busId = bus.id || bus._id;
+  const dateFormatted = search.date; // DD/MM/YYYY format
+  
+  // Method 1: trips seats API
+  const r = await api.getBookedSeats(busId, dateFormatted);
   const rawSeats = r?.bookedSeats || [];
+  
   if (rawSeats.length > 0 && typeof rawSeats[0] === "object") {
-    bSeats = rawSeats.map(s => String(s.id || s.seatNumber || ""));
+    bSeats = rawSeats.map(s => String(s.id || s.seatNumber || "")).filter(Boolean);
     rawSeats.forEach(s => { 
       const id = String(s.id || s.seatNumber || "");
       if (id) bGenderMap[id] = s.gender || "Male"; 
     });
   } else {
-    bSeats = rawSeats.map(s => String(s));  // ✅ String conversion
+    bSeats = rawSeats.map(s => String(s)).filter(Boolean);
     bSeats.forEach(id => { 
       if (id) bGenderMap[id] = "Male"; 
     });
   }
+  
+  console.log("🎫 Booked seats from API:", bSeats);
+  
+  // Method 2: जर bSeats empty असेल तर bookings API directly call करा
+  if (bSeats.length === 0) {
+    try {
+      const bookRes = await fetch(
+        `${API_BASE}/api/bookings/bus/${busId}?date=${dateFormatted}`
+      );
+      const bookData = await bookRes.json();
+      const bookings = Array.isArray(bookData) ? bookData : (bookData.bookings || []);
+      
+      bookings.forEach(b => {
+        if (b.bookingStatus === "Cancelled") return;
+        const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length 
+          ? b.seatNumbers 
+          : b.seatNo ? [b.seatNo] : [];
+        seats.forEach(s => {
+          if (s) {
+            bSeats.push(String(s));
+            bGenderMap[String(s)] = b.gender || b.passengers?.[0]?.gender || "Male";
+          }
+        });
+      });
+      console.log("🎫 Booked seats from bookings API:", bSeats);
+    } catch(e) {
+      console.log("Bookings API error:", e.message);
+    }
+  }
+  
 } catch {
   bSeats = (bus.bookedSeats || []).map(s => String(s));
   bSeats.forEach(id => { 
@@ -2843,7 +2875,7 @@ try {
     setScreen("booking");
 
   } catch (err) { 
-    showAlert(t.errorTitle, err?.message || "Could not load bus."); 
+    showAlert("Error", err?.message || "Could not load bus."); 
   } finally { 
     setLoading(false); 
   }
