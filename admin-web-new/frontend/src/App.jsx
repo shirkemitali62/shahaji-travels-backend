@@ -1156,13 +1156,19 @@ function generateTicket(booking) {
   const code = booking.bookingCode || booking.pnr || "BK000000";
   
   // Seat — फक्त seat number, R1·E नको
-  const seatDisplay = booking.seatNo || 
-    (booking.seatNumbers?.join(", ")) || "—";
+  const allSeats = booking.seatNumbers?.length 
+  ? booking.seatNumbers 
+  : booking.seatNo ? [booking.seatNo] : [];
+const seatDisplay = allSeats.join(", ") || "—";
+const seatCount = allSeats.length;
   
-  const payStatus = booking.paymentStatus === "Paid" 
-    ? "✅ पेमेंट जमा आहे" 
-    : "⚠️ पेमेंट बाकी आहे";
-
+const payStatus = 
+  booking.paymentStatus === "Paid"      ? "✅ Paid" :
+  booking.paymentStatus === "Pending"   ? "⏳ Pending" :
+  booking.paymentStatus === "Failed"    ? "❌ Failed" :
+  booking.paymentStatus === "Refunded"  ? "↩️ Refunded" :
+  booking.paymentStatus === "Cancelled" ? "🚫 Cancelled" :
+  (booking.paymentStatus || "—");
   const w = window.open("", "_blank");
   if (!w) return;
   const rows = [
@@ -1212,34 +1218,37 @@ function generateTicket(booking) {
 function sendTicketOnWhatsApp(booking) {
   const code = booking.bookingCode || booking.pnr || "BK000000";
   
-  // Seat display — R1·E हटवा, फक्त seat number
   const seatDisplay = booking.seatNo || 
     (booking.seatNumbers?.join(", ")) || "—";
   
-  // Payment status
   const payStatus = booking.paymentStatus === "Paid" 
     ? "✅ पेमेंट जमा आहे" 
     : "⚠️ पेमेंट बाकी आहे";
   
-  // Conductor note
   const conductorNote = booking.conductorNote 
-    ? `\n*नोट:* ${booking.conductorNote}` 
+    ? "\n*Conductor Note:* " + booking.conductorNote 
     : "";
 
   const msg = encodeURIComponent(
-    "*Shahaji Travels - Booking Confirmed!*\n\n" +
+    "🚌 *SHAHAJI TRAVELS*\n" +
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "🎫 *Booking Confirmed!*\n\n" +
     "*Booking ID:* " + code + "\n" +
     "*Bus No:* " + (booking.busNo || booking.bus || "-") + "\n" +
     "*Passenger:* " + (booking.passengerName || "-") + "\n" +
-    "*Seat:* " + seatDisplay + "\n" +
-    "*Route:* " + (booking.boardingPoint || "-") + " to " + (booking.droppingPoint || "-") + "\n" +
+    "*Seat" + (seatCount > 1 ? "s (" + seatCount + ")*: " : ":* ") + seatDisplay + "\n" +
+    "*Route:* " + (booking.boardingPoint || "-") + " → " + (booking.droppingPoint || "-") + "\n" +
     "*Date:* " + (booking.journeyDate || booking.date || "-") + "\n" +
-    "*Amount:* Rs. " + (booking.amount || booking.totalAmount || 0) + "\n" +
-    "*Payment:* " + (booking.paymentMode || booking.paymentMethod || "-") + "\n" +
-    payStatus +
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "*Amount:* ₹" + (booking.amount || booking.totalAmount || 0) + "\n" +
+    "*Payment Mode:* " + (booking.paymentMode || booking.paymentMethod || "-") + "\n" +
+    "*Status:* " + payStatus +
     conductorNote + "\n" +
-    "*Manager:* 9766775660"
+    "━━━━━━━━━━━━━━━━━━━━\n" +
+    "📞 *Manager:* 9766775660\n" +
+    "Thank you for choosing Shahaji Travels! 🙏"
   );
+  
   const phone = String(booking.phone || "").replace(/\D/g, "");
   const full = phone.length === 10 ? "91" + phone : phone;
   window.open("https://wa.me/" + full + "?text=" + msg, "_blank");
@@ -1274,6 +1283,7 @@ const emptyBookingForm = {
   amount: "", seatNo: "", paymentMode: "Cash", paymentStatus: "Pending",
   age: "", gender: "Male", journeyDate: "", busNo: "", busId: "", busName: "",
   conductorNote: "", refundStatus: "Not Applicable", tripId: "",
+  seatNumbers: [], // ✅ ADD THIS
 };
 
 // ===================== NORMALIZE HELPERS =====================
@@ -1464,9 +1474,9 @@ export default function App() {
     if (!manualBooking.passengerName?.trim()) {
       showToast("Passenger name is required!", "error"); return;
     }
-    if (!manualBooking.seatNo) {
-      showToast("Please select a seat!", "error"); return;
-    }
+    if (!manualBooking.seatNumbers?.length && !manualBooking.seatNo) {
+  showToast("Please select at least one seat!", "error"); return;
+}
 
     const payload = {
       customerName: manualBooking.passengerName.trim(),
@@ -1488,7 +1498,9 @@ busName: selectedBus?.name || manualBooking.busName || "",
           seatNumber: manualBooking.seatNo,
         },
       ],
-      seatNumbers: manualBooking.seatNo ? [manualBooking.seatNo] : [],
+     seatNumbers: manualBooking.seatNumbers?.length 
+  ? manualBooking.seatNumbers 
+  : manualBooking.seatNo ? [manualBooking.seatNo] : [],
       totalAmount: Number(manualBooking.amount) || 0,
       paymentMethod: manualBooking.paymentMode,
       paymentStatus: manualBooking.paymentStatus || "Pending",
@@ -1723,8 +1735,21 @@ function renderSeatBtnNew(seat, isSleeper) {
           return;
         }
         if (isBooked) { setSeatPopup(seatBooking); return; }
-        setAdminGenderPicker({ visible: true, seat });
-      }}
+// Already selected असेल तर remove करा
+if (manualBooking.seatNumbers?.includes(seatStr)) {
+  const newSeats = (manualBooking.seatNumbers || []).filter(s => s !== seatStr);
+  const pricePerSeat = Number(selectedBus?.seaterPrice || selectedBus?.price || 0);
+  setManualBooking(p => ({
+    ...p,
+    seatNumbers: newSeats,
+    seatNo: newSeats[0] || "",
+    amount: String(pricePerSeat * newSeats.length),
+  }));
+  setSeatGenderMap(prev => { const n = {...prev}; delete n[seatStr]; return n; });
+  setSelectedSeat(newSeats[0] || "");
+  return;
+}
+setAdminGenderPicker({ visible: true, seat: seatStr });      }}
       onContextMenu={e => {
         e.preventDefault();
         if (!busIdForOp && !selectedTripId) return;
@@ -2287,27 +2312,20 @@ const [seatGenderMap, setSeatGenderMap] = React.useState({});
 function handleAdminGenderSelect(gender) {
   const seat = adminGenderPicker.seat;
   setAdminGenderPicker({ visible: false, seat: null });
-
   if (!seat) return;
 
-  // 🔥 FAMILY DETECTION CHECK
-  if (!isSeatSelectable(seat, gender)) {
-    alert("⚠️ This seat is not allowed due to adjacent gender restriction");
-    return;
-  }
+  const newSeats = [...(manualBooking.seatNumbers || []), seat];
+  const pricePerSeat = Number(selectedBus?.seaterPrice || selectedBus?.price || 0);
+  const totalAmount = pricePerSeat * newSeats.length;
 
   setSelectedSeat(seat);
-
-  setSeatGenderMap(prev => ({
-    ...prev,
-     [String(seat)]: gender
-
-  }));
-
+  setSeatGenderMap(prev => ({ ...prev, [String(seat)]: gender }));
   setManualBooking(prev => ({
     ...prev,
-    seatNo: seat,
-    gender
+    seatNo: newSeats[0],
+    seatNumbers: newSeats,
+    gender,
+    amount: String(totalAmount),
   }));
 }
 
@@ -3454,14 +3472,58 @@ function renderACSleeperLayout() {
             {renderSeatGrid(UPPER_SEAT_PAIRS, "🛏️ Upper Deck")}
           </div>
         )}
- 
+ {/* ── Selected Seats Summary ── */}
+{manualBooking.seatNumbers?.length > 0 && (
+  <div style={{
+    padding: "12px 16px", borderRadius: 10, marginTop: 8,
+    background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
+    display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
+  }}>
+    <div>
+      <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 4 }}>
+        ✅ Selected Seats ({manualBooking.seatNumbers.length})
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {manualBooking.seatNumbers.map(seat => (
+          <span key={seat} style={{
+            background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.4)",
+            borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#22c55e",
+          }}>
+            {seat}
+            <button
+              onClick={() => setManualBooking(p => ({
+                ...p,
+                seatNumbers: p.seatNumbers.filter(s => s !== seat),
+                seatNo: p.seatNumbers.filter(s => s !== seat)[0] || "",
+                amount: String(
+                  (Number(selectedBus?.seaterPrice || selectedBus?.price || 0)) *
+                  p.seatNumbers.filter(s => s !== seat).length
+                ),
+              }))}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "#ef4444", fontSize: 14, marginLeft: 4, padding: 0,
+              }}
+            >×</button>
+          </span>
+        ))}
+      </div>
+    </div>
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 11, color: "var(--text2)" }}>Total Amount</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: "#22c55e" }}>
+        ₹{manualBooking.amount || 0}
+      </div>
+    </div>
+  </div>
+)}
         <div className="form-actions">
           <button className="btn-primary" onClick={addManualBooking}>➕ Add Booking</button>
           <button className="btn-secondary" onClick={() => {
-  setManualBooking({ ...emptyBookingForm });
-  setSelectedSeat("");
-  setSelectedTripId("");
-  setSeatGenderMap({});   // 🔥 YE ADD KAR
+  setManualBooking({ ...emptyBookingForm, seatNumbers: [] });
+setSelectedSeat("");
+setSelectedTripId("");
+setSeatGenderMap({}); // 🔥 YE ADD KAR
 }}>Clear Form</button>
         </div>
       </div>
