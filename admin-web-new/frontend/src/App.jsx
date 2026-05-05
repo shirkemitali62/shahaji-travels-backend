@@ -32,6 +32,7 @@ const menu = [
   { key: "popular",       icon: "🛣️", label: "Popular Routes" },
   { key: "notifications", icon: "🔔", label: "Notifications" },
   { key: "qr",            icon: "📱", label: "QR Payment" },
+  { key: "backup",        icon: "🗄️", label: "Backup" },
 ];
 
 // ── SEATER-SLEEPER BUS: Lower deck (seater) + Upper deck (sleeper) ──
@@ -191,10 +192,21 @@ function AdminQRSettings({ showToast }) {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (data.success) {
-        if (data.settings) setSettings(data.settings); // update local state with saved data
-        setQrFile(null); // clear pending upload
-        showToast("✅ Settings saved successfully!");
+     if (data.success) {
+        if (data.settings) setSettings(data.settings);
+        setQrFile(null);
+       showToast("✅ Settings saved successfully!");
+        // Auto backup
+        try {
+          const r = await fetch(`${BASE_URL}/api/admin/backup`);
+          const blob = await r.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `auto_backup_${new Date().toISOString().slice(0,10)}.json`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        } catch(e) { console.log("backup skip:", e.message); }
       } else {
         showToast("Save failed: " + (data.message || "Unknown error"), "error");
       }
@@ -1366,9 +1378,36 @@ export default function App() {
   // ===================== AUTH =====================
   async function handleLogin(email, password) {
     try {
+      // Device fingerprint generate कर
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Shahaji Travels', 2, 15);
+      const canvasData = canvas.toDataURL().slice(-30);
+
+      const stableData = [
+        navigator.language,
+        navigator.platform,
+        navigator.hardwareConcurrency || 0,
+        screen.colorDepth,
+        new Date().getTimezoneOffset(),
+        canvasData,
+      ].join("|");
+
+      let hash = 0;
+      for (let i = 0; i < stableData.length; i++) {
+        hash = ((hash << 5) - hash) + stableData.charCodeAt(i);
+        hash = hash & hash;
+      }
+      const fingerprint = Math.abs(hash).toString(36);
+      const deviceInfo = `${navigator.platform} / ${navigator.language}`;
+
       const data = await apiFetch("/api/login", {
   method: "POST",
-  body: { email, password },  // ← plain object द्या, apiFetch stringify करेल
+  body: { email, password, fingerprint, deviceInfo },
 });
       if (data.success) {
         localStorage.setItem("shahaji_admin_logged_in", "true");
@@ -1376,7 +1415,7 @@ export default function App() {
         showToast("Login successful!");
         return { success: true };
       }
-      return { success: false, message: data.message || "Invalid credentials" };
+      return { success: false, message: data.message || "Invalid credentials", pending: data.pending };
     } catch (e) {
       return { success: false, message: "Backend not connected: " + e.message };
     }
@@ -1434,7 +1473,7 @@ busName: selectedBus?.name || manualBooking.busName || "",
       setManualBooking({ ...emptyBookingForm });
       setSelectedSeat("");
       showToast("Booking added successfully!");
-
+      triggerAutoBackup();
       // ── Auto: WhatsApp + Ticket ────────────────────────────
       sendTicketOnWhatsApp(saved);
       setTimeout(() => generateTicket(saved), 800);
@@ -1476,6 +1515,7 @@ async function saveBooking(payload, editId) {
           String(b._id) === String(editId) ? { ...b, ...payload } : b
         ));
         showToast("Booking updated!");
+        triggerAutoBackup();
       } else {
         const data = await apiFetch("/api/bookings", {
           method: "POST",
@@ -1484,6 +1524,7 @@ async function saveBooking(payload, editId) {
         const saved = normalizeBooking(data.booking || data);
         setBookings(prev => [saved, ...prev]);
         showToast("Booking added!");
+        triggerAutoBackup();
       }
     } catch (e) {
       showToast("Save failed: " + e.message, "error");
@@ -1492,6 +1533,7 @@ async function saveBooking(payload, editId) {
 
   async function deleteBooking(id) {
     try {
+      triggerAutoBackup();
       await apiFetch("/api/bookings/" + id, { method: "DELETE" });
       setBookings(prev => prev.filter(b => String(b._id) !== String(id)));
       if (String(selectedBookingForTicket?._id) === String(id))
@@ -1693,6 +1735,22 @@ function renderSeatBtnNew(seat, isSleeper) {
     </button>
   );
 }
+// ── Auto Backup Helper ──
+async function triggerAutoBackup() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/backup`);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `auto_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    console.log("✅ Auto backup done");
+  } catch (e) {
+    console.log("Auto backup failed:", e.message);
+  }
+}
   // ===================== BUSES CRUD =====================
   async function saveBus(bus, editId) {
     try {
@@ -1705,6 +1763,7 @@ function renderSeatBtnNew(seat, isSleeper) {
           String(b._id || b.id) === String(editId) ? { ...b, ...bus } : b
         ));
         showToast("Bus updated!");
+        triggerAutoBackup(); // ✅ auto backup
         return bus;
       } else {
         const data = await apiFetch("/api/buses", {
@@ -1714,6 +1773,7 @@ function renderSeatBtnNew(seat, isSleeper) {
         const saved = data.bus || data || { ...bus, _id: String(Date.now()) };
         setBuses(prev => [saved, ...prev]);
         showToast("Bus added!");
+        triggerAutoBackup(); // ✅ auto backup
         return saved;
       }
     } catch (e) {
@@ -1724,6 +1784,7 @@ function renderSeatBtnNew(seat, isSleeper) {
 
   async function deleteBus(id) {
     try {
+      triggerAutoBackup(); // ✅ delete आधी backup
       await apiFetch("/api/buses/" + id, { method: "DELETE" });
       setBuses(prev => prev.filter(b => String(b._id || b.id) !== String(id)));
       showToast("Bus deleted.");
@@ -1779,7 +1840,8 @@ function renderSeatBtnNew(seat, isSleeper) {
         setCustomers(prev => prev.map(c =>
           String(c._id || c.id) === String(editId) ? { ...c, ...customer } : c
         ));
-        showToast("Customer updated!");
+       showToast("Customer updated!");
+        triggerAutoBackup();
       } else {
         const data = await apiFetch("/api/customers", {
           method: "POST",
@@ -1788,6 +1850,7 @@ function renderSeatBtnNew(seat, isSleeper) {
         const saved = data.customer || data || { ...customer, _id: String(Date.now()) };
         setCustomers(prev => [saved, ...prev]);
         showToast("Customer added!");
+        triggerAutoBackup();
       }
     } catch (e) {
       showToast("Customer save failed: " + e.message, "error");
@@ -1796,6 +1859,7 @@ function renderSeatBtnNew(seat, isSleeper) {
 
   async function deleteCustomer(id) {
     try {
+      triggerAutoBackup();
       await apiFetch("/api/customers/" + id, { method: "DELETE" });
       setCustomers(prev => prev.filter(c => String(c._id || c.id) !== String(id)));
       showToast("Customer deleted.");
@@ -2015,6 +2079,7 @@ if (rawDate) {
 {page === "notifications" && <NotificationsAdminPage showToast={showToast} />}
 {page === "qr" && <AdminQRSettings showToast={showToast} />}
 {page === "busreport" && <BusReportPage buses={buses} showToast={showToast} />}
+{page === "backup" && <BackupPage showToast={showToast} />}
 
           </div>
         </main>
@@ -2044,7 +2109,11 @@ function LoginPage({ onLogin }) {
     if (!email || !password) { setError("Email and password required."); return; }
     setBusy(true); setError("");
     const result = await onLogin(email, password);
-    if (!result.success) setError(result.message);
+    if (!result.success && result.pending) {
+      setError("⏳ Request पाठवली! Mitali approve केल्यावर login होईल.");
+    } else if (!result.success) {
+      setError(result.message);
+    }
     setBusy(false);
   }
 
@@ -5758,6 +5827,111 @@ async function save() {
 
   showToast("Saved!");
 }
+function DeviceManager({ showToast }) {
+  const [devices, setDevices] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    apiFetch("/api/admin/devices")
+      .then(d => setDevices(d.devices || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function approveDevice(id) {
+    try {
+      await apiFetch("/api/admin/devices/" + id + "/approve", { method: "PATCH" });
+      setDevices(prev => prev.map(d =>
+        d._id === id ? { ...d, status: "approved" } : d
+      ));
+      showToast("✅ Device approved!");
+    } catch(e) { showToast("Failed: " + e.message, "error"); }
+  }
+
+  async function removeDevice(id) {
+    if (!window.confirm("हा device remove करायचा?")) return;
+    try {
+      await apiFetch("/api/admin/devices/" + id, { method: "DELETE" });
+      setDevices(prev => prev.filter(d => d._id !== id));
+      showToast("Device removed!");
+    } catch(e) { showToast("Failed: " + e.message, "error"); }
+  }
+
+  const pending  = devices.filter(d => d.status === "pending");
+  const approved = devices.filter(d => d.status === "approved");
+
+  return (
+    <div className="section-card">
+      <div className="section-title">📱 Device Management</div>
+
+      {loading ? (
+        <div className="empty-state"><div className="empty-text">Loading...</div></div>
+      ) : (
+        <>
+          {/* Pending Requests */}
+          {pending.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, color: "#f59e0b", marginBottom: 10, fontSize: 13 }}>
+                ⏳ Pending Requests ({pending.length})
+              </div>
+              {pending.map(d => (
+                <div key={d._id} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "12px 14px", background: "rgba(245,158,11,0.08)",
+                  border: "1px solid rgba(245,158,11,0.3)",
+                  borderRadius: 10, marginBottom: 8,
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>📱 {d.deviceName || "New Device"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text2)" }}>
+                      {new Date(d.addedAt).toLocaleString("en-IN")}
+                    </div>
+                    <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text2)" }}>
+                      ID: {d.fingerprint?.slice(0, 12)}...
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-sm btn-success" onClick={() => approveDevice(d._id)}>✅ Approve</button>
+                    <button className="btn-sm btn-del" onClick={() => removeDevice(d._id)}>❌ Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Approved Devices */}
+          <div style={{ fontWeight: 700, color: "#22c55e", marginBottom: 10, fontSize: 13 }}>
+            ✅ Approved Devices ({approved.length})
+          </div>
+          {approved.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-text">No approved devices yet</div>
+            </div>
+          ) : (
+            approved.map(d => (
+              <div key={d._id} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "12px 14px", background: "var(--bg3)",
+                border: "1px solid var(--border)", borderRadius: 10, marginBottom: 8,
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>📱 {d.deviceName || "Device"}</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>
+                    Added: {new Date(d.addedAt).toLocaleDateString("en-IN")}
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text2)" }}>
+                    ID: {d.fingerprint?.slice(0, 12)}...
+                  </div>
+                </div>
+                <button className="btn-sm btn-del" onClick={() => removeDevice(d._id)}>🗑️ Remove</button>
+              </div>
+            ))
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 function SettingsPage({ settings, setSettings, showToast }) {
   const [form, setForm] = useState({ ...defaultSettings, ...settings });
 
@@ -5942,7 +6116,7 @@ showToast("Settings saved successfully!");
           <button className="btn-primary" onClick={save}>💾 Save Settings</button>
         </div>
       </div>
-
+<DeviceManager showToast={showToast} />
       {/* Contact display card */}
       <div className="section-card">
         <div className="section-title">📞 Support Contacts</div>
@@ -7276,6 +7450,135 @@ const blockedRows = blockedSeats.length
           )}
         </div>
       )}
+    </div>
+  );
+}
+// ===================== BACKUP PAGE =====================
+function BackupPage({ showToast }) {
+  const [restoring, setRestoring] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+  const [downloading, setDownloading] = React.useState(false);
+
+  const downloadBackup = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/backup`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shahaji_backup_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.json`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      showToast("✅ Backup downloaded!");
+    } catch (err) {
+      showToast("Backup failed: " + err.message, "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const restoreAll = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!window.confirm("⚠️ Restore करायचं का? Existing data वर affect होणार नाही.")) {
+      e.target.value = ""; return;
+    }
+    setRestoring(true);
+    setMsg("");
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      let results = [];
+
+      if (data.buses?.length) {
+        const res = await apiFetch("/api/admin/restore/buses", {
+          method: "POST", body: JSON.stringify({ buses: data.buses })
+        });
+        results.push(`🚌 ${res.restored} buses restored`);
+      }
+      if (data.bookings?.length) {
+        const res = await apiFetch("/api/admin/restore/bookings", {
+          method: "POST", body: JSON.stringify({ bookings: data.bookings })
+        });
+        results.push(`🎫 ${res.restored} bookings restored`);
+      }
+      if (data.customers?.length) {
+        const res = await apiFetch("/api/admin/restore/customers", {
+          method: "POST", body: JSON.stringify({ customers: data.customers })
+        });
+        results.push(`👤 ${res.restored} customers restored`);
+      }
+
+      setMsg(`✅ Success! ${results.join(" | ")}`);
+      showToast("✅ Restore complete!");
+    } catch (err) {
+      setMsg("❌ Failed: " + err.message);
+      showToast("Restore failed: " + err.message, "error");
+    } finally {
+      setRestoring(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>🗄️ Backup & Restore</h1>
+        <p>Data safe ठेव — रोज backup घे!</p>
+      </div>
+
+      <div className="section-card">
+        <div className="section-title">📥 Download Full Backup</div>
+        <p style={{ color: "var(--text2)", marginBottom: 16, fontSize: 13 }}>
+          Buses + Bookings + Customers सगळं एका JSON file मध्ये download होईल
+        </p>
+        <button
+          className="btn-primary"
+          onClick={downloadBackup}
+          disabled={downloading}
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          {downloading ? "⏳ Downloading..." : "📥 Download Backup"}
+        </button>
+        <p style={{ color: "var(--text2)", fontSize: 12, marginTop: 10 }}>
+          💡 रोज एकदा backup घ्या — safe राहाल!
+        </p>
+      </div>
+
+      <div className="section-card">
+        <div className="section-title">♻️ Restore from Backup</div>
+        <p style={{ color: "var(--text2)", marginBottom: 8, fontSize: 13 }}>
+          Backup JSON file upload करा — deleted data restore होईल
+        </p>
+        <div style={{
+          padding: "10px 14px", marginBottom: 16, borderRadius: 8,
+          background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
+          color: "#f59e0b", fontSize: 13,
+        }}>
+          ⚠️ Already existing records वर affect होणार नाही — फक्त missing data restore होईल
+        </div>
+        <input
+          type="file"
+          accept=".json"
+          onChange={restoreAll}
+          disabled={restoring}
+          style={{ marginBottom: 12, display: "block", color: "var(--text)" }}
+        />
+        {restoring && (
+          <p style={{ color: "#60a5fa", fontWeight: 600 }}>⏳ Restoring... please wait</p>
+        )}
+        {msg && (
+          <div style={{
+            padding: "10px 14px", borderRadius: 8, marginTop: 8, fontWeight: 700,
+            background: msg.includes('✅') ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+            border: `1px solid ${msg.includes('✅') ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            color: msg.includes('✅') ? "#22c55e" : "#f87171",
+          }}>
+            {msg}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

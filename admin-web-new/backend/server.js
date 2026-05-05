@@ -249,6 +249,16 @@ const SettingsSchema = new mongoose.Schema({
 });
 
 const Settings = mongoose.model("Settings", SettingsSchema);
+// ─── DEVICE FINGERPRINT SCHEMA ────────────────────────────────────
+const allowedDeviceSchema = new mongoose.Schema({
+  adminEmail:  { type: String, required: true },
+  fingerprint: { type: String, required: true },
+  deviceName:  { type: String, default: "Unknown Device" },
+  status:      { type: String, enum: ["approved", "pending"], default: "pending" },
+  addedAt:     { type: Date, default: Date.now },
+});
+const AllowedDevice = mongoose.models.AllowedDevice ||
+  mongoose.model("AllowedDevice", allowedDeviceSchema);
 // ─── QR PAYMENT SETTINGS ─────────────────────────────────────────
 const qrSettingsSchema = new mongoose.Schema({
   upiId:          { type: String, default: "kavirajbarge@ybl" },
@@ -515,12 +525,84 @@ app.get("/api/health", (req, res) => res.json({ status:"ok", db: mongoose.connec
 // ─── ADMIN AUTH ───────────────────────────────────────────────────
 app.post("/api/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email||!password) return res.status(400).json({ success:false, message:"Email and password required" });
+    const { email, password, fingerprint, deviceInfo } = req.body;
+    if (!email||!password) 
+      return res.status(400).json({ success:false, message:"Email and password required" });
+    
     const admin = await Admin.findOne({ email:email.toLowerCase(), password });
-    if (!admin) return res.status(401).json({ success:false, message:"Invalid email or password" });
+    if (!admin) 
+      return res.status(401).json({ success:false, message:"Invalid email or password" });
+
+    // Fingerprint नाही → old login, allow कर
+    if (!fingerprint) {
+      return res.json({ success:true, message:"Login successful", admin:{ email:admin.email } });
+    }
+
+    const devices = await AllowedDevice.find({ 
+      adminEmail: email.toLowerCase(),
+      status: "approved"
+    });
+
+    // पहिल्यांदा login — कोणताही device नाही — auto approve
+    if (devices.length === 0) {
+      await AllowedDevice.create({
+        adminEmail: email.toLowerCase(),
+        fingerprint,
+        deviceName: deviceInfo || "Primary Device",
+        status: "approved",
+      });
+      return res.json({ 
+        success: true, 
+        message: "Login successful", 
+        admin: { email: admin.email } 
+      });
+    }
+
+    // Device allowed आहे का check कर
+    const isAllowed = devices.some(d => d.fingerprint === fingerprint);
+    
+    if (!isAllowed) {
+      // Pending request आधीच आहे का?
+      const existing = await AllowedDevice.findOne({ 
+        adminEmail: email.toLowerCase(),
+        fingerprint,
+        status: "pending"
+      });
+      
+      if (!existing) {
+        // नवीन pending request save कर
+        await AllowedDevice.create({
+          adminEmail: email.toLowerCase(),
+          fingerprint,
+          deviceName: deviceInfo || "New Device",
+          status: "pending",
+        });
+
+        // Mitali ला FCM notification पाठव
+        try {
+          await sendFCMToAll(
+            "🔐 New Device Login Request!",
+            `कोणीतरी admin panel access करायचा प्रयत्न केला! Admin panel मध्ये जाऊन approve करा.`
+          );
+          await Notification.create({
+            title: "🔐 New Device Request",
+            message: `नवीन device login करायचा प्रयत्न केला. Settings → Devices मध्ये approve करा.`,
+            type: "alert",
+          });
+        } catch(e) {}
+      }
+
+      return res.status(403).json({ 
+        success: false, 
+        pending: true,
+        message: "❌ हा device allowed नाही! Mitali ची permission घ्या. Request पाठवली आहे." 
+      });
+    }
+
     res.json({ success:true, message:"Login successful", admin:{ email:admin.email } });
-  } catch(err) { res.status(500).json({ success:false, message:"Server error" }); }
+  } catch(err) { 
+    res.status(500).json({ success:false, message:"Server error" }); 
+  }
 });
 
 app.get("/create-admin", async (req, res) => {
@@ -2815,6 +2897,148 @@ app.get("/api/bookings/bus/:busId", async (req, res) => {
       blockedSeats: blockedSeatsData,
       blockedTotal: blockedSeatsData.length,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+// ─── DEVICE MANAGEMENT ROUTES ─────────────────────────────────────
+
+// सगळे devices बघ
+app.get("/api/admin/devices", async (req, res) => {
+  try {
+    const devices = await AllowedDevice.find({}).sort({ addedAt: -1 });
+    res.json({ success: true, devices });
+  } catch(err) { res.status(500).json({ message: err.message }); }
+});
+
+// Device approve कर
+app.patch("/api/admin/devices/:id/approve", async (req, res) => {
+  try {
+    const device = await AllowedDevice.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    if (!device) return res.status(404).json({ message: "Device not found" });
+    
+    // Notification
+    try {
+      await Notification.create({
+        title: "✅ Device Approved",
+        message: `${device.deviceName} ला access दिला गेला.`,
+        type: "info",
+      });
+    } catch(e) {}
+    
+    res.json({ success: true, device });
+  } catch(err) { res.status(500).json({ message: err.message }); }
+});
+
+// Device reject/delete कर
+app.delete("/api/admin/devices/:id", async (req, res) => {
+  try {
+    await AllowedDevice.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Device removed" });
+  } catch(err) { res.status(500).json({ message: err.message }); }
+});
+// ─── BACKUP & RESTORE ROUTES ─────────────────────────────────────
+
+// DOWNLOAD FULL BACKUP
+app.get("/api/admin/backup", async (req, res) => {
+  try {
+    const [buses, bookings, customers] = await Promise.all([
+      mongoose.connection.db.collection("buses").find({}).toArray(),
+      Booking.find({}).lean(),
+      Customer.find({}).lean(),
+    ]);
+
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      version: "1.0",
+      buses,
+      bookings,
+      customers,
+    };
+
+    res.setHeader("Content-Disposition", `attachment; filename=shahaji_backup_${Date.now()}.json`);
+    res.setHeader("Content-Type", "application/json");
+    res.json(backup);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// RESTORE BUSES
+app.post("/api/admin/restore/buses", async (req, res) => {
+  try {
+    const { buses } = req.body;
+    if (!buses || !Array.isArray(buses))
+      return res.status(400).json({ success: false, message: "Invalid data" });
+
+    let restored = 0;
+    for (const bus of buses) {
+      const id = bus._id;
+      if (!id) continue;
+      try {
+        const exists = await mongoose.connection.db
+          .collection("buses")
+          .findOne({ _id: new mongoose.Types.ObjectId(String(id)) });
+        if (!exists) {
+          await mongoose.connection.db.collection("buses").insertOne({
+            ...bus,
+            _id: new mongoose.Types.ObjectId(String(id)),
+          });
+          restored++;
+        }
+      } catch (e) { console.log("Bus restore skip:", e.message); }
+    }
+    res.json({ success: true, restored, total: buses.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// RESTORE BOOKINGS
+app.post("/api/admin/restore/bookings", async (req, res) => {
+  try {
+    const { bookings } = req.body;
+    if (!bookings || !Array.isArray(bookings))
+      return res.status(400).json({ success: false, message: "Invalid data" });
+
+    let restored = 0;
+    for (const booking of bookings) {
+      try {
+        const exists = await Booking.findById(booking._id);
+        if (!exists) {
+          await Booking.create({ ...booking, _id: booking._id });
+          restored++;
+        }
+      } catch (e) { console.log("Booking restore skip:", e.message); }
+    }
+    res.json({ success: true, restored, total: bookings.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// RESTORE CUSTOMERS
+app.post("/api/admin/restore/customers", async (req, res) => {
+  try {
+    const { customers } = req.body;
+    if (!customers || !Array.isArray(customers))
+      return res.status(400).json({ success: false, message: "Invalid data" });
+
+    let restored = 0;
+    for (const customer of customers) {
+      try {
+        const exists = await Customer.findById(customer._id);
+        if (!exists) {
+          await Customer.create({ ...customer, _id: customer._id });
+          restored++;
+        }
+      } catch (e) { console.log("Customer restore skip:", e.message); }
+    }
+    res.json({ success: true, restored, total: customers.length });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
