@@ -7648,13 +7648,15 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .sidebar-inner {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   width: 100%;
   overflow-y: auto;
   background: var(--bg2);
+  -webkit-overflow-scrolling: touch;
 }
-.sidebar-close-btn { display: none; }
+  .sidebar-close-btn { display: none; }
+
 .hamburger-btn { display: none; }
 
 .sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -7691,9 +7693,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   background: var(--bg2);
   position: sticky;
   bottom: 0;
-  z-index: 1;
+  z-index: 2;
+  margin-top: auto;
 }
-.admin-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .admin-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .admin-avatar {
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
