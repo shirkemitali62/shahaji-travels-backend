@@ -1295,12 +1295,16 @@ const emptyBookingForm = {
 
 // ===================== NORMALIZE HELPERS =====================
 function normalizeBooking(b) {
+  const allSeats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
+    ? b.seatNumbers.map(String)
+    : b.seatNo ? [String(b.seatNo)] : [];
   return {
     ...b,
     _id: b._id || b.id,
     passengerName: b.passengerName || (b.passengers && b.passengers[0]?.name) || b.customerName || "-",
     phone: b.phone || b.mobile || "-",
-    seatNo: b.seatNo || (b.seatNumbers && b.seatNumbers[0]) || "-",
+    seatNo: allSeats[0] || "-",
+    seatNumbers: allSeats,
     amount: b.amount || b.totalAmount || 0,
     busNo: b.busNo || b.busNumber || b.numberPlate || "",
     paymentMode: b.paymentMode || b.paymentMethod || "Cash",
@@ -1485,9 +1489,13 @@ export default function App() {
   showToast("Please select at least one seat!", "error"); return;
 }
 
-    const payload = {
-      customerName: manualBooking.passengerName.trim(),
-      mobile: manualBooking.phone,
+    const finalSeatNumbers = manualBooking.seatNumbers?.length
+  ? manualBooking.seatNumbers.map(String)
+  : manualBooking.seatNo ? [String(manualBooking.seatNo)] : [];
+
+const payload = {
+  customerName: manualBooking.passengerName.trim(),
+  mobile: manualBooking.phone,
       email: manualBooking.email || "",
       bus: manualBooking.busId || null,
       trip: selectedTripId || manualBooking.tripId || null,
@@ -1505,9 +1513,9 @@ busName: selectedBus?.name || manualBooking.busName || "",
           seatNumber: manualBooking.seatNo,
         },
       ],
-     seatNumbers: manualBooking.seatNumbers?.length 
-  ? manualBooking.seatNumbers 
-  : manualBooking.seatNo ? [manualBooking.seatNo] : [],
+    seatNo: finalSeatNumbers[0] || "",
+seatNumbers: finalSeatNumbers,
+selectedSeats: finalSeatNumbers,
       totalAmount: Number(manualBooking.amount) || 0,
       paymentMethod: manualBooking.paymentMode,
       paymentStatus: manualBooking.paymentStatus || "Pending",
