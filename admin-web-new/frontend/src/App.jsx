@@ -7726,7 +7726,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
   position: sticky; top: 0; z-index: 100;
 }
-.topbar-titles { flex: 1; min-width: 0; }
+.topbar-titles { flex: 1; min-width: 0; overflow: hidden; }
+.topbar-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
 .content { padding: 24px 28px; flex: 1; }
@@ -8102,20 +8103,32 @@ code { font-family: 'Courier New', monospace; font-size: 12px; background: var(-
   border: 1px dashed #6b7280;
   cursor: not-allowed;
 }
-  .topbar-logout-btn {
+.topbar-logout-btn {
   background: rgba(239,68,68,0.15);
   border: 1px solid rgba(239,68,68,0.3);
   color: #f87171;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   font-family: 'DM Sans', sans-serif;
   transition: all 0.15s;
+  flex-shrink: 0;
 }
 .topbar-logout-btn:hover {
+  background: rgba(239,68,68,0.28);
+}
+
+@media (max-width: 768px) {
+  .topbar-logout-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+}
+  .topbar-logout-btn:hover {
   background: rgba(239,68,68,0.28);
 }
 
