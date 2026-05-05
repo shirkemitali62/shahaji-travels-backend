@@ -2281,22 +2281,8 @@ function DashboardPage({ dashboard }) {
 
 // ===================== getSeatDisplayLabel =====================
 function getSeatDisplayLabel(seatNo) {
-  if (!seatNo) return "—";
-  const s = String(seatNo);
-  // AC Sleeper 2x2
-  const sleeperRow = AC_SLEEPER_ROWS.find(r =>
-    [r.leftLower, r.leftUpper, r.rightLower, r.rightUpper].includes(s)
-  );
-  if (sleeperRow) return sleeperRow.row + " · " + s;
-  // Seater-Sleeper: Left single U1-U12
-  if (SS_LEFT_SINGLE.includes(s)) return "Single · " + s;
-  // Seater-Sleeper: Right double 1-24
-  const rightPair = SS_RIGHT_PAIRS.find(p => p.window === s || p.aisle === s);
-  if (rightPair) return (rightPair.window === s ? "Window" : "Aisle") + " · " + s;
-  // Seater-Sleeper: Back sleeper A1-A6, A-L
-  const backRow = SS_BACK_SLEEPER.find(r => r.single === s || r.lower === s || r.upper === s);
-  if (backRow) return "Sleeper · " + s;
-  return s;
+  if (!seatNo) return String(seatNo || "—");
+  return String(seatNo);
 }
 
 // ===================== BOOKINGS PAGE =====================
