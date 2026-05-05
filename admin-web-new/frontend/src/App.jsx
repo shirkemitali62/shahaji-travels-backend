@@ -2318,7 +2318,8 @@ const [droppingSearch, setDroppingSearch] = React.useState("");
   const [sortOrder,    setSortOrder]    = React.useState("latest");
   const [editing,      setEditing]      = React.useState(null);
  const [adminGenderPicker, setAdminGenderPicker] = React.useState({ visible: false, seat: null });
- const [seatBlockPopup, setSeatBlockPopup] = React.useState(null);  
+ const [seatBlockPopup, setSeatBlockPopup] = React.useState(null);
+ const [seatUnbookPopup, setSeatUnbookPopup] = React.useState(null);   
  const [activeSeat,     setActiveSeat]     = React.useState(null);
 const [seatGenderPick, setSeatGenderPick] = React.useState({});
 const [blockForm,      setBlockForm]      = React.useState({ name: "", mobile: "" });
@@ -2684,7 +2685,7 @@ function renderSeatBtnNew(seat, isSleeper) {
             : `Seat ${seatStr}`
         }
         onClick={() => {
-          if (isBooked)  { setSeatPopup(seatBooking); return; }
+         if (isBooked) { setSeatUnbookPopup({ ...seatBooking, seatNo: seatStr }); return; }
          if (isBlocked) {
             const busId = manualBooking.busId || (selectedBus?._id || selectedBus?.id);
             const seatInfo = (buses.find(b => String(b._id || b.id) === String(busId))?.seats || [])
@@ -2908,7 +2909,7 @@ function renderSeatBtn(seat) {
 
         // ✅ CLICK FIX
         onClick={() => {
-          if (isBooked) { setSeatPopup(seatBooking); return; }
+          if (isBooked) { setSeatUnbookPopup({ ...seatBooking, seatNo: String(seat) }); return; }
           if (isBlocked) return;
 
           setAdminGenderPicker({ visible: true, seat });
@@ -2991,7 +2992,7 @@ function renderACSleeperLayout() {
           type="button"
           title={isBlocked ? `Seat ${seat} — Blocked` : isBooked ? `${seatBooking?.passengerName||"Booked"} (${bookedGender})` : `Select Seat ${seat}`}
           onClick={() => {
-            if (isBooked) { setSeatPopup(seatBooking); return; }
+            if (isBooked) { setSeatUnbookPopup({ ...seatBooking, seatNo: String(seat) }); return; }
             if (isBlocked) {
               setSeatBlockPopup({
                 seat: seatStr,
@@ -3789,7 +3790,76 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
         showToast("Unblock failed: " + e.message, "error");
       }
     }}
-  />                                                
+  />    
+  {seatUnbookPopup && (
+  <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setSeatUnbookPopup(null); }}>
+    <div style={{
+      background: "var(--bg2)", border: "1px solid rgba(245,158,11,0.4)",
+      borderRadius: 16, padding: 24, width: "100%", maxWidth: 380,
+      boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+    }}>
+      <div style={{ fontSize: 36, marginBottom: 10, textAlign: "center" }}>🪑</div>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 14, textAlign: "center" }}>
+        Seat {seatUnbookPopup.seatNo} — Booked
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 16 }}>
+        {[
+          ["👤 Passenger", seatUnbookPopup.passengerName || "—"],
+          ["📱 Mobile",    seatUnbookPopup.phone         || "—"],
+          ["⚧ Gender",    seatUnbookPopup.gender         || "—"],
+          ["🟢 Boarding",  seatUnbookPopup.boardingPoint  || "—"],
+          ["🔴 Dropping",  seatUnbookPopup.droppingPoint  || "—"],
+          ["📅 Date",      seatUnbookPopup.journeyDate    || "—"],
+          ["💰 Amount",    "₹" + (seatUnbookPopup.amount || 0)],
+          ["💳 Payment",   seatUnbookPopup.paymentStatus  || "—"],
+        ].map(([label, val]) => (
+          <div key={label} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: 13, padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}>
+            <span style={{ color: "var(--text2)" }}>{label}</span>
+            <span style={{ fontWeight: 700, color: "var(--text)", maxWidth: "60%", textAlign: "right" }}>{val}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          onClick={async () => {
+            try {
+              await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
+                method: "PATCH",
+                body: JSON.stringify({ paymentStatus: "Refunded", bookingStatus: "Cancelled" }),
+              });
+              setBookings(prev => prev.map(b =>
+                String(b._id) === String(seatUnbookPopup._id)
+                  ? { ...b, paymentStatus: "Refunded", bookingStatus: "Cancelled" }
+                  : b
+              ));
+              setSeatUnbookPopup(null);
+              showToast("✅ Seat unbooked!");
+            } catch (e) {
+              showToast("Unbook failed: " + e.message, "error");
+            }
+          }}
+          style={{
+            flex: 1, background: "linear-gradient(135deg,#d97706,#b45309)",
+            color: "white", border: "none", borderRadius: 9,
+            padding: "11px 0", cursor: "pointer", fontWeight: 700, fontSize: 14,
+          }}
+        >🔓 Unbook Seat</button>
+        <button
+          onClick={() => setSeatUnbookPopup(null)}
+          style={{
+            flex: 1, background: "var(--bg3)", border: "1px solid var(--border)",
+            color: "var(--text2)", borderRadius: 9, padding: "11px 0",
+            cursor: "pointer", fontWeight: 600, fontSize: 14,
+          }}
+        >Close</button>
+      </div>
+    </div>
+  </div>
+)}
+                                            
     </div>
   );
 }
