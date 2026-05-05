@@ -7543,9 +7543,10 @@ function BackupPage({ showToast }) {
           onClick={async () => {
             if (!window.confirm("Last auto backup मधून restore करायचं?")) return;
             try {
-              const res = await apiFetch("/api/admin/restore-silent", { method: "POST" });
+             const res = await apiFetch("/api/admin/restore-silent", { method: "POST" });
               setMsg("✅ " + res.message);
               showToast("✅ Restore complete!");
+              setTimeout(() => window.location.reload(), 1500);
             } catch(err) {
               setMsg("❌ Failed: " + err.message);
               showToast("Restore failed!", "error");
