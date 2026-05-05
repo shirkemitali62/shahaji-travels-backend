@@ -7723,7 +7723,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     overflow: hidden; box-shadow: none;
   }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.45); }
-  .sidebar-inner { display: flex; flex-direction: column; height: 100%; min-height: 100%; width: 100%; overflow: hidden; background: var(--bg2); }
+  .sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  width: 100%;
+  overflow: hidden;  ← काढा
+  background: var(--bg2);
+}
+
   .sidebar-close-btn {
     display: flex; align-items: center; justify-content: flex-end;
     width: 100%; padding: 14px 16px 8px; background: transparent; border: none;
@@ -7732,8 +7741,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   .sidebar-logo { padding: 12px 16px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg2); }
   .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 12px 10px 16px; overflow-y: auto; background: var(--bg2); }
   .nav-item { width: 100%; display: flex !important; align-items: center; padding: 12px 14px; margin: 0; min-height: 46px; }
-  .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); flex-shrink: 0; background: var(--bg2); }
-  .sidebar-overlay { display: block; }
+/* @media (max-width: 768px) मध्ये sidebar-footer ला हे add करा */
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg2);
+  position: sticky;   /* ← हे add करा */
+  bottom: 0;          /* ← हे add करा */
+  z-index: 1;         /* ← हे add करा */
+}  .sidebar-overlay { display: block; }
   .hamburger-btn {
     display: flex; flex-direction: column; justify-content: center; gap: 5px;
     width: 38px; height: 38px; background: var(--bg3); border: 1px solid var(--border);
