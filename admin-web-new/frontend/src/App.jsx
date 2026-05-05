@@ -1347,9 +1347,10 @@ export default function App() {
     } catch { return defaultSettings; }
   });
 
-  const [manualBooking,  setManualBooking]  = useState({ ...emptyBookingForm });
-  const [selectedTripId, setSelectedTripId] = useState("");
-  const [selectedSeat,   setSelectedSeat]   = useState("");
+ const [manualBooking,  setManualBooking]  = useState({ ...emptyBookingForm });
+const [selectedTripId, setSelectedTripId] = useState("");
+const [selectedSeat,   setSelectedSeat]   = useState("");
+const [seatGenderMap,  setSeatGenderMap]  = useState({});
   const [selectedBookingForTicket, setSelectedBookingForTicket] = useState(null);
   const [seatPopup, setSeatPopup] = useState(null);
 
@@ -1529,10 +1530,10 @@ const bookedSeatsForTrip = bookings
       refundStatus:   manualBooking.refundStatus || "Not Applicable",
       bookingStatus:  "Confirmed",
       conductorNote:  manualBooking.conductorNote || "",
-      passengers:     finalSeats.map((seat, idx) => ({
+passengers:     finalSeats.map((seat) => ({
         name:        manualBooking.passengerName.trim(),
         age:         Number(manualBooking.age) || 0,
-        gender:      seatGenderMap[seat] || manualBooking.gender || "Male",
+        gender:      manualBooking.gender || "Male",
         seatNumber:  seat,
         phone:       manualBooking.phone || "",
       })),
@@ -1547,7 +1548,7 @@ const bookedSeatsForTrip = bookings
       setBookings(prev => [saved, ...prev]);
       setManualBooking({ ...emptyBookingForm, seatNumbers: [] });
       setSelectedSeat("");
-      setSeatGenderMap({});
+      
       showToast("✅ Booking added successfully!");
       triggerAutoBackup();
       sendTicketOnWhatsApp(saved);
