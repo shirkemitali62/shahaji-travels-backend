@@ -1218,15 +1218,22 @@ const payStatus =
 function sendTicketOnWhatsApp(booking) {
   const code = booking.bookingCode || booking.pnr || "BK000000";
   
-  const seatDisplay = booking.seatNo || 
-    (booking.seatNumbers?.join(", ")) || "—";
-  
-  const payStatus = booking.paymentStatus === "Paid" 
-    ? "✅ पेमेंट जमा आहे" 
-    : "⚠️ पेमेंट बाकी आहे";
-  
-  const conductorNote = booking.conductorNote 
-    ? "\n*Conductor Note:* " + booking.conductorNote 
+  const allSeats = booking.seatNumbers?.length 
+    ? booking.seatNumbers 
+    : booking.seatNo ? [booking.seatNo] : [];
+  const seatDisplay = allSeats.join(", ") || "—";
+  const seatCount = allSeats.length;
+
+  const payStatus = 
+    booking.paymentStatus === "Paid"      ? "✅ Paid" :
+    booking.paymentStatus === "Pending"   ? "⏳ Pending" :
+    booking.paymentStatus === "Failed"    ? "❌ Failed" :
+    booking.paymentStatus === "Refunded"  ? "↩️ Refunded" :
+    booking.paymentStatus === "Cancelled" ? "🚫 Cancelled" :
+    (booking.paymentStatus || "—");
+
+  const conductorNote = booking.conductorNote?.trim() 
+    ? "\n*Conductor Note:* " + booking.conductorNote.trim()
     : "";
 
   const msg = encodeURIComponent(
@@ -1242,7 +1249,7 @@ function sendTicketOnWhatsApp(booking) {
     "━━━━━━━━━━━━━━━━━━━━\n" +
     "*Amount:* ₹" + (booking.amount || booking.totalAmount || 0) + "\n" +
     "*Payment Mode:* " + (booking.paymentMode || booking.paymentMethod || "-") + "\n" +
-    "*Status:* " + payStatus +
+    "*Payment Status:* " + payStatus +
     conductorNote + "\n" +
     "━━━━━━━━━━━━━━━━━━━━\n" +
     "📞 *Manager:* 9766775660\n" +
@@ -2314,19 +2321,26 @@ function handleAdminGenderSelect(gender) {
   setAdminGenderPicker({ visible: false, seat: null });
   if (!seat) return;
 
-  const newSeats = [...(manualBooking.seatNumbers || []), seat];
-  const pricePerSeat = Number(selectedBus?.seaterPrice || selectedBus?.price || 0);
-  const totalAmount = pricePerSeat * newSeats.length;
+  setSeatGenderMap(prev => ({ ...prev, [String(seat)]: gender }));
+
+  setManualBooking(prev => {
+    const existing = Array.isArray(prev.seatNumbers) ? prev.seatNumbers : [];
+    // Already आहे तर add करू नको
+    if (existing.includes(String(seat))) return prev;
+    const newSeats = [...existing, String(seat)];
+    const pricePerSeat = Number(
+      selectedBus?.seaterPrice || selectedBus?.price || 0
+    );
+    return {
+      ...prev,
+      seatNo: newSeats[0],
+      seatNumbers: newSeats,
+      gender,
+      amount: String(pricePerSeat * newSeats.length),
+    };
+  });
 
   setSelectedSeat(seat);
-  setSeatGenderMap(prev => ({ ...prev, [String(seat)]: gender }));
-  setManualBooking(prev => ({
-    ...prev,
-    seatNo: newSeats[0],
-    seatNumbers: newSeats,
-    gender,
-    amount: String(totalAmount),
-  }));
 }
 
   // ── Bus type detection ──────────────────────────────────────────
@@ -2666,17 +2680,8 @@ function renderSeatBtnNew(seat, isSleeper) {
             return;
           }
           // Available seat — toggle active
-          if (activeSeat === seatStr) {
-            setActiveSeat(null);
-            setSeatGenderPick({});
-            setBlockForm({ name: "", mobile: "" });
-          } else {
-            setActiveSeat(seatStr);
-            setSeatGenderPick({});
-            setBlockForm({ name: "", mobile: "" });
-            // Also allow normal seat selection for booking
-            setAdminGenderPicker({ visible: true, seat: seatStr });
-          }
+        // Available seat — फक्त gender picker दाखव, block popup नको
+setAdminGenderPicker({ visible: true, seat: seatStr });
         }}
         style={{
           width:           isSleeper ? 44 : 38,
