@@ -1408,20 +1408,27 @@ export default function App() {
   const selectedBus = buses.find(
   b => String(b._id || b.id) === String(selectedTrip?.busId || selectedTrip?.bus)
 );
-  const bookedSeatsForTrip = bookings
+const bookedSeatsForTrip = bookings
     .filter(b => {
-       if (selectedTripId) return String(b.tripId) === String(selectedTripId);
+      if (selectedTripId) return String(b.tripId) === String(selectedTripId);
       if (manualBooking.busId) {
         return (
-        (String(b.bus) === String(manualBooking.busId) ||
-           String(b.busNo) === String(manualBooking.busNo)) &&          (!manualBooking.journeyDate ||
+          (String(b.bus) === String(manualBooking.busId) ||
+           String(b.busNo) === String(manualBooking.busNo)) &&
+          (!manualBooking.journeyDate ||
            b.journeyDate === manualBooking.journeyDate ||
-          b.date === manualBooking.journeyDate)         );
-     }
+           b.date === manualBooking.journeyDate)
+        );
+      }
       return false;
-     })
-    .map(b => String(b.seatNo));
-
+    })
+    .flatMap(b => {
+      // ✅ seatNumbers array पण include करा
+      const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
+        ? b.seatNumbers
+        : b.seatNo ? [b.seatNo] : [];
+      return seats.map(String);
+    });
   function bookingBySeat(seatNo) {
     return bookings.find(b =>
       String(b.tripId) === String(selectedTripId) &&
@@ -3597,7 +3604,11 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
                         {b.phone} &nbsp;·&nbsp; {b.boardingPoint || "—"} → {b.droppingPoint || "—"}
                       </div>
                       <div style={{ fontSize: 11, color: "#888" }}>
-                        Seat: {b.seatNo ? getSeatDisplayLabel(b.seatNo) : "—"} &nbsp;·&nbsp; {b.busNo || b.bus || "—"}
+                       Seat: {(b.seatNumbers?.length > 1 
+  ? b.seatNumbers.join(", ") 
+  : b.seatNo 
+  ? getSeatDisplayLabel(b.seatNo) 
+  : "—")}&nbsp;·&nbsp; {b.busNo || b.bus || "—"}
                       </div>
                     </td>
                     <td>
@@ -3654,7 +3665,11 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
                 {b.boardingPoint || "—"} → {b.droppingPoint || "—"}
               </div>
               <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 8 }}>
-                Seat: <b>{b.seatNo ? getSeatDisplayLabel(b.seatNo) : "—"}</b> &nbsp;·&nbsp;
+               Seat: <b>{b.seatNumbers?.length > 1 
+  ? b.seatNumbers.join(", ") 
+  : b.seatNo 
+  ? getSeatDisplayLabel(b.seatNo) 
+  : "—"}</b> &nbsp;·&nbsp;
                 {b.journeyDate || b.date || "—"} &nbsp;·&nbsp; {b.busNo || b.bus || "—"}
               </div>
               <div className="card-meta">
