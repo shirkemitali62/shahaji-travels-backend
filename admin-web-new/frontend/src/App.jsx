@@ -3862,12 +3862,22 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
     // Parent च्या bookings update करा — bookedSeatsForTrip automatically update होईल
     // BookingsPage ला bookings prop म्हणून येतो, तो update करायला saveBooking नाही
     // थेट deleteBooking वापरा जो booking remove करतो
-    await apiFetch("/api/bookings/" + seatUnbookPopup._id, { 
-  method: "DELETE" 
+    // ✅ फक्त status Cancelled करा, DELETE नाही
+await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
+  method: "PATCH",
+  body: JSON.stringify({ 
+    paymentStatus: "Cancelled", 
+    bookingStatus: "Cancelled" 
+  }),
 });
 
-// ✅ Local bookings state मधून DIRECT remove करा
+// ✅ Local state मधून REMOVE करा — seat layout लगेच available होईल
 setBookings(prev => prev.filter(b => String(b._id) !== String(seatUnbookPopup._id)));
+
+// ✅ Selected seat पण clear करा
+setSelectedSeat("");
+setSeatGenderMap({});
+
 setSeatUnbookPopup(null);
 showToast("✅ Seat unbooked & available!");
   } catch (e) {
