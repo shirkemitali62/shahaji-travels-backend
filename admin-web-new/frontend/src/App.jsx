@@ -1314,6 +1314,7 @@ function normalizeBooking(b) {
   };
 }
 
+
 function normalizeRoute(r) {
   return {
     ...r,
@@ -1485,41 +1486,51 @@ export default function App() {
     if (!manualBooking.passengerName?.trim()) {
       showToast("Passenger name is required!", "error"); return;
     }
-    if (!manualBooking.seatNumbers?.length && !manualBooking.seatNo) {
-  showToast("Please select at least one seat!", "error"); return;
-}
+
+    const finalSeats = manualBooking.seatNumbers?.length
+      ? manualBooking.seatNumbers.map(String)
+      : manualBooking.seatNo ? [String(manualBooking.seatNo)] : [];
+
+    if (!finalSeats.length) {
+      showToast("Please select at least one seat!", "error"); return;
+    }
 
     const finalSeatNumbers = manualBooking.seatNumbers?.length
   ? manualBooking.seatNumbers.map(String)
   : manualBooking.seatNo ? [String(manualBooking.seatNo)] : [];
 
 const payload = {
-  customerName: manualBooking.passengerName.trim(),
-  mobile: manualBooking.phone,
+      customerName: manualBooking.passengerName.trim(),
+      passengerName: manualBooking.passengerName.trim(),
+      mobile: manualBooking.phone,
+      phone: manualBooking.phone,
       email: manualBooking.email || "",
       bus: manualBooking.busId || null,
       trip: selectedTripId || manualBooking.tripId || null,
       busNo: selectedBus?.number || selectedBus?.busNumber || selectedBus?.numberPlate || manualBooking.busNo || "",
-busName: selectedBus?.name || manualBooking.busName || "",
+      busName: selectedBus?.name || manualBooking.busName || "",
       route: manualBooking.routeId || null,
       journeyDate: manualBooking.journeyDate,
+      date: manualBooking.journeyDate,
       boardingPoint: manualBooking.boardingPoint,
       droppingPoint: manualBooking.droppingPoint,
-      passengers: [
-        {
-          name: manualBooking.passengerName.trim(),
-          age: Number(manualBooking.age) || 0,
-          gender: manualBooking.gender || "Male",
-          seatNumber: manualBooking.seatNo,
-        },
-      ],
-    seatNo: finalSeatNumbers[0] || "",
-seatNumbers: finalSeatNumbers,
-selectedSeats: finalSeatNumbers,
+      passengers: finalSeats.map((seat, idx) => ({
+        name: manualBooking.passengerName.trim(),
+        age: Number(manualBooking.age) || 0,
+        gender: seatGenderMap[seat] || manualBooking.gender || "Male",
+        seatNumber: seat,
+        phone: manualBooking.phone || "",
+      })),
+      seatNo: finalSeats[0],
+      seatNumbers: finalSeats,
+      selectedSeats: finalSeats,
       totalAmount: Number(manualBooking.amount) || 0,
+      amount: Number(manualBooking.amount) || 0,
       paymentMethod: manualBooking.paymentMode,
+      paymentMode: manualBooking.paymentMode,
       paymentStatus: manualBooking.paymentStatus || "Pending",
-      bookingStatus: "Booked",
+      bookingStatus: "Confirmed",
+      conductorNote: manualBooking.conductorNote || "",
     };
 
     try {

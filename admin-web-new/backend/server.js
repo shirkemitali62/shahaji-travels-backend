@@ -1538,20 +1538,20 @@ const query = {
 
     const bookedSeats = [];
     bookings.forEach(booking => {
-      const seats = (
-  Array.isArray(booking.seatNumbers) && booking.seatNumbers.length
-    ? booking.seatNumbers
-    : booking.seatNo ? [booking.seatNo] : []
-).map(String).filter(Boolean);
+     const seats = (
+        Array.isArray(booking.seatNumbers) && booking.seatNumbers.length
+          ? booking.seatNumbers
+          : booking.seatNo ? [booking.seatNo] : []
+      ).map(String).filter(Boolean);
 
-seats.forEach((seatId, idx) => {
-  const gender =
-    booking.passengers?.[idx]?.gender ||
-    booking.passengers?.[0]?.gender ||
-    booking.gender ||
-    "Male";
-  bookedSeats.push({ id: String(seatId), gender });
-});
+      seats.forEach((seatId, idx) => {
+        const gender =
+          booking.passengers?.[idx]?.gender ||
+          booking.passengers?.[0]?.gender ||
+          booking.gender ||
+          "Male";
+        if (seatId) bookedSeats.push({ id: String(seatId), gender });
+      });
     });
 
     res.json({
@@ -1617,13 +1617,17 @@ app.post("/api/bookings", async (req, res) => {
     const routeId = body.route ? String(body.route) : "";
     const tripId  = body.trip  ? String(body.trip)  : (body.tripId ? String(body.tripId) : "");
 
-const seatNumbers = Array.isArray(body.seatNumbers) && body.seatNumbers.length
-  ? body.seatNumbers.map(String)
-  : Array.isArray(body.selectedSeats) && body.selectedSeats.length
-  ? body.selectedSeats.map(String)
-  : body.seatNo ? [String(body.seatNo)] : [];
+const seatNumbers = (
+      Array.isArray(body.seatNumbers) && body.seatNumbers.length
+        ? body.seatNumbers
+        : Array.isArray(body.selectedSeats) && body.selectedSeats.length
+        ? body.selectedSeats
+        : body.seatNo ? [body.seatNo] : []
+    ).map(String).filter(Boolean);
 
-const seatNo = seatNumbers[0] || "";
+    const seatNo = seatNumbers[0] || "";
+
+    console.log("✅ Booking seats:", seatNumbers);
     const uniqueCode = "BK" + Date.now() + Math.floor(Math.random() * 1000);
 // 2% Razorpay charge calculation
 const rawBase   = Number(body.amount || body.totalAmount || 0);
