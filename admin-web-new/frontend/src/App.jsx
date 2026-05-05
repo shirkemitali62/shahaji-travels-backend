@@ -3825,22 +3825,23 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
       <div style={{ display: "flex", gap: 10 }}>
         <button
           onClick={async () => {
-            try {
-              await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
-                method: "PATCH",
-                body: JSON.stringify({ paymentStatus: "Refunded", bookingStatus: "Cancelled" }),
-              });
-              setBookings(prev => prev.map(b =>
-                String(b._id) === String(seatUnbookPopup._id)
-                  ? { ...b, paymentStatus: "Refunded", bookingStatus: "Cancelled" }
-                  : b
-              ));
-              setSeatUnbookPopup(null);
-              showToast("✅ Seat unbooked!");
-            } catch (e) {
-              showToast("Unbook failed: " + e.message, "error");
-            }
-          }}
+  try {
+    await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: "Refunded", bookingStatus: "Cancelled" }),
+    });
+    // saveBooking prop वापरा
+    await saveBooking(
+      { paymentStatus: "Refunded", bookingStatus: "Cancelled" },
+      seatUnbookPopup._id
+    );
+    setSeatUnbookPopup(null);
+    showToast("✅ Seat unbooked!");
+  } catch (e) {
+    showToast("Unbook failed: " + e.message, "error");
+  }
+}}
+          
           style={{
             flex: 1, background: "linear-gradient(135deg,#d97706,#b45309)",
             color: "white", border: "none", borderRadius: 9,
