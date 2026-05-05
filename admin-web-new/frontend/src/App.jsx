@@ -7533,7 +7533,39 @@ function BackupPage({ showToast }) {
           💡 रोज एकदा backup घ्या — safe राहाल!
         </p>
       </div>
-
+<div className="section-card">
+        <div className="section-title">⚡ Quick Restore (Auto Backup मधून)</div>
+        <p style={{ color: "var(--text2)", marginBottom: 16, fontSize: 13 }}>
+          Last auto backup मधून instantly restore कर — कोणतीही file नको!
+        </p>
+        <button
+          className="btn-primary"
+          onClick={async () => {
+            if (!window.confirm("Last auto backup मधून restore करायचं?")) return;
+            try {
+              const res = await apiFetch("/api/admin/restore-silent", { method: "POST" });
+              setMsg("✅ " + res.message);
+              showToast("✅ Restore complete!");
+            } catch(err) {
+              setMsg("❌ Failed: " + err.message);
+              showToast("Restore failed!", "error");
+            }
+          }}
+          style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", display: "flex", alignItems: "center", gap: 8 }}
+        >
+          ⚡ Quick Restore
+        </button>
+        {msg && (
+          <div style={{
+            padding: "10px 14px", borderRadius: 8, marginTop: 12, fontWeight: 700,
+            background: msg.includes('✅') ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+            border: `1px solid ${msg.includes('✅') ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            color: msg.includes('✅') ? "#22c55e" : "#f87171",
+          }}>
+            {msg}
+          </div>
+        )}
+      </div>
       <div className="section-card">
         <div className="section-title">♻️ Restore from Backup</div>
         <p style={{ color: "var(--text2)", marginBottom: 8, fontSize: 13 }}>

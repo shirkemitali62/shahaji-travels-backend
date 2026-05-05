@@ -3070,6 +3070,61 @@ app.post("/api/admin/restore/customers", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+// RESTORE FROM SILENT BACKUP
+app.post("/api/admin/restore-silent", async (req, res) => {
+  try {
+    const backup = await Backup.findOne().sort({ savedAt: -1 });
+    if (!backup) return res.status(404).json({ success: false, message: "No backup found" });
+
+    let restoredBuses = 0, restoredBookings = 0, restoredCustomers = 0;
+
+    // Buses restore
+    for (const bus of (backup.buses || [])) {
+      try {
+        const exists = await mongoose.connection.db
+          .collection("buses")
+          .findOne({ _id: new mongoose.Types.ObjectId(String(bus._id)) });
+        if (!exists) {
+          await mongoose.connection.db.collection("buses").insertOne({
+            ...bus,
+            _id: new mongoose.Types.ObjectId(String(bus._id)),
+          });
+          restoredBuses++;
+        }
+      } catch(e) {}
+    }
+
+    // Bookings restore
+    for (const booking of (backup.bookings || [])) {
+      try {
+        const exists = await Booking.findById(booking._id);
+        if (!exists) {
+          await Booking.create({ ...booking, _id: booking._id });
+          restoredBookings++;
+        }
+      } catch(e) {}
+    }
+
+    // Customers restore
+    for (const customer of (backup.customers || [])) {
+      try {
+        const exists = await Customer.findById(customer._id);
+        if (!exists) {
+          await Customer.create({ ...customer, _id: customer._id });
+          restoredCustomers++;
+        }
+      } catch(e) {}
+    }
+
+    res.json({
+      success: true,
+      message: `Restored: ${restoredBuses} buses, ${restoredBookings} bookings, ${restoredCustomers} customers`,
+      restoredBuses, restoredBookings, restoredCustomers,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message:`Route ${req.method} ${req.path} not found` });
