@@ -7645,7 +7645,15 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   position: relative; z-index: 10;
 }
 /* हे करा */
-.sidebar-inner { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow-y: auto; background: var(--bg2); }
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  background: var(--bg2);
+}
 .sidebar-close-btn { display: none; }
 .hamburger-btn { display: none; }
 
@@ -7728,13 +7736,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     overflow: hidden; box-shadow: none;
   }
   .sidebar.sidebar-open { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.45); }
-  .sidebar-inner {
+ .sidebar-inner {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 100%;
   width: 100%;
-  overflow: hidden;  ← काढा
+  overflow-y: auto;
   background: var(--bg2);
 }
 
@@ -7752,10 +7760,11 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg2);
-  position: sticky;   /* ← हे add करा */
-  bottom: 0;          /* ← हे add करा */
-  z-index: 1;         /* ← हे add करा */
-}  .sidebar-overlay { display: block; }
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+.sidebar-overlay { display: block; }
   .hamburger-btn {
     display: flex; flex-direction: column; justify-content: center; gap: 5px;
     width: 38px; height: 38px; background: var(--bg3); border: 1px solid var(--border);
