@@ -2025,7 +2025,7 @@ if (rawDate) {
     <span /><span /><span />
   </button>
   <div className="topbar-titles">
-    <div className="topbar-title">{settings.companyName} — Admin</div>
+    <div className="topbar-title">{settings.companyName} </div>
     <div className="topbar-sub">Professional Bus Booking Management</div>
   </div>
   <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
