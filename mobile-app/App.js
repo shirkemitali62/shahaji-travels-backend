@@ -1007,9 +1007,9 @@ React.useEffect(() => {
       </View>
     )}
   </TouchableOpacity>
-  <TouchableOpacity style={s.navWallet}>
+ 
    
-  </TouchableOpacity>
+  
 </View>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 36 }}
