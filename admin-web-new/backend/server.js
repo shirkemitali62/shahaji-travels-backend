@@ -282,7 +282,7 @@ const AllowedDevice = mongoose.models.AllowedDevice ||
   mongoose.model("AllowedDevice", allowedDeviceSchema);
 // ─── QR PAYMENT SETTINGS ─────────────────────────────────────────
 const qrSettingsSchema = new mongoose.Schema({
-  upiId:          { type: String, default: "kavirajbarge@ybl" },
+  upiId:          { type: String, default: "9136430854@ybl" },
   upiName:        { type: String, default: "KAVIRAJ KRISHNAT BARGE" },
   qrImageBase64:  { type: String, default: "", maxlength: 5000000 }, // ✅ 5MB limit add
   qrEnabled:      { type: Boolean, default: true },

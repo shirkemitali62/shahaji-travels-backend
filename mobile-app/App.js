@@ -3025,158 +3025,161 @@ const handleQRBooking = async () => {
   if (!qrUtrNumber.trim() || qrUtrNumber.trim().length < 6) {
     return showAlert("UTR Error", "Valid UTR number enter करा (minimum 6 digits).");
   }
+
+  // ── Validate UTR format ──────────────────────────────────────────
+  const cleanUTR = qrUtrNumber.trim().toUpperCase().replace(/\s+/g, "");
+  if (!/^[A-Z0-9]{6,35}$/.test(cleanUTR)) {
+    return showAlert("UTR Error", "UTR मध्ये फक्त letters आणि numbers असावेत.");
+  }
+
   setLoading(true);
-  setLoadMsg("Booking submit करत आहे...");
+  setLoadMsg("Payment verify करत आहे...");
+
   try {
-    const data = {
+    const bookingPayload = {
       userId:        user?._id || user?.id || "",
-      customerName:  passengerInfo.name,
+      customerName:  passengerInfo.name.trim(),
+      passengerName: passengerInfo.name.trim(),
       phone:         passengerInfo.phone,
+      mobile:        passengerInfo.phone,
       email:         passengerInfo.email || user?.email || "",
-      bus:           String(selectedBus._id || selectedBus.id || ""),
-      busName:       selectedBus.name || "",
-      date:          search.date,
+      bus:           String(selectedBus?._id || selectedBus?.id || ""),
+      busName:       selectedBus?.name || "",
       journeyDate:   search.date,
+      date:          search.date,
       boardingPoint: selectedBoarding?.name || "",
       droppingPoint: selectedDropping?.name || "",
-      passengers:    [{ name: passengerInfo.name, age: Number(passengerInfo.age), gender: passengerInfo.gender, phone: passengerInfo.phone }],
+      passengers: [{
+        name:       passengerInfo.name.trim(),
+        age:        Number(passengerInfo.age),
+        gender:     passengerInfo.gender,
+        seatNumber: selectedSeats[0] || "",
+        phone:      passengerInfo.phone,
+      }],
       seatNumbers:   selectedSeats,
+      selectedSeats,
       amount:        getFinalAmount(),
-      utrNumber:     qrUtrNumber.trim(),
+      totalAmount:   getFinalAmount(),
+      paymentMode:   "QR_UPI",
+      paymentMethod: "QR_UPI",
+      paymentStatus: "Pending",
+      bookingStatus: "Pending",
+      conductorNote: `UTR: ${cleanUTR}`,
     };
 
-    const res = await fetch(`${API_BASE}/api/bookings/qr-pending`, {
+    // Step 1: Create booking
+    const bookingRes = await api.createBooking(bookingPayload);
+    const savedBookingId = bookingRes.bookingId ||
+                           bookingRes.booking?.bookingCode ||
+                           bookingRes.ticket?.bookingId;
+
+    if (!savedBookingId) throw new Error("Booking ID मिळाला नाही.");
+
+    // Step 2: Verify UTR on backend
+    const verifyRes = await fetch(`${API_BASE}/api/upi/verify-payment`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(data),
+      body:    JSON.stringify({
+        bookingId: savedBookingId,
+        utr:       cleanUTR,
+        amount:    getFinalAmount(),
+      }),
     });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message || "Booking failed");
+    const verifyData = await verifyRes.json();
 
-    setShowQRModal(false);
-    setQrBookingPending(true);
-
-    // Show pending screen as ticket
-    setTicket({
-      ...data,
-      bookingId:     json.bookingId,
-      busName:       selectedBus.name || "Shahaji Travels",
-      busType:       selectedBus.type || "AC Sleeper",
-      selectedSeats,
-      departure:     selectedBus.departure,
-      arrival:       selectedBus.arrival,
-      duration:      selectedBus.duration,
-      route:         `${search.from} → ${search.to}`,
-      date:          search.date,
-      amount:        getFinalAmount(),
-      paymentMode:   "QR_UPI",
-      bookingStatus: "Pending",
-    });
-
-    setBookedSeats(prev => [...prev, ...selectedSeats]);
-    setScreen("ticket");
-  } catch (err) {
-    showAlert("Booking Error", err?.message || "Could not submit booking.");
-  } finally {
     setLoading(false);
+
+    if (verifyData.success) {
+      // ✅ Payment verified — show confirmed ticket
+      setTicket({
+        ...bookingPayload,
+        bookingId:     savedBookingId,
+        busName:       selectedBus?.name || "Shahaji Travels",
+        busType:       selectedBus?.type || "AC Sleeper",
+        busNumber:     selectedBus?.number || selectedBus?.busNumber || "",
+        selectedSeats,
+        departure:     selectedBus?.departure,
+        arrival:       selectedBus?.arrival,
+        duration:      selectedBus?.duration,
+        route:         `${search.from} → ${search.to}`,
+        date:          search.date,
+        amount:        getFinalAmount(),
+        paymentMode:   "QR_UPI",
+        bookingStatus: "Confirmed",
+        paymentStatus: "Paid",
+      });
+
+      setBookedSeats(prev => [...prev, ...selectedSeats]);
+      setBookedSeatMap(prev => {
+        const updated = { ...prev };
+        selectedSeats.forEach(id => {
+          updated[id] = seatGenderMap[id] || "Male";
+        });
+        return updated;
+      });
+
+      setShowQRModal(false);
+      setQrUtrNumber("");
+
+      // Local notification
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "🎫 Booking Confirmed!",
+            body:  `Seats: ${selectedSeats.join(", ")} | ₹${getFinalAmount()} | ${search.date}`,
+            data:  { screen: "ticket" },
+          },
+          trigger: null,
+        });
+      } catch (_) {}
+
+      setScreen("ticket");
+
+    } else {
+      // ❌ UTR verify failed — booking pending, show error
+      const errMap = {
+        DUPLICATE_UTR:      "हा UTR already दुसऱ्या booking साठी use झाला आहे.",
+        PAYMENT_EXPIRED:    "Payment session expire झाला. नवीन booking करा.",
+        AMOUNT_MISMATCH:    verifyData.message,
+        INVALID_UTR_FORMAT: "UTR format चुकीचा आहे. UPI app मधून copy करा.",
+      };
+
+      showAlert(
+        "UTR Verify Failed",
+        errMap[verifyData.errorCode] || verifyData.message || "UTR verify होऊ शकला नाही."
+      );
+    }
+
+  } catch (err) {
+    setLoading(false);
+    showAlert("Error", err?.message || "Could not complete booking.");
   }
 };
 const handleConfirmBooking = async () => {
-    // ── Validations ──────────────────────────────────────────────────────
-    if (!selectedSeats.length)
-      return showAlert("Error", "Please select a seat.");
-    if (!passengerInfo.name.trim())
-      return showAlert("Error", "Enter passenger name.");
-    if (!passengerInfo.phone.trim() || passengerInfo.phone.length < 10)
-      return showAlert("Error", "Enter valid 10-digit phone.");
-    if (!passengerInfo.age.trim())
-      return showAlert("Error", "Enter passenger age.");
-    if (!selectedBoarding?.id)
-      return showAlert("Error", "Please select boarding point.");
-    if (!selectedDropping?.id)
-      return showAlert("Error", "Please select dropping point.");
- 
-    const finalAmount = getFinalAmount();
- 
-    // ── QR / UPI payment ────────────────────────────────────────────────
-    if (paymentMethod === "QR_UPI") {
-      setLoading(true);
-      setLoadMsg("Initializing payment...");
- 
-      try {
-        // 1. Create booking in PENDING state first
-        const bookingData = buildBookingPayload(); // see STEP 4 below
-        const bookingRes  = await api.createBooking(bookingData);
-        const newBookingId = bookingRes.bookingId || bookingRes.booking?.bookingCode;
- 
-        if (!newBookingId) throw new Error("Could not create booking record");
- 
-        // 2. Initialize UPI payment record on backend
-        await initPayment({
-          bookingId:   newBookingId,
-          amount:      finalAmount,
-          userId:      user?._id || "",
-          phone:       passengerInfo.phone,
-          busId:       String(selectedBus?._id || selectedBus?.id || ""),
-          journeyDate: search.date,
-        });
- 
-        setLoading(false);
- 
-        // 3. Store temp ticket data for display after verification
-        const tempTicket = {
-          ...bookingData,
-          bookingId:     newBookingId,
-          busName:       selectedBus?.name || "Shahaji Travels",
-          busType:       selectedBus?.type || "AC Sleeper",
-          selectedSeats,
-          departure:     selectedBus?.departure,
-          arrival:       selectedBus?.arrival,
-          duration:      selectedBus?.duration,
-          route:         `${search.from} → ${search.to}`,
-          date:          search.date,
-          amount:        finalAmount,
-          paymentMode:   "QR_UPI",
-          bookingStatus: "Pending",
-        };
-        setTicket(tempTicket);
- 
-        // 4. Open UPI modal
-        setUPIModalVisible(true);
- 
-        // 5. Start polling for admin confirmation (Option B — runs in background)
-        startPolling(newBookingId, (confirmedPayment) => {
-          // Admin confirmed payment via admin panel
-          setTicket(prev => ({ ...prev, bookingStatus: "Confirmed", paymentMode: "QR_UPI" }));
-          setUTRModalVisible(false);
-          setUPIModalVisible(false);
-          setBookedSeats(prev => [...prev, ...selectedSeats]);
-          setScreen("ticket");
-        });
- 
-      } catch (err) {
-        setLoading(false);
-        showAlert("Error", err?.message || "Could not initialize payment.");
-      }
-      return;
-    }
- 
-    // ── Cash → OTP ───────────────────────────────────────────────────────
-    if (paymentMethod === "Cash") {
-      setOtpSending(true);
-      try {
-        await sendOtp(passengerInfo.phone);
-        setOtpSending(false);
-        setShowOtpModal(true);
-        startOtpTimer();
-      } catch (err) {
-        setOtpSending(false);
-        showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
-      }
-      return;
-    }
- 
-    // ── Other payment methods (Razorpay etc.) ────────────────────────────
+  if (!selectedSeats.length)
+    return showAlert(t.errorTitle, "Please select a seat.");
+  if (!passengerInfo.name.trim())
+    return showAlert(t.errorTitle, "Enter passenger name.");
+  if (!passengerInfo.phone.trim() || passengerInfo.phone.length < 10)
+    return showAlert(t.errorTitle, "Enter valid 10-digit phone.");
+  if (!passengerInfo.age.trim())
+    return showAlert(t.errorTitle, "Enter passenger age.");
+  if (!selectedBoarding?.id)
+    return showAlert(t.errorTitle, "Please select boarding point.");
+  if (!selectedDropping?.id)
+    return showAlert(t.errorTitle, "Please select dropping point.");
+
+  // ── QR/UPI ──────────────────────────────────────────────────────
+  if (paymentMethod === "QR_UPI") {
+    setShowQRModal(true);
+    setQrUtrNumber("");
+    setQrPaymentDone(false);
+    return;
+  }
+
+  // ── Cash → OTP ──────────────────────────────────────────────────
+  if (paymentMethod === "Cash") {
+    setOtpValue("");
     setOtpSending(true);
     try {
       await sendOtp(passengerInfo.phone);
@@ -3187,7 +3190,22 @@ const handleConfirmBooking = async () => {
       setOtpSending(false);
       showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
     }
-  };
+    return;
+  }
+
+  // ── Other (Razorpay etc.) ────────────────────────────────────────
+  setOtpValue("");
+  setOtpSending(true);
+  try {
+    await sendOtp(passengerInfo.phone);
+    setOtpSending(false);
+    setShowOtpModal(true);
+    startOtpTimer();
+  } catch (err) {
+    setOtpSending(false);
+    showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
+  }
+};
  const buildBookingPayload = () => ({
     userId:        user?._id || user?.id || "",
     customerName:  passengerInfo.name.trim(),
@@ -3360,106 +3378,106 @@ const API_BASE = Platform.OS === "web"
   ? "https://shahaji-travels-backend.onrender.com"  // ✅ web la pan same
   : "https://shahaji-travels-backend.onrender.com"; // ✅ mobile la same
  const doBooking = async (razorpayPaymentId = null) => {
-  setLoading(true); setLoadMsg(t.bookingSeats || "Booking...");
-  
-  // ✅ FIX: Validate passenger name FIRST before user check
+  setLoading(true);
+  setLoadMsg(t.bookingSeats || "Booking...");
+
   const passengerName = passengerInfo.name?.trim();
   if (!passengerName) {
     setLoading(false);
     showAlert("Error", "Please enter passenger name.");
     return;
   }
-  
   if (!user?._id) {
     setLoading(false);
     showAlert("Error", "Please login first");
     return;
   }
-  
+
   try {
     const data = {
-      userId: user?._id || user?.id || "",
-      customerName: passengerName,
+      userId:        user?._id || user?.id || "",
+      customerName:  passengerName,
       passengerName: passengerName,
-      mobile: passengerInfo.phone,
-      phone: passengerInfo.phone,
-      email: passengerInfo.email || user?.email || "",
-      bus: String(selectedBus._id || selectedBus.id || ""),
-      busName: selectedBus.name || "",
-      route: selectedBus.routeId || "",
-      trip: selectedBus.tripId || "",
-      journeyDate: search.date,
-      date: search.date,
+      mobile:        passengerInfo.phone,
+      phone:         passengerInfo.phone,
+      email:         passengerInfo.email || user?.email || "",
+      bus:           String(selectedBus?._id || selectedBus?.id || ""),
+      busName:       selectedBus?.name || "",
+      route:         selectedBus?.routeId || "",
+      trip:          selectedBus?.tripId  || "",
+      journeyDate:   search.date,
+      date:          search.date,
       boardingPoint: selectedBoarding?.name || "",
       droppingPoint: selectedDropping?.name || "",
       passengers: [{
-        name: passengerName,
-        age: Number(passengerInfo.age),
-        gender: passengerInfo.gender,
-        seatNumber: selectedSeats[0] || "",
-        phone: passengerInfo.phone
+        name:        passengerName,
+        age:         Number(passengerInfo.age),
+        gender:      passengerInfo.gender,
+        seatNumber:  selectedSeats[0] || "",
+        phone:       passengerInfo.phone,
       }],
-      seatNumbers: selectedSeats,
+      seatNumbers:   selectedSeats,
       selectedSeats,
-      baseAmount:  baseAmount,
-amount:      getFinalAmount(),
-totalAmount: getFinalAmount(),
-      
+      baseAmount:    baseAmount,
+      amount:        getFinalAmount(),
+      totalAmount:   getFinalAmount(),
       paymentMethod,
-      paymentMode: paymentMethod,
-      upiId: paymentMethod === "UPI" ? (passengerInfo.upiId || "") : undefined,
-      upiApp: paymentMethod === "UPI" ? (passengerInfo.upiApp || "") : undefined,
-      cardLast4: paymentMethod === "Card"
-        ? (passengerInfo.cardNumber?.replace(/\s/g,"").slice(-4) || "")
-        : undefined,
-      cardName: paymentMethod === "Card" ? (passengerInfo.cardName || "") : undefined,
+      paymentMode:   paymentMethod,
       paymentStatus: "Paid",
       bookingStatus: "Confirmed",
       razorpayPaymentId: razorpayPaymentId || null,
     };
-    
+
     const res = await api.createBooking(data);
-    const bookingId = res.bookingId || res.ticket?.bookingId || res.booking?.bookingCode;
-    
+    const bookingId = res.bookingId ||
+                      res.ticket?.bookingId ||
+                      res.booking?.bookingCode;
+
     setTicket({
-      ...data, ...(res.ticket || {}), bookingId,
-      busName: selectedBus.name || selectedBus.busName || "Shahaji Travels",
-      busType: selectedBus.type || selectedBus.busType || "AC Sleeper",
+      ...data,
+      ...(res.ticket || {}),
+      bookingId,
+      busName:  selectedBus?.name    || selectedBus?.busName || "Shahaji Travels",
+      busType:  selectedBus?.type    || selectedBus?.busType || "AC Sleeper",
+      busNumber: selectedBus?.number || selectedBus?.busNumber || selectedBus?.numberPlate || "",
       selectedSeats,
-      departure: selectedBus.departure,
-      arrival: selectedBus.arrival,
-      duration: selectedBus.duration,
-      route: `${search.from} → ${search.to}`,
-      date: search.date,
-      amount: getFinalAmount(),
-      paymentMode: paymentMethod,
+      departure:     selectedBus?.departure,
+      arrival:       selectedBus?.arrival,
+      duration:      selectedBus?.duration,
+      route:         `${search.from} → ${search.to}`,
+      date:          search.date,
+      amount:        getFinalAmount(),
+      paymentMode:   paymentMethod,
+      bookingStatus: "Confirmed",
+      paymentStatus: "Paid",
     });
-    
+
     setBookedSeats(prev => [...prev, ...selectedSeats]);
     setBookedSeatMap(prev => {
       const updated = { ...prev };
-      selectedSeats.forEach(id => { updated[id] = seatGenderMap[id] || 'Male'; });
+      selectedSeats.forEach(id => {
+        updated[id] = seatGenderMap[id] || "Male";
+      });
       return updated;
     });
-    
+
     resetOtpState();
     setShowOtpModal(false);
     setShowConfirmModal(false);
-     resetPayment();          // clear UPI state
-    stopPolling();  
-    
+
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "🎫 Booking Confirmed!",
-          body: `Seats: ${selectedSeats.join(", ")} | ₹${getFinalAmount()} | ${search.date}`,
-          data: { screen: "ticket" },
+          body:  `Seats: ${selectedSeats.join(", ")} | ₹${getFinalAmount()} | ${search.date}`,
+          data:  { screen: "ticket" },
         },
         trigger: null,
       });
-    } catch (e) {}
-    
+    } catch (_) {}
+
     setScreen("ticket");
+
   } catch (err) {
     showAlert(t.bookingFailed || "Booking Failed", err?.message || "Could not complete.");
   } finally {
@@ -4013,7 +4031,7 @@ ListEmptyComponent={
   otpVerifying={otpVerifying}
   otpSending={otpSending}
   otpResendTimer={otpResendTimer}
- onVerify={async () => {
+onVerify={async () => {
   if (!otpValue || otpValue.length < 6)
     return showAlert("OTP Error", "6 अंकी OTP enter करा.");
   setOtpVerifying(true);
@@ -4022,7 +4040,6 @@ ListEmptyComponent={
     setOtpVerifying(false);
     setShowOtpModal(false);
 
-    // ✅ Cash → Confirm Modal, Online → Razorpay
     if (paymentMethod === "Cash") {
       setShowConfirmModal(true);
     } else {
@@ -4033,6 +4050,7 @@ ListEmptyComponent={
     showAlert("❌ OTP चुकीचा", err?.message || "Invalid OTP.");
   }
 }}
+
   onResend={async () => {
     if (otpResendTimer > 0) return;
     setOtpSending(true);
@@ -4548,7 +4566,10 @@ ListEmptyComponent={
         <ConfirmBookingModal
           visible={showConfirmModal}
           onCancel={()=>setShowConfirmModal(false)}
-          onConfirm={()=>{ setShowConfirmModal(false); doBooking(); }}
+          onConfirm={() => {
+  setShowConfirmModal(false);
+  doBooking();
+}}
           selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
           paymentMethod={paymentMethod} selectedBus={selectedBus}
           passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}

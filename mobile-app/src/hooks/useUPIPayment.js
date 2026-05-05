@@ -38,16 +38,11 @@ export function generateUPILink({ upiId, payeeName, amount, note = "Shahaji Trav
 // ─── Per-app intent URLs ──────────────────────────────────────────────────────
 export function getAppUPILinks(upiId, payeeName, amount) {
   const base = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${Number(amount).toFixed(2)}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+
   return {
-    gpay:    Platform.OS === "android"
-      ? `intent://upi/pay?${base}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`
-      : `tez://upi/pay?${base}`,
-    phonepe: Platform.OS === "android"
-      ? `intent://upi/pay?${base}#Intent;scheme=upi;package=com.phonepe.app;end`
-      : `phonepe://pay?${base}`,
-    paytm:   Platform.OS === "android"
-      ? `intent://upi/pay?${base}#Intent;scheme=upi;package=net.one97.paytm;end`
-      : `paytmmp://pay?${base}`,
+    gpay: `upi://pay?${base}`,      // 🔥 CHANGE
+    phonepe: `upi://pay?${base}`,   // 🔥 CHANGE
+    paytm: `upi://pay?${base}`,     // 🔥 CHANGE
     generic: `upi://pay?${base}`,
   };
 }
