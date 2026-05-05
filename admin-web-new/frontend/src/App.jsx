@@ -1430,26 +1430,11 @@ const bookedSeatsForTrip = bookings
       return seats.map(String);
     });
   function bookingBySeat(seatNo) {
-  return bookings.find(b => {
-    const seatMatch =
-      String(b.seatNo) === String(seatNo) ||
-      (Array.isArray(b.seatNumbers) && b.seatNumbers.map(String).includes(String(seatNo)));
-
-    if (selectedTripId) {
-      return String(b.tripId) === String(selectedTripId) && seatMatch;
-    }
-    if (manualBooking.busId) {
-      return (
-        String(b.bus) === String(manualBooking.busId) &&
-        (!manualBooking.journeyDate ||
-          b.journeyDate === manualBooking.journeyDate ||
-          b.date === manualBooking.journeyDate) &&
-        seatMatch
-      );
-    }
-    return false;
-  });
-}
+    return bookings.find(b =>
+      String(b.tripId) === String(selectedTripId) &&
+      String(b.seatNo) === String(seatNo)
+    );
+  }
 
   // ===================== AUTH =====================
   async function handleLogin(email, password) {
@@ -3841,49 +3826,25 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
         <button
           onClick={async () => {
   try {
+    // ✅ deleteBooking prop directly call करा — confirm नाही कारण modal मध्ये आहोत
     await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
       method: "PATCH",
-      body: JSON.stringify({ 
-        paymentStatus: "Cancelled", 
-        bookingStatus: "Cancelled" 
-      }),
+      body: JSON.stringify({ paymentStatus: "Cancelled", bookingStatus: "Cancelled" }),
     });
-
-    // ✅ Local bookings state मधून REMOVE करा — seat available होईल
-    const unbookedSeats = seatUnbookPopup.seatNumbers?.length
-      ? seatUnbookPopup.seatNumbers.map(String)
-      : seatUnbookPopup.seatNo ? [String(seatUnbookPopup.seatNo)] : [];
-
-    // bookings array मधून हे booking filter out करा
-    const updatedBookings = bookings.filter(b => 
-      String(b._id) !== String(seatUnbookPopup._id)
-    );
     
-    // Parent च्या bookings update करा — bookedSeatsForTrip automatically update होईल
-    // BookingsPage ला bookings prop म्हणून येतो, तो update करायला saveBooking नाही
-    // थेट deleteBooking वापरा जो booking remove करतो
-    // ✅ फक्त status Cancelled करा, DELETE नाही
-await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
-  method: "PATCH",
-  body: JSON.stringify({ 
-    paymentStatus: "Cancelled", 
-    bookingStatus: "Cancelled" 
-  }),
-});
-
-// ✅ Local state मधून REMOVE करा — seat layout लगेच available होईल
-setBookings(prev => prev.filter(b => String(b._id) !== String(seatUnbookPopup._id)));
-
-// ✅ Selected seat पण clear करा
-setSelectedSeat("");
-setSeatGenderMap({});
-
-setSeatUnbookPopup(null);
-showToast("✅ Seat unbooked & available!");
+    // props मधून bookings update करा
+    const updatedId = seatUnbookPopup._id;
+    deleteBooking && deleteBooking(updatedId);
+    
+    setSelectedSeat("");
+    setSeatGenderMap({});
+    setSeatUnbookPopup(null);
+    showToast("✅ Seat unbooked!");
   } catch (e) {
     showToast("Unbook failed: " + e.message, "error");
   }
 }}
+
           
           style={{
             flex: 1, background: "linear-gradient(135deg,#d97706,#b45309)",
