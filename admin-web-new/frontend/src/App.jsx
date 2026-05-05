@@ -7644,10 +7644,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   flex-shrink: 0; display: flex; flex-direction: column;
   position: relative; z-index: 10;
 }
-.sidebar-inner {
-  display: flex; flex-direction: column; height: 100%;
-  position: sticky; top: 0; max-height: 100vh; overflow-y: auto;
-}
+/* हे करा */
+.sidebar-inner { display: flex; flex-direction: column; height: 100dvh; width: 100%; overflow-y: auto; background: var(--bg2); }
 .sidebar-close-btn { display: none; }
 .hamburger-btn { display: none; }
 
@@ -7677,7 +7675,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: 700;
 }
 
-.sidebar-footer { padding: 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+/* mobile @media मध्ये हे ADD करा */
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg2);
+  margin-top: auto;   /* ← नेहमी bottom ला push करतो */
+}
 .admin-info { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .admin-avatar {
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
