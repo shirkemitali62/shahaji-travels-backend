@@ -1494,7 +1494,7 @@ const bookedSeatsForTrip = bookings
       showToast("Passenger name is required!", "error"); return;
     }
 
-    const finalSeats = manualBooking.seatNumbers?.length
+    const finalSeats = Array.isArray(manualBooking.seatNumbers) && manualBooking.seatNumbers.length
       ? manualBooking.seatNumbers.map(String)
       : manualBooking.seatNo ? [String(manualBooking.seatNo)] : [];
 
@@ -1502,42 +1502,40 @@ const bookedSeatsForTrip = bookings
       showToast("Please select at least one seat!", "error"); return;
     }
 
-    const finalSeatNumbers = manualBooking.seatNumbers?.length
-  ? manualBooking.seatNumbers.map(String)
-  : manualBooking.seatNo ? [String(manualBooking.seatNo)] : [];
-
-const payload = {
-      customerName: manualBooking.passengerName.trim(),
-      passengerName: manualBooking.passengerName.trim(),
-      mobile: manualBooking.phone,
-      phone: manualBooking.phone,
-      email: manualBooking.email || "",
-      bus: manualBooking.busId || null,
-      trip: selectedTripId || manualBooking.tripId || null,
-      busNo: selectedBus?.number || selectedBus?.busNumber || selectedBus?.numberPlate || manualBooking.busNo || "",
-      busName: selectedBus?.name || manualBooking.busName || "",
-      route: manualBooking.routeId || null,
-      journeyDate: manualBooking.journeyDate,
-      date: manualBooking.journeyDate,
-      boardingPoint: manualBooking.boardingPoint,
-      droppingPoint: manualBooking.droppingPoint,
-      passengers: finalSeats.map((seat, idx) => ({
-        name: manualBooking.passengerName.trim(),
-        age: Number(manualBooking.age) || 0,
-        gender: seatGenderMap[seat] || manualBooking.gender || "Male",
-        seatNumber: seat,
-        phone: manualBooking.phone || "",
+    const payload = {
+      passengerName:  manualBooking.passengerName.trim(),
+      customerName:   manualBooking.passengerName.trim(),
+      phone:          manualBooking.phone || "",
+      mobile:         manualBooking.phone || "",
+      age:            Number(manualBooking.age) || 0,
+      gender:         manualBooking.gender || "Male",
+      bus:            manualBooking.busId || null,
+      trip:           selectedTripId || manualBooking.tripId || null,
+      tripId:         selectedTripId || manualBooking.tripId || "",
+      busNo:          manualBooking.busNo || "",
+      busName:        manualBooking.busName || "",
+      journeyDate:    manualBooking.journeyDate || "",
+      date:           manualBooking.journeyDate || "",
+      boardingPoint:  manualBooking.boardingPoint || "",
+      droppingPoint:  manualBooking.droppingPoint || "",
+      seatNo:         finalSeats[0],
+      seatNumbers:    finalSeats,
+      selectedSeats:  finalSeats,
+      amount:         Number(manualBooking.amount) || 0,
+      totalAmount:    Number(manualBooking.amount) || 0,
+      paymentMode:    manualBooking.paymentMode || "Cash",
+      paymentMethod:  manualBooking.paymentMode || "Cash",
+      paymentStatus:  manualBooking.paymentStatus || "Pending",
+      refundStatus:   manualBooking.refundStatus || "Not Applicable",
+      bookingStatus:  "Confirmed",
+      conductorNote:  manualBooking.conductorNote || "",
+      passengers:     finalSeats.map((seat, idx) => ({
+        name:        manualBooking.passengerName.trim(),
+        age:         Number(manualBooking.age) || 0,
+        gender:      seatGenderMap[seat] || manualBooking.gender || "Male",
+        seatNumber:  seat,
+        phone:       manualBooking.phone || "",
       })),
-      seatNo: finalSeats[0],
-      seatNumbers: finalSeats,
-      selectedSeats: finalSeats,
-      totalAmount: Number(manualBooking.amount) || 0,
-      amount: Number(manualBooking.amount) || 0,
-      paymentMethod: manualBooking.paymentMode,
-      paymentMode: manualBooking.paymentMode,
-      paymentStatus: manualBooking.paymentStatus || "Pending",
-      bookingStatus: "Confirmed",
-      conductorNote: manualBooking.conductorNote || "",
     };
 
     try {
@@ -1547,14 +1545,13 @@ const payload = {
       });
       const saved = normalizeBooking(data.booking || data);
       setBookings(prev => [saved, ...prev]);
-      setManualBooking({ ...emptyBookingForm });
+      setManualBooking({ ...emptyBookingForm, seatNumbers: [] });
       setSelectedSeat("");
-      showToast("Booking added successfully!");
+      setSeatGenderMap({});
+      showToast("✅ Booking added successfully!");
       triggerAutoBackup();
-      // ── Auto: WhatsApp + Ticket ────────────────────────────
       sendTicketOnWhatsApp(saved);
       setTimeout(() => generateTicket(saved), 800);
-
     } catch (e) {
       showToast("Booking failed: " + e.message, "error");
     }
