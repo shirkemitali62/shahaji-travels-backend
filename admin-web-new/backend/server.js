@@ -1586,28 +1586,32 @@ const query = {
   }
 });
 // ─── BOOKINGS API ─────────────────────────────────────────────────
-// REPLACE WITH हे:
 app.get("/api/bookings", async (req, res) => {
   try {
     const { userId, phone } = req.query;
     
     let query = {};
     if (userId) {
-      query.$or = [
+      const orConditions = [
         { userId: userId },
+        { userId: String(userId) },
         { phone: userId },
         { mobile: userId },
       ];
+      // ObjectId valid असेल तर तेही add कर
       if (mongoose.Types.ObjectId.isValid(userId)) {
-        query.$or.push({ _id: new mongoose.Types.ObjectId(userId) });
+        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
       }
+      query.$or = orConditions;
     } else if (phone) {
       query.$or = [{ phone }, { mobile: phone }];
     }
     
     const bookings = await Booking.find(query).sort({ createdAt: -1 });
     res.json(bookings);
-  } catch(err) { res.status(500).json({ message: err.message }); }
+  } catch(err) { 
+    res.status(500).json({ message: err.message }); 
+  }
 });
 
 app.get("/api/bookings/user/:userId", async (req, res) => {
