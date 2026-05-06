@@ -1733,38 +1733,67 @@ async function toggleBusSeatBlock(busId, seatNo, currentlyBlocked) {
 
 // Updated renderSeatBtnNew — full replacement
 function renderSeatBtnNew(seat, isSleeper) {
-  const seatStr = String(seat || "");
+  if (!seat) return <div key={"empty_" + Math.random()} style={{ width: isSleeper ? 44 : 38, height: isSleeper ? 38 : 36, margin: 2 }} />;
+
+  const seatStr     = String(seat);
+  const seatData    = getSeatData(seatStr);
   const seatBooking = bookingBySeat(seat);
-  const isBooked = bookedSeatsForTrip.includes(seatStr);
-  const isSelected = String(selectedSeat) === seatStr;
+  const isBooked    = bookedSeatsForTrip.includes(seatStr);
 
-  // Check blocked from bus OR trip
+  // ✅ isSelected — seatNumbers array check
+  const isSelectedSeat = Array.isArray(manualBooking.seatNumbers) &&
+                         manualBooking.seatNumbers.includes(seatStr);
+
+  const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
+  const currentBusObj = buses.find(b => String(b._id || b.id) === String(busIdForCheck));
+
   const isBlocked =
-    selectedTrip?.blockedSeats?.includes(seatStr) ||
-    selectedBus?.blockedSeats?.includes(seatStr);
+    seatData?.isBlocked === true ||
+    (Array.isArray(selectedTrip?.blockedSeats) && selectedTrip.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(selectedBus?.blockedSeats) && selectedBus.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(
+      s => String(s.seatNo) === seatStr && s.isBlocked === true
+    ));
 
-  const isLadies =
-    selectedTrip?.ladiesSeats?.includes(seatStr) ||
-    selectedBus?.ladiesSeats?.includes(seatStr);
+  const isLadies = selectedTrip?.ladiesSeats?.includes(seatStr) ||
+                   selectedBus?.ladiesSeats?.includes(seatStr);
 
- // renderSeatBtnNew च्या आत — bookedGender fix:
-const bookedGender =
-  seatBooking?.gender ||
-  seatBooking?.passengers?.[0]?.gender ||
-  seatGenderMap[seatStr] ||    // ✅ local selected gender
-  bookedSeatMap?.[seatStr] ||  // ✅ fetched booked gender
-  "Male";
-// Color logic मध्ये — isFemaleBooked check:
-const isFemaleBooked = isBooked && bookedGender === "Female";
+  const bookedGender =
+    seatBooking?.passengers?.find(p => String(p.seatNumber) === seatStr)?.gender ||
+    seatBooking?.gender ||
+    seatBooking?.passengers?.[0]?.gender ||
+    bookedSeatMap?.[seatStr] ||
+    "Male";
 
-// Colors:
-if (isBlocked)          { bg="rgba(239,68,68,0.22)";  border="#ef4444"; color="#ef4444"; }
-else if (isFemaleBooked){ bg="rgba(168,85,247,0.45)";  border="#a855f7"; color="#e9d5ff"; }
-else if (isBooked)      { bg="rgba(245,158,11,0.45)";  border="#f59e0b"; color="#fef3c7"; }
-else if (isLadies)      { bg="rgba(236,72,153,0.18)";  border="#ec4899"; color="#f9a8d4"; }
-else if (isSelected && selectedGender === "Female") { 
-  bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white"; 
-}
+  const isFemaleBooked = isBooked && bookedGender === "Female";
+
+  // ✅ ONLY एकदाच declare करा — duplicate नाही
+  const selectedGender = seatGenderMap?.[seatStr];
+
+  const isActive = activeSeat === seatStr;
+
+  // Color logic
+  let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
+
+  if (isBlocked) {
+    bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444";
+  } else if (isFemaleBooked) {
+    bg = "rgba(168,85,247,0.45)"; border = "#a855f7"; color = "#e9d5ff";
+  } else if (isBooked) {
+    bg = "rgba(245,158,11,0.45)"; border = "#f59e0b"; color = "#fef3c7";
+  } else if (isLadies) {
+    bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4";
+  } else if (isSelectedSeat && selectedGender === "Female") {
+    bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white";
+  } else if (isSelectedSeat) {
+    bg = "var(--accent)"; border = "var(--accent)"; color = "white";
+  } else if (isActive) {
+    bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e";
+  }
+
+ 
+
 else if (isSelected)    { bg="var(--accent)"; border="var(--accent)"; color="white"; }
   const busIdForOp = manualBooking.busId || (selectedBus?._id || selectedBus?.id);
 
