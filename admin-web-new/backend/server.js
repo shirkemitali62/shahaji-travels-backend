@@ -282,7 +282,7 @@ const AllowedDevice = mongoose.models.AllowedDevice ||
   mongoose.model("AllowedDevice", allowedDeviceSchema);
 // ─── QR PAYMENT SETTINGS ─────────────────────────────────────────
 const qrSettingsSchema = new mongoose.Schema({
-  upiId:          { type: String, default: "9136430854@ybl" },
+  upiId:          { type: String, default: "9763063567@ybl" },
   upiName:        { type: String, default: "KAVIRAJ KRISHNAT BARGE" },
   qrImageBase64:  { type: String, default: "", maxlength: 5000000 }, // ✅ 5MB limit add
   qrEnabled:      { type: Boolean, default: true },
@@ -3190,7 +3190,7 @@ app.post("/api/upi/init-payment", async (req, res) => {
  
     // Fetch UPI settings from DB
     const qrSettings = await QRSettings.findOne();
-    const upiId   = qrSettings?.upiId   || "kavirajbarge@ybl";
+    const upiId   = qrSettings?.upiId   || "9763063567@ybl";
     const payeeName = qrSettings?.upiName || "SHAHAJI TRAVELS";
  
     payment = await UPIPayment.create({
