@@ -2747,7 +2747,7 @@ const isActive = activeSeat === seatStr;
 // ✅ Color logic — gender based
 // renderSeatBtnNew च्या आत — हे EXACT lines replace करा:
 
-const selectedGender = seatGenderMap?.[seatStr];
+
 
 // ✅ FIX: isSelected check — seatNumbers array मध्ये आहे का ते check
 const isSelectedSeat = Array.isArray(manualBooking.seatNumbers) && 
