@@ -1778,14 +1778,6 @@ const isMaleBooked =
 const seatInfo =
   bookedSeatMap?.[String(seat)] || {};
 
-const gender =
-  String(seatInfo.gender || "")
-    .toLowerCase()
-    .trim();
-
-const isFemaleBooked =
-  gender === "female";
-
 
 // Colors:
 if (isBlocked) {
