@@ -1760,7 +1760,9 @@ const bookedGender =
   bookedPassenger.gender ||
   seatBooking?.gender ||
   seatGenderMap[seatStr] ||
-  "Male";  const selectedGender = seatGenderMap[seatStr];
+  "Male"; 
+  
+  const selectedGender = seatGenderMap[seatStr];
 
 const seatInfo =
   bookedSeatMap?.[String(seat)] || {};
@@ -2746,7 +2748,7 @@ const isFemaleBooked =
 const isMaleBooked =
   isBooked &&
   gender === "male";
-  const selectedGender = seatGenderMap[seatStr];
+  
   const isActive   = activeSeat === seatStr;
 
   let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
