@@ -1749,14 +1749,18 @@ function renderSeatBtnNew(seat, isSleeper) {
     selectedBus?.ladiesSeats?.includes(seatStr);
 
  // renderSeatBtnNew च्या आत — bookedGender fix:
+const bookedPassenger =
+  seatBooking?.passengers?.find(
+    p =>
+      String(p.seatNo || p.seatNumber || p.seat)
+      === seatStr
+  ) || {};
+
 const bookedGender =
+  bookedPassenger.gender ||
   seatBooking?.gender ||
-  seatBooking?.passengers?.[0]?.gender ||
-  seatGenderMap[seatStr] ||    // ✅ local selected gender
-  bookedSeatMap?.[seatStr] ||  // ✅ fetched booked gender
-  "Male";
-  
-  const selectedGender = seatGenderMap[seatStr];
+  seatGenderMap[seatStr] ||
+  "Male";  const selectedGender = seatGenderMap[seatStr];
 
 const seatInfo =
   bookedSeatMap?.[String(seat)] || {};
@@ -1770,7 +1774,8 @@ const isFemaleBooked =
   gender === "female";
 
 const isMaleBooked =
-  gender === "male";
+  isBooked &&
+  bookedGender === "Male";
 // Colors:
 if (isBlocked) {
   bg = "rgba(239,68,68,0.22)";
@@ -1790,12 +1795,11 @@ else if (isMaleBooked) {
   color = "#dbeafe";
 }
 
-else if (isBooked) {
-  bg = "rgba(245,158,11,0.45)";
-  border = "#f59e0b";
-  color = "#fef3c7";
+else if (isMaleBooked) {
+  bg = "rgba(59,130,246,0.28)";
+  border = "#3b82f6";
+  color = "#bfdbfe";
 }
-
 else if (isLadies) {
   bg = "rgba(236,72,153,0.18)";
   border = "#ec4899";
@@ -2956,13 +2960,23 @@ function renderSeatBtn(seat) {
     selectedTrip?.ladiesSeats?.includes(seat) ||
     selectedBus?.ladiesSeats?.includes(seat);
 
-  const bookedGender =
-    seatBooking?.gender ||
-    seatBooking?.passengers?.[0]?.gender ||
-    seatGenderMap[String(seat)] ||
-    "Male";
+ const bookedPassenger =
+  seatBooking?.passengers?.find(
+    p =>
+      String(p.seatNo || p.seatNumber || p.seat)
+      === seatStr
+  ) || {};
+
+const bookedGender =
+  bookedPassenger.gender ||
+  seatBooking?.gender ||
+  seatGenderMap[seatStr] ||
+  "Male";
 
   const isFemaleBooked = isBooked && bookedGender === "Female";
+  const isMaleBooked =
+  isBooked &&
+  bookedGender === "Male";
   const selectedGender = seatGenderMap[String(seat)];
 
   let seatClass = "seat-btn available";
@@ -3046,15 +3060,30 @@ function renderACSleeperLayout() {
       (Array.isArray(freshBus?.seats) ? freshBus.seats : [])
         .find(s => String(s.seatNo) === seatStr) || {}
     ) : {};
-    const bookedGender = seatBooking?.gender || seatBooking?.passengers?.[0]?.gender || seatGenderMap[seatStr] || "Male";
-    const isFemaleBooked = isBooked && bookedGender === "Female";
+const bookedPassenger =
+  seatBooking?.passengers?.find(
+    p =>
+      String(p.seatNo || p.seatNumber || p.seat)
+      === seatStr
+  ) || {};
+
+const bookedGender =
+  bookedPassenger.gender ||
+  seatBooking?.gender ||
+  seatGenderMap[seatStr] ||
+  "Male";
+      const isFemaleBooked = isBooked && bookedGender === "Female";
     const selectedGender = seatGenderMap[seatStr];
     if (!seat) return <div style={{ width:46, height:40 }} />;
 
    let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
     if (isBlocked)          { bg="rgba(239,68,68,0.22)"; border="#ef4444"; color="#ef4444"; }
     else if (isFemaleBooked){ bg="rgba(168,85,247,0.28)";  border="#a855f7"; color="#c4b5fd"; }
-    else if (isBooked)      { bg="rgba(245,158,11,0.28)";  border="#f59e0b"; color="#fcd34d"; }
+    else if (isMaleBooked) {
+  bg = "rgba(246, 237, 59, 0.28)";
+  border = "#f6803b";
+  color = "#bfdbfe";
+}
     else if (isLadies)      { bg="rgba(236,72,153,0.18)";  border="#ec4899"; color="#f9a8d4"; }
     else if (isSelected && selectedGender === "Female") { bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white"; }
     else if (isSelected)    { bg="var(--accent)"; border="var(--accent)"; color="white"; }
