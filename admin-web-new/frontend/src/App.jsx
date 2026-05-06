@@ -2718,7 +2718,6 @@ const isActive = activeSeat === seatStr;
 // ✅ Color logic — gender based
 // renderSeatBtnNew च्या आत — हे EXACT lines replace करा:
 
-const selectedGender = seatGenderMap?.[seatStr];
 
 // ✅ FIX: isSelected check — seatNumbers array मध्ये आहे का ते check
 const isSelectedSeat = Array.isArray(manualBooking.seatNumbers) && 
@@ -3577,60 +3576,82 @@ function renderACSleeperLayout() {
             {renderSeatGrid(UPPER_SEAT_PAIRS, "🛏️ Upper Deck")}
           </div>
         )}
- // Summary मध्ये प्रत्येक seat चा gender दाखवताना:
-{manualBooking.seatNumbers?.map(seat => {
-  const g = seatGenderMap[String(seat)];  // ✅ per-seat lookup
-  const isFemale = g === "Female";
-  return (
-    <span key={seat} style={{
-      background: isFemale 
-        ? "rgba(168,85,247,0.2)" 
-        : "rgba(230,57,70,0.2)",
-      border: `1px solid ${isFemale ? "#a855f7" : "var(--accent)"}`,
-      borderRadius: 6, padding: "3px 10px",
-      fontSize: 13, fontWeight: 700,
-      color: isFemale ? "#c084fc" : "var(--accent)",
-      display: "flex", alignItems: "center", gap: 4,
-    }}>
-      {seat}
-      <span style={{ fontSize: 10 }}>
-        {isFemale ? "👩F" : "👨M"}
-      </span>
-      <button onClick={() => {
-        // remove seat
-        const busType = (selectedBus?.type || "").toLowerCase();
-        const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
-        const newSeats = manualBooking.seatNumbers.filter(s => s !== seat);
-        const newAmount = newSeats.reduce((total, s) => {
-          if (isSeaterSleeper) {
-            const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
-            const price = isSleeperSeat
-              ? (Number(selectedBus?.sleeperPrice) || 0)
-              : (Number(selectedBus?.seaterPrice)  || 0);
-            return total + price;
-          }
-          return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
-        }, 0);
-        setManualBooking(p => ({
-          ...p,
-          seatNumbers: newSeats,
-          seatNo: newSeats[0] || "",
-          amount: String(newAmount),
-        }));
-        setSeatGenderMap(prev => { 
-          const n = {...prev}; 
-          delete n[String(seat)]; 
-          return n; 
-        });
-        setSelectedSeat(newSeats[0] || "");
-      }} style={{
-        background: "none", border: "none", 
-        cursor: "pointer", color: "#ef4444", 
-        fontSize: 14, padding: 0,
-      }}>×</button>
-    </span>
-  );
-})}
+ {manualBooking.seatNumbers?.length > 0 && (
+  <div style={{
+    padding: "12px 16px", borderRadius: 10, marginTop: 8,
+    background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    flexWrap: "wrap", gap: 8,
+  }}>
+    <div>
+      <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 4 }}>
+        ✅ Selected Seats ({manualBooking.seatNumbers.length})
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {manualBooking.seatNumbers.map(seat => {
+          const g = seatGenderMap[String(seat)];
+          const isFemale = g === "Female";
+          return (
+            <span key={seat} style={{
+              background: isFemale ? "rgba(168,85,247,0.2)" : "rgba(34,197,94,0.2)",
+              border: `1px solid ${isFemale ? "rgba(168,85,247,0.4)" : "rgba(34,197,94,0.4)"}`,
+              borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700,
+              color: isFemale ? "#c084fc" : "#22c55e",
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              {seat}
+              <span style={{ fontSize: 10, opacity: 0.8 }}>
+                {isFemale ? "👩F" : "👨M"}
+              </span>
+              <button
+               onClick={() => {
+  const busType = (selectedBus?.type || "").toLowerCase();
+  const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
+  
+  const newSeats = manualBooking.seatNumbers.filter(s => s !== seat);
+  
+  const newAmount = newSeats.reduce((total, s) => {
+    if (isSeaterSleeper) {
+      const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
+      const price = isSleeperSeat
+        ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
+        : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
+      return total + price;
+    }
+    return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
+  }, 0);
+
+  setManualBooking(p => ({
+    ...p,
+    seatNumbers: newSeats,
+    seatNo: newSeats[0] || "",
+    amount: String(newAmount),
+  }));
+  setSeatGenderMap(prev => { 
+    const n = {...prev}; 
+    delete n[String(seat)]; 
+    return n; 
+  });
+  setSelectedSeat(newSeats[0] || "");
+}}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "#ef4444", fontSize: 14, marginLeft: 2, padding: 0,
+                }}
+              >×</button>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+    <div style={{ textAlign: "right" }}>
+      <div style={{ fontSize: 11, color: "var(--text2)" }}>Total Amount</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: "#22c55e" }}>
+        ₹{manualBooking.amount || 0}
+      </div>
+    </div>
+  </div>
+)}
         <div className="form-actions">
           <button className="btn-primary" onClick={addManualBooking}>➕ Add Booking</button>
           <button className="btn-secondary" onClick={() => {
