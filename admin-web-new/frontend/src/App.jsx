@@ -1430,12 +1430,32 @@ const bookedSeatsForTrip = bookings
       return seats.map(String);
     });
   function bookingBySeat(seatNo) {
-    return bookings.find(b =>
-      String(b.tripId) === String(selectedTripId) &&
-      String(b.seatNo) === String(seatNo)
-    );
-  }
+  return bookings.find(b => {
+    // cancelled bookings skip
+    if (b.bookingStatus === "Cancelled" || 
+        b.paymentStatus === "Cancelled") return false;
 
+    const seatMatch =
+      String(b.seatNo) === String(seatNo) ||
+      (Array.isArray(b.seatNumbers) && 
+       b.seatNumbers.map(String).includes(String(seatNo)));
+
+    if (selectedTripId) {
+      // Trip select केली असेल तर tripId match
+      return String(b.tripId) === String(selectedTripId) && seatMatch;
+    } else if (manualBooking.busId) {
+      // Bus select केली असेल — date आणि bus match
+      const busMatch =
+        String(b.bus) === String(manualBooking.busId) ||
+        String(b.busNo) === String(manualBooking.busNo);
+      const dateMatch = !manualBooking.journeyDate ||
+        b.journeyDate === manualBooking.journeyDate ||
+        b.date === manualBooking.journeyDate;
+      return busMatch && dateMatch && seatMatch;
+    }
+    return false;
+  });
+}
   // ===================== AUTH =====================
   async function handleLogin(email, password) {
     try {
@@ -1727,23 +1747,25 @@ function renderSeatBtnNew(seat, isSleeper) {
     selectedTrip?.ladiesSeats?.includes(seatStr) ||
     selectedBus?.ladiesSeats?.includes(seatStr);
 
-  const bookedGender =
-    seatBooking?.gender ||
-    seatBooking?.passengers?.[0]?.gender ||
-    seatGenderMap[seatStr] ||
-    "Male";
-  const isFemaleBooked = isBooked && bookedGender === "Female";
-  const selectedGender = seatGenderMap[seatStr];
+ // renderSeatBtnNew च्या आत — bookedGender fix:
+const bookedGender =
+  seatBooking?.gender ||
+  seatBooking?.passengers?.[0]?.gender ||
+  seatGenderMap[seatStr] ||    // ✅ local selected gender
+  bookedSeatMap?.[seatStr] ||  // ✅ fetched booked gender
+  "Male";
+// Color logic मध्ये — isFemaleBooked check:
+const isFemaleBooked = isBooked && bookedGender === "Female";
 
-  // COLOR LOGIC
-  let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
-  if (isBlocked)           { bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444"; }  // RED for admin
-  else if (isFemaleBooked) { bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
-  else if (isBooked)       { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
-  else if (isLadies)       { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
-  else if (isSelected && selectedGender === "Female") { bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white"; }
-  else if (isSelected)     { bg = "var(--accent)"; border = "var(--accent)"; color = "white"; }
-
+// Colors:
+if (isBlocked)          { bg="rgba(239,68,68,0.22)";  border="#ef4444"; color="#ef4444"; }
+else if (isFemaleBooked){ bg="rgba(168,85,247,0.45)";  border="#a855f7"; color="#e9d5ff"; }
+else if (isBooked)      { bg="rgba(245,158,11,0.45)";  border="#f59e0b"; color="#fef3c7"; }
+else if (isLadies)      { bg="rgba(236,72,153,0.18)";  border="#ec4899"; color="#f9a8d4"; }
+else if (isSelected && selectedGender === "Female") { 
+  bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white"; 
+}
+else if (isSelected)    { bg="var(--accent)"; border="var(--accent)"; color="white"; }
   const busIdForOp = manualBooking.busId || (selectedBus?._id || selectedBus?.id);
 
   return (
@@ -2143,7 +2165,7 @@ if (rawDate) {
                 bookedSeatsForTrip={bookedSeatsForTrip}
                 addManualBooking={addManualBooking}
                 updateBookingStatus={updateBookingStatus}
-                deleteBooking={deleteBooking} saveBooking={saveBooking}
+                deleteBooking={deleteBooking} saveBooking={saveBooking} setBookings={setBookings}
                 selectedBookingForTicket={selectedBookingForTicket}
                 setSelectedBookingForTicket={setSelectedBookingForTicket}
                 selectedRoute={selectedRoute} selectedTrip={selectedTrip}
@@ -2288,7 +2310,7 @@ function getSeatDisplayLabel(seatNo) {
 // ===================== BOOKINGS PAGE =====================
 function BookingsPage(props) {
 const {
-    buses, trips, bookings, manualBooking, setManualBooking,
+    buses, trips, bookings, manualBooking, setManualBooking, setBookings,
     selectedTripId, setSelectedTripId, selectedSeat, setSelectedSeat,
     bookedSeatsForTrip, addManualBooking, updateBookingStatus,
     deleteBooking, saveBooking, selectedBookingForTicket,
@@ -3867,43 +3889,93 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
 
       <div style={{ display: "flex", gap: 10 }}>
         <button
-          onClick={async () => {
-            try {
-              const unbookedSeatNo = String(seatUnbookPopup.seatNo || "");
-              const unbookedId     = seatUnbookPopup._id;
+        onClick={async () => {
+  try {
+    const unbookedSeatNo = String(seatUnbookPopup.seatNo || "");
+    const unbookedId     = seatUnbookPopup._id;
 
-              // ✅ Step 1: Backend cancel
-              await apiFetch("/api/bookings/" + unbookedId, {
-                method: "PATCH",
-                body: JSON.stringify({ 
-                  paymentStatus: "Cancelled", 
-                  bookingStatus: "Cancelled" 
-                }),
-              });
+    // ✅ Target booking शोधा
+    const targetBooking = bookings?.find(
+      b => String(b._id) === String(unbookedId)
+    );
 
-              // ✅ Step 2: Local bookings state मध्ये 
-              // फक्त त्या booking ची status update करा
-              // deleteBooking नाही — status update
-              saveBooking({
-                paymentStatus: "Cancelled",
-                bookingStatus: "Cancelled",
-              }, unbookedId);
+    const allSeatsInBooking = Array.isArray(targetBooking?.seatNumbers) && 
+                              targetBooking.seatNumbers.length > 0
+      ? targetBooking.seatNumbers.map(String)
+      : targetBooking?.seatNo 
+      ? [String(targetBooking.seatNo)] 
+      : [];
 
-              // ✅ Step 3: Gender map मधून फक्त ती seat remove
-              setSeatGenderMap(prev => {
-                const n = { ...prev };
-                delete n[unbookedSeatNo];
-                return n;
-              });
+    if (allSeatsInBooking.length <= 1) {
+      // ✅ Single seat booking — पूर्ण booking cancel
+      await apiFetch("/api/bookings/" + unbookedId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          paymentStatus: "Cancelled",
+          bookingStatus: "Cancelled",
+        }),
+      });
+      // Local state मधून remove
+      deleteBooking && deleteBooking(unbookedId);
 
-              // ✅ Step 4: Modal close
-              setSeatUnbookPopup(null);
-              showToast("✅ Seat " + unbookedSeatNo + " unbooked!");
+    } else {
+      // ✅ Multiple seats booking — फक्त ती एक seat remove
+      // बाकी seats तशाच राहतील
 
-            } catch (e) {
-              showToast("Unbook failed: " + e.message, "error");
+      const remainingSeats = allSeatsInBooking.filter(
+        s => s !== unbookedSeatNo
+      );
+
+      // Backend वर booking update करा — remaining seats सह
+      await apiFetch("/api/bookings/" + unbookedId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          seatNumbers:   remainingSeats,
+          seatNo:        remainingSeats[0] || "",
+          selectedSeats: remainingSeats,
+          // amount recalculate
+          amount: Math.round(
+            (Number(targetBooking?.amount || 0) / allSeatsInBooking.length) 
+            * remainingSeats.length
+          ),
+          totalAmount: Math.round(
+            (Number(targetBooking?.amount || 0) / allSeatsInBooking.length) 
+            * remainingSeats.length
+          ),
+        }),
+      });
+
+      // ✅ Local bookings state update — फक्त ती booking update
+      setBookings(prev => prev.map(b =>
+        String(b._id) === String(unbookedId)
+          ? {
+              ...b,
+              seatNumbers:   remainingSeats,
+              seatNo:        remainingSeats[0] || "",
+              selectedSeats: remainingSeats,
+              amount: Math.round(
+                (Number(b.amount || 0) / allSeatsInBooking.length) 
+                * remainingSeats.length
+              ),
             }
-          }}
+          : b
+      ));
+    }
+
+    // ✅ Gender map cleanup — फक्त ती एक seat
+    setSeatGenderMap(prev => {
+      const n = { ...prev };
+      delete n[unbookedSeatNo];
+      return n;
+    });
+
+    setSeatUnbookPopup(null);
+    showToast("✅ Seat " + unbookedSeatNo + " unbooked!");
+
+  } catch (e) {
+    showToast("Unbook failed: " + e.message, "error");
+  }
+}}
           style={{
             flex: 1, 
             background: "linear-gradient(135deg,#d97706,#b45309)",

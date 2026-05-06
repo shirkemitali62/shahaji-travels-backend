@@ -2833,18 +2833,25 @@ try {
       const bookData = await bookRes.json();
       const bookings = Array.isArray(bookData) ? bookData : (bookData.bookings || []);
       
-      bookings.forEach(b => {
-        if (b.bookingStatus === "Cancelled") return;
-        const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length 
-          ? b.seatNumbers 
-          : b.seatNo ? [b.seatNo] : [];
-        seats.forEach(s => {
-          if (s) {
-            bSeats.push(String(s));
-            bGenderMap[String(s)] = b.gender || b.passengers?.[0]?.gender || "Male";
-          }
-        });
-      });
+// handleSelectBus मध्ये booked seats fetch केल्यावर:
+// bGenderMap build करताना — हे exact replacement:
+
+bookings.forEach(b => {
+  if (b.bookingStatus === "Cancelled" || 
+      b.paymentStatus === "Cancelled") return;
+
+  const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
+    ? b.seatNumbers
+    : b.seatNo ? [b.seatNo] : [];
+
+  const gender = b.gender || 
+                 b.passengers?.[0]?.gender || 
+                 "Male";
+
+  seats.forEach(s => {
+    if (s) bGenderMap[String(s)] = gender;
+  });
+});
       console.log("🎫 Booked seats from bookings API:", bSeats);
     } catch(e) {
       console.log("Bookings API error:", e.message);
