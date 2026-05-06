@@ -2994,15 +2994,33 @@ app.delete("/api/admin/devices/:id", async (req, res) => {
     res.json({ success: true, message: "Device removed" });
   } catch(err) { res.status(500).json({ message: err.message }); }
 });
+app.get("/api/admin/backups-list", async (req, res) => {
+  try {
+    const list = await Backup.find({}).sort({ savedAt: -1 }).lean();
+    const result = list.map(b => ({
+      _id:           b._id,
+      savedAt:       b.savedAt,
+      label:         b.label || "",
+      busCount:      b.buses?.length      || 0,
+      bookingCount:  b.bookings?.length   || 0,
+      customerCount: b.customers?.length  || 0,
+    }));
+    res.json({ success: true, backups: result });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // SILENT AUTO BACKUP — MongoDB मध्ये save
 const backupSchema = new mongoose.Schema({
-  savedAt: { type: Date, default: Date.now },
-  label:   { type: String, default: "" },
-  buses:    Array,
-  bookings: Array,
+  savedAt:   { type: Date, default: Date.now },
+  label:     { type: String, default: "" },
+  buses:     Array,
+  bookings:  Array,
   customers: Array,
 });
-const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);
+// Index for fast date queries
+backupSchema.index({ savedAt: -1 });
+const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);
 app.post("/api/admin/backup-silent", async (req, res) => {
   try {
     const [buses, bookings, customers] = await Promise.all([
@@ -3011,16 +3029,21 @@ app.post("/api/admin/backup-silent", async (req, res) => {
       Customer.find({}).lean(),
     ]);
 
-    // ✅ NEVER DELETE — हर backup permanently save होतो
-    await Backup.create({ 
-      buses, 
-      bookings, 
-      customers,
-      savedAt: new Date(),
-      label: `Auto_${new Date().toISOString().slice(0,10)}_${Date.now()}`
-    });
-    
-    res.json({ success: true, message: "Backup saved permanently" });
+    const now = new Date();
+    const label = now.toISOString().slice(0, 10); // "2026-05-06"
+
+    // Same date चा backup असेल तर UPDATE कर, नाहीतर NEW create कर
+    await Backup.findOneAndUpdate(
+      { label },
+      { 
+        buses, bookings, customers,
+        savedAt: now,
+        label,
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, message: "Backup saved" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -3420,22 +3443,28 @@ app.get("/api/upi/pending-verifications", async (req, res) => {
 // GET all backups list (count only, not full data)
 app.get("/api/admin/backups-list", async (req, res) => {
   try {
-    const backups = await Backup.find({}, { 
-      savedAt: 1, label: 1,
-      busCount: { $size: { $ifNull: ["$buses", []] } },
-    }).sort({ savedAt: -1 });
-    
-    // Count fields manually
-    const list = await Backup.find({}).sort({ savedAt: -1 }).lean();
-    const result = list.map(b => ({
-      _id: b._id,
-      savedAt: b.savedAt,
-      label: b.label || "",
-      busCount: b.buses?.length || 0,
-      bookingCount: b.bookings?.length || 0,
-      customerCount: b.customers?.length || 0,
-    }));
-    
+    const list = await Backup.find({}, {
+      _id: 1, savedAt: 1, label: 1,
+      busCount:      { $literal: 0 },
+      bookingCount:  { $literal: 0 },
+      customerCount: { $literal: 0 },
+    }).sort({ savedAt: -1 }).lean();
+
+    // counts add karo
+    const result = await Promise.all(
+      list.map(async (b) => {
+        const full = await Backup.findById(b._id).lean();
+        return {
+          _id:           b._id,
+          savedAt:       b.savedAt,
+          label:         b.label || "",
+          busCount:      full.buses?.length      || 0,
+          bookingCount:  full.bookings?.length   || 0,
+          customerCount: full.customers?.length  || 0,
+        };
+      })
+    );
+
     res.json({ success: true, backups: result });
   } catch(err) {
     res.status(500).json({ success: false, message: err.message });
@@ -3446,7 +3475,8 @@ app.get("/api/admin/backups-list", async (req, res) => {
 app.post("/api/admin/restore-by-id/:id", async (req, res) => {
   try {
     const backup = await Backup.findById(req.params.id);
-    if (!backup) return res.status(404).json({ success: false, message: "Backup not found" });
+    if (!backup) 
+      return res.status(404).json({ success: false, message: "Backup not found" });
 
     let restoredBuses = 0, restoredBookings = 0, restoredCustomers = 0;
 
@@ -3456,7 +3486,8 @@ app.post("/api/admin/restore-by-id/:id", async (req, res) => {
           .findOne({ _id: new mongoose.Types.ObjectId(String(bus._id)) });
         if (!exists) {
           await mongoose.connection.db.collection("buses").insertOne({
-            ...bus, _id: new mongoose.Types.ObjectId(String(bus._id))
+            ...bus,
+            _id: new mongoose.Types.ObjectId(String(bus._id))
           });
           restoredBuses++;
         }
@@ -3485,13 +3516,13 @@ app.post("/api/admin/restore-by-id/:id", async (req, res) => {
 
     res.json({
       success: true,
-      message: `Restored: ${restoredBuses} buses, ${restoredBookings} bookings, ${restoredCustomers} customers`,
+      message: `✅ Restored: ${restoredBuses} buses, ${restoredBookings} bookings, ${restoredCustomers} customers`,
+      restoredBuses, restoredBookings, restoredCustomers,
     });
   } catch(err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
- 
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message:`Route ${req.method} ${req.path} not found` });

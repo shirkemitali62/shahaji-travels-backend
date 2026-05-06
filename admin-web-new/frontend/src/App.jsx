@@ -2326,6 +2326,7 @@ const [seatGenderMap, setSeatGenderMap] = React.useState({});
     String(b.name || "") === String(selectedTrip.bus)
   ) || null;
 }, [selectedTrip, buses, manualBooking.busId]);
+// BookingsPage मध्ये handleAdminGenderSelect function fix करा:
 function handleAdminGenderSelect(gender) {
   const seat = adminGenderPicker.seat;
   setAdminGenderPicker({ visible: false, seat: null });
@@ -2335,24 +2336,38 @@ function handleAdminGenderSelect(gender) {
 
   setManualBooking(prev => {
     const existing = Array.isArray(prev.seatNumbers) ? prev.seatNumbers : [];
-    // Already आहे तर add करू नको
     if (existing.includes(String(seat))) return prev;
     const newSeats = [...existing, String(seat)];
-    const pricePerSeat = Number(
-      selectedBus?.seaterPrice || selectedBus?.price || 0
-    );
+    
+    // ✅ FIX 1: Per-seat price calculation
+    const busType = (selectedBus?.type || "").toLowerCase();
+    const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
+    
+    const newAmount = newSeats.reduce((total, s) => {
+      if (isSeaterSleeper) {
+        // V1-V12 = single (seater), 1-24 = seater, A1-A6/A-L = sleeper
+        const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
+        const price = isSleeperSeat
+          ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
+          : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
+        return total + price;
+      } else {
+        // AC Sleeper only
+        return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
+      }
+    }, 0);
+
     return {
       ...prev,
       seatNo: newSeats[0],
       seatNumbers: newSeats,
       gender,
-      amount: String(pricePerSeat * newSeats.length),
+      amount: String(newAmount),
     };
   });
 
   setSelectedSeat(seat);
 }
-
   // ── Bus type detection ──────────────────────────────────────────
  const selectedBusType = selectedBus?.type || selectedTrip?.busType || "";
 const isACSleeperBus   = isSleeperOnly(selectedBusType);
@@ -3487,41 +3502,72 @@ function renderACSleeperLayout() {
             {renderSeatGrid(UPPER_SEAT_PAIRS, "🛏️ Upper Deck")}
           </div>
         )}
- {/* ── Selected Seats Summary ── */}
-{manualBooking.seatNumbers?.length > 0 && (
+ {manualBooking.seatNumbers?.length > 0 && (
   <div style={{
     padding: "12px 16px", borderRadius: 10, marginTop: 8,
     background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
-    display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    flexWrap: "wrap", gap: 8,
   }}>
     <div>
       <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 4 }}>
         ✅ Selected Seats ({manualBooking.seatNumbers.length})
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {manualBooking.seatNumbers.map(seat => (
-          <span key={seat} style={{
-            background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.4)",
-            borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#22c55e",
-          }}>
-            {seat}
-            <button
-              onClick={() => setManualBooking(p => ({
-                ...p,
-                seatNumbers: p.seatNumbers.filter(s => s !== seat),
-                seatNo: p.seatNumbers.filter(s => s !== seat)[0] || "",
-                amount: String(
-                  (Number(selectedBus?.seaterPrice || selectedBus?.price || 0)) *
-                  p.seatNumbers.filter(s => s !== seat).length
-                ),
-              }))}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "#ef4444", fontSize: 14, marginLeft: 4, padding: 0,
-              }}
-            >×</button>
-          </span>
-        ))}
+        {manualBooking.seatNumbers.map(seat => {
+          const g = seatGenderMap[String(seat)];
+          const isFemale = g === "Female";
+          return (
+            <span key={seat} style={{
+              background: isFemale ? "rgba(168,85,247,0.2)" : "rgba(34,197,94,0.2)",
+              border: `1px solid ${isFemale ? "rgba(168,85,247,0.4)" : "rgba(34,197,94,0.4)"}`,
+              borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700,
+              color: isFemale ? "#c084fc" : "#22c55e",
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              {seat}
+              <span style={{ fontSize: 10, opacity: 0.8 }}>
+                {isFemale ? "👩F" : "👨M"}
+              </span>
+              <button
+               onClick={() => {
+  const busType = (selectedBus?.type || "").toLowerCase();
+  const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
+  
+  const newSeats = manualBooking.seatNumbers.filter(s => s !== seat);
+  
+  const newAmount = newSeats.reduce((total, s) => {
+    if (isSeaterSleeper) {
+      const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
+      const price = isSleeperSeat
+        ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
+        : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
+      return total + price;
+    }
+    return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
+  }, 0);
+
+  setManualBooking(p => ({
+    ...p,
+    seatNumbers: newSeats,
+    seatNo: newSeats[0] || "",
+    amount: String(newAmount),
+  }));
+  setSeatGenderMap(prev => { 
+    const n = {...prev}; 
+    delete n[String(seat)]; 
+    return n; 
+  });
+  setSelectedSeat(newSeats[0] || "");
+}}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "#ef4444", fontSize: 14, marginLeft: 2, padding: 0,
+                }}
+              >×</button>
+            </span>
+          );
+        })}
       </div>
     </div>
     <div style={{ textAlign: "right" }}>
@@ -3810,25 +3856,48 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <button
-          onClick={async () => {
+        onClick={async () => {
   try {
-    // ✅ deleteBooking prop directly call करा — confirm नाही कारण modal मध्ये आहोत
+    // ✅ FIX 3: Booking delete (cancel) करा
     await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
       method: "PATCH",
-      body: JSON.stringify({ paymentStatus: "Cancelled", bookingStatus: "Cancelled" }),
+      body: JSON.stringify({ 
+        paymentStatus: "Cancelled", 
+        bookingStatus: "Cancelled" 
+      }),
+    });
+
+    // Local state मधून हा booking remove करा
+    const unbookedId = seatUnbookPopup._id;
+    
+    // setBookings update (props मधून)
+    if (typeof deleteBooking === "function") {
+      deleteBooking(unbookedId);
+    }
+
+    // Selected seats मधून remove करा जर असेल तर
+    const unbookedSeatNo = seatUnbookPopup.seatNo;
+    if (unbookedSeatNo) {
+      setManualBooking(prev => {
+        const newSeats = (prev.seatNumbers || []).filter(s => s !== String(unbookedSeatNo));
+        return { ...prev, seatNumbers: newSeats, seatNo: newSeats[0] || "" };
+      });
+    }
+
+    // Gender map मधून remove
+    setSeatGenderMap(prev => {
+      const n = { ...prev };
+      delete n[String(unbookedSeatNo)];
+      return n;
     });
     
-    // props मधून bookings update करा
-    const updatedId = seatUnbookPopup._id;
-    deleteBooking && deleteBooking(updatedId);
-    
     setSelectedSeat("");
-    setSeatGenderMap({});
     setSeatUnbookPopup(null);
-    showToast("✅ Seat unbooked!");
+    showToast("✅ Seat unbooked successfully!");
   } catch (e) {
     showToast("Unbook failed: " + e.message, "error");
   }
+
 }}
 
           
@@ -7650,9 +7719,11 @@ const blockedRows = blockedSeats.length
 // ===================== BACKUP PAGE =====================
 function BackupPage({ showToast }) {
   const [backupList, setBackupList] = React.useState([]);
+  const [selectedBackup, setSelectedBackup] = React.useState(null);
   const [restoring, setRestoring] = React.useState(false);
   const [msg, setMsg] = React.useState("");
   const [downloading, setDownloading] = React.useState(false);
+  const [preview, setPreview] = React.useState(null);
 
   React.useEffect(() => { loadBackupList(); }, []);
 
@@ -7661,6 +7732,27 @@ function BackupPage({ showToast }) {
       const res = await apiFetch("/api/admin/backups-list");
       setBackupList(res.backups || []);
     } catch(e) {}
+  }
+
+  async function previewBackup(backup) {
+    setPreview(backup);
+    setSelectedBackup(backup._id);
+  }
+
+  async function restoreFromBackupId() {
+    if (!selectedBackup) { showToast("Date select करा!", "error"); return; }
+    if (!window.confirm("या date च्या backup मधून restore करायचं?")) return;
+    setRestoring(true);
+    setMsg("");
+    try {
+      const res = await apiFetch(`/api/admin/restore-by-id/${selectedBackup}`, { method: "POST" });
+      setMsg("✅ " + res.message);
+      showToast("✅ Restore complete!");
+    } catch(err) {
+      setMsg("❌ " + err.message);
+      showToast("Restore failed!", "error");
+    }
+    setRestoring(false);
   }
 
   const downloadBackup = async () => {
@@ -7681,20 +7773,6 @@ function BackupPage({ showToast }) {
       setDownloading(false);
     }
   };
-
-  async function restoreFromBackupId(backupId) {
-    if (!window.confirm("या backup मधून restore करायचं?")) return;
-    setRestoring(true);
-    try {
-      const res = await apiFetch(`/api/admin/restore-by-id/${backupId}`, { method: "POST" });
-      setMsg("✅ " + res.message);
-      showToast("✅ Restore complete!");
-    } catch(err) {
-      setMsg("❌ " + err.message);
-      showToast("Restore failed!", "error");
-    }
-    setRestoring(false);
-  }
 
   const restoreAll = async (e) => {
     const file = e.target.files[0];
@@ -7732,86 +7810,196 @@ function BackupPage({ showToast }) {
     <div className="page">
       <div className="page-header">
         <h1>🗄️ Backup & Restore</h1>
-        <p>सगळे backups permanently save होतात — कधीही restore करा!</p>
+        <p>Date select करा आणि त्या दिवसाचा data restore करा</p>
       </div>
 
       {/* Download */}
       <div className="section-card">
         <div className="section-title">📥 Download Current Backup</div>
-        <button className="btn-primary" onClick={downloadBackup} disabled={downloading}>
-          {downloading ? "⏳..." : "📥 Download Backup"}
+        <button className="btn-primary" onClick={downloadBackup} disabled={downloading}
+          style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {downloading ? "⏳ Downloading..." : "📥 Download Backup"}
         </button>
       </div>
 
-      {/* All Saved Backups List */}
+      {/* Date-wise Backup List */}
       <div className="section-card">
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-          <div className="section-title" style={{ margin:0 }}>📋 All Saved Backups ({backupList.length})</div>
-          <button className="btn-secondary" style={{ fontSize:12, padding:"6px 12px" }} onClick={loadBackupList}>↻ Refresh</button>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <div>
+            <div className="section-title" style={{ margin:0 }}>📅 Date-wise Backups</div>
+            <div style={{ fontSize:12, color:"var(--text2)", marginTop:4 }}>
+              Date select करा → Preview बघा → Restore करा
+            </div>
+          </div>
+          <button className="btn-secondary" style={{ fontSize:12, padding:"6px 12px" }}
+            onClick={loadBackupList}>↻ Refresh</button>
         </div>
 
         {backupList.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">🗄️</div>
-            <div className="empty-text">No backups yet</div>
+            <div className="empty-text">No backups yet — एक booking add/delete केल्यावर backup तयार होईल</div>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {backupList.map((b, i) => (
-              <div key={b._id} style={{
-                display:"flex", justifyContent:"space-between", alignItems:"center",
-                padding:"12px 16px", background:"var(--bg3)",
-                border:"1px solid var(--border)", borderRadius:10,
-                flexWrap:"wrap", gap:10,
-              }}>
-                <div>
-                  <div style={{ fontWeight:700, fontSize:14 }}>
-                    {i === 0 ? "🟢 Latest — " : `#${backupList.length - i} — `}
-                    {new Date(b.savedAt).toLocaleString("en-IN")}
+            {backupList.map((b, i) => {
+              const isSelected = selectedBackup === b._id;
+              const dateLabel = new Date(b.savedAt).toLocaleDateString("en-IN", {
+                weekday:"long", day:"2-digit", month:"long", year:"numeric"
+              });
+              const timeLabel = new Date(b.savedAt).toLocaleTimeString("en-IN", {
+                hour:"2-digit", minute:"2-digit"
+              });
+
+              return (
+                <div key={b._id} style={{
+                  borderRadius:12,
+                  border: isSelected
+                    ? "2px solid #22c55e"
+                    : "1px solid var(--border)",
+                  background: isSelected
+                    ? "rgba(34,197,94,0.08)"
+                    : "var(--bg3)",
+                  overflow:"hidden",
+                  transition:"all 0.15s",
+                }}>
+                  {/* Header Row */}
+                  <div
+                    onClick={() => previewBackup(b)}
+                    style={{
+                      display:"flex", justifyContent:"space-between",
+                      alignItems:"center", padding:"14px 16px",
+                      cursor:"pointer", flexWrap:"wrap", gap:10,
+                    }}
+                  >
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      {/* Date Badge */}
+                      <div style={{
+                        width:52, height:52, borderRadius:10, flexShrink:0,
+                        background: i === 0
+                          ? "linear-gradient(135deg,#16a34a,#15803d)"
+                          : "linear-gradient(135deg,#e63946,#c1121f)",
+                        display:"flex", flexDirection:"column",
+                        alignItems:"center", justifyContent:"center",
+                      }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:"white", lineHeight:1 }}>
+                          {new Date(b.savedAt).getDate()}
+                        </div>
+                        <div style={{ fontSize:9, color:"rgba(255,255,255,0.8)", textTransform:"uppercase" }}>
+                          {new Date(b.savedAt).toLocaleString("en-IN", { month:"short" })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:15 }}>
+                          {i === 0 && <span style={{ color:"#22c55e", marginRight:6 }}>🟢 Latest</span>}
+                          {dateLabel}
+                        </div>
+                        <div style={{ fontSize:12, color:"var(--text2)", marginTop:3 }}>
+                          ⏰ {timeLabel} &nbsp;·&nbsp;
+                          🎫 <b style={{ color:"var(--text)" }}>{b.bookingCount}</b> bookings &nbsp;·&nbsp;
+                          🚌 {b.busCount} buses &nbsp;·&nbsp;
+                          👤 {b.customerCount} customers
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                      <span style={{
+                        fontSize:11, color: isSelected ? "#22c55e" : "var(--text2)",
+                        fontWeight:600,
+                      }}>
+                        {isSelected ? "✅ Selected" : "Click to select"}
+                      </span>
+                      <span style={{ fontSize:18, color:"var(--text2)" }}>
+                        {isSelected ? "▲" : "▼"}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ fontSize:12, color:"var(--text2)", marginTop:3 }}>
-                    🚌 {b.busCount} buses &nbsp;·&nbsp;
-                    🎫 {b.bookingCount} bookings &nbsp;·&nbsp;
-                    👤 {b.customerCount} customers
-                  </div>
+
+                  {/* Preview Panel */}
+                  {isSelected && preview && (
+                    <div style={{
+                      borderTop:"1px solid var(--border)",
+                      padding:"14px 16px",
+                      background:"rgba(34,197,94,0.05)",
+                    }}>
+                      <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:"#22c55e" }}>
+                        📋 Backup Preview — {b.label}
+                      </div>
+
+                      {/* Stats */}
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:14 }}>
+                        {[
+                          { icon:"🎫", label:"Bookings", val:b.bookingCount, color:"#60a5fa" },
+                          { icon:"🚌", label:"Buses",    val:b.busCount,     color:"#22c55e" },
+                          { icon:"👤", label:"Customers",val:b.customerCount,color:"#a855f7" },
+                        ].map(({ icon, label, val, color }) => (
+                          <div key={label} style={{
+                            textAlign:"center", padding:"10px",
+                            background:"var(--bg2)", borderRadius:8,
+                            border:"1px solid var(--border)",
+                          }}>
+                            <div style={{ fontSize:16 }}>{icon}</div>
+                            <div style={{ fontSize:20, fontWeight:800, color }}>{val}</div>
+                            <div style={{ fontSize:10, color:"var(--text2)", textTransform:"uppercase" }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Restore Button */}
+                      <button
+                        onClick={restoreFromBackupId}
+                        disabled={restoring}
+                        style={{
+                          width:"100%", padding:"13px",
+                          background:"linear-gradient(135deg,#16a34a,#15803d)",
+                          color:"white", border:"none", borderRadius:10,
+                          fontWeight:800, fontSize:15, cursor:"pointer",
+                          display:"flex", alignItems:"center",
+                          justifyContent:"center", gap:8,
+                        }}
+                      >
+                        {restoring ? "⏳ Restoring..." : `♻️ Restore ${b.label} चा Data`}
+                      </button>
+
+                      <div style={{
+                        marginTop:10, padding:"8px 12px", borderRadius:8,
+                        background:"rgba(245,158,11,0.1)",
+                        border:"1px solid rgba(245,158,11,0.25)",
+                        fontSize:12, color:"#f59e0b",
+                      }}>
+                        ⚠️ Restore फक्त missing records add करतो — existing data delete होत नाही
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => restoreFromBackupId(b._id)}
-                  disabled={restoring}
-                  style={{
-                    background: i === 0
-                      ? "linear-gradient(135deg,#16a34a,#15803d)"
-                      : "rgba(59,130,246,0.15)",
-                    color: i === 0 ? "white" : "#60a5fa",
-                    border: i === 0 ? "none" : "1px solid rgba(59,130,246,0.3)",
-                    borderRadius:8, padding:"8px 16px",
-                    cursor:"pointer", fontWeight:700, fontSize:13,
-                  }}
-                >
-                  {restoring ? "⏳..." : "♻️ Restore"}
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </div>
 
-      {/* Manual Upload */}
-      <div className="section-card">
-        <div className="section-title">♻️ Restore from JSON File</div>
-        <input type="file" accept=".json" onChange={restoreAll} disabled={restoring}
-          style={{ marginBottom:12, display:"block", color:"var(--text)" }} />
-        {restoring && <p style={{ color:"#60a5fa", fontWeight:600 }}>⏳ Restoring...</p>}
         {msg && (
           <div style={{
-            padding:"10px 14px", borderRadius:8, marginTop:8, fontWeight:700,
+            marginTop:14, padding:"12px 16px", borderRadius:10, fontWeight:700,
             background: msg.includes('✅') ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
             border: `1px solid ${msg.includes('✅') ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-            color: msg.includes('✅') ? "#22c55e" : "#f87171",
+            color: msg.includes('✅') ? "#22c55e" : "#f87171", fontSize:14,
           }}>
             {msg}
           </div>
         )}
+      </div>
+
+      {/* Manual JSON Upload */}
+      <div className="section-card">
+        <div className="section-title">♻️ Restore from JSON File</div>
+        <p style={{ color:"var(--text2)", marginBottom:12, fontSize:13 }}>
+          Downloaded backup file upload करा
+        </p>
+        <input type="file" accept=".json" onChange={restoreAll} disabled={restoring}
+          style={{ marginBottom:12, display:"block", color:"var(--text)" }} />
+        {restoring && <p style={{ color:"#60a5fa", fontWeight:600 }}>⏳ Restoring...</p>}
       </div>
     </div>
   );
