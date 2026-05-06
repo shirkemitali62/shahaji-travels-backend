@@ -1786,9 +1786,7 @@ const gender =
 const isFemaleBooked =
   gender === "female";
 
-const isMaleBooked =
-  isBooked &&
-  gender === "male";
+
 // Colors:
 if (isBlocked) {
   bg = "rgba(239,68,68,0.22)";
@@ -3091,8 +3089,7 @@ const bookedGender =
   bookedPassenger.gender ||
   seatBooking?.gender ||
   seatGenderMap[seatStr] ||
-  "Male";
-  const gender =
+  "Male";const gender =
   String(bookedGender)
     .toLowerCase()
     .trim();
