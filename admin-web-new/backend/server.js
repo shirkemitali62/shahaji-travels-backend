@@ -119,6 +119,7 @@ const busSchema = new mongoose.Schema({
   status:        { type: String, enum: ["Active","Inactive"], default: "Active" },
   blockedSeats:  { type: [String], default: [] },
   ladiesSeats:   { type: [String], default: [] },
+  
   seatDetails: [{
     seatNo:        { type: String, required: true },
     isBooked:      { type: Boolean, default: false },
@@ -1714,15 +1715,118 @@ totalAmount:   computedFinal,
       bookingCode:   uniqueCode,
       pnr:           uniqueCode,
       conductorNote: body.conductorNote || "",
-      passengers:    body.passengers || [{
-        name:       passengerName,
-        age:        Number(body.age || 0),
-        gender:     body.gender || "Male",
-        seatNumber: seatNo,
-        phone:      body.mobile || body.phone || "",
-      }],
+passengers: Array.isArray(body.passengers) &&
+body.passengers.length
+  ? body.passengers.map((p, index) => ({
+      name:
+        p.name ||
+        p.passengerName ||
+        passengerName,
+
+      age: Number(
+        p.age || body.age || 0
+      ),
+
+      gender: String(
+        p.gender || "Male"
+      ).trim(),
+
+      seatNo: String(
+        p.seatNo ||
+        p.seat ||
+        p.seatNumber ||
+        seatNumbers[index] ||
+        ""
+      ),
+
+      phone:
+        p.phone ||
+        body.mobile ||
+        body.phone ||
+        "",
+    }))
+  : [{
+      name: passengerName,
+
+      age: Number(
+        body.age || 0
+      ),
+
+      gender: String(
+        body.gender || "Male"
+      ).trim(),
+
+      seatNo: String(
+        seatNo || ""
+      ),
+
+      phone:
+        body.mobile ||
+        body.phone ||
+        "",
+    }],
+    });
+if (busId && seatNumbers.length) {
+  const bus = await Bus.findById(busId);
+
+  if (bus) {
+    if (!Array.isArray(bus.seatDetails)) {
+      bus.seatDetails = [];
+    }
+
+    seatNumbers.forEach((seat, index) => {
+      const passenger =
+        booking.passengers?.find(
+          p =>
+            p.seatNo === seat ||
+            p.seat === seat
+        ) || {};
+
+      const existingSeat =
+        bus.seatDetails.find(
+          s =>
+            String(s.seatNo) ===
+            String(seat)
+        );
+
+      if (existingSeat) {
+        existingSeat.isBooked = true;
+        existingSeat.isBlocked = false;
+
+        existingSeat.passengerName =
+          passenger.name || "";
+
+        existingSeat.gender =
+          String(
+            passenger.gender ||
+            "Male"
+          ).trim();
+
+        existingSeat.bookingId =
+          String(booking._id);
+      } else {
+        bus.seatDetails.push({
+          seatNo: String(seat),
+          isBooked: true,
+          isBlocked: false,
+
+          passengerName:
+            passenger.name || "",
+
+          gender: String(
+            passenger.gender ||
+            "Male"
+          ).trim(),
+
+          bookingId:
+            String(booking._id),
+        });
+      }
     });
 
+    await bus.save();
+  }
+}
     const saved = await booking.save();
 
     // ✅ Notification AFTER successful save

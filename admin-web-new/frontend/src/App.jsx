@@ -1758,19 +1758,64 @@ const bookedGender =
   
   const selectedGender = seatGenderMap[seatStr];
 
- // Color logic मध्ये — isFemaleBooked check:
-const isFemaleBooked = isBooked && bookedGender === "Female";
+const seatInfo =
+  bookedSeatMap?.[String(seat)] || {};
 
+const gender =
+  String(seatInfo.gender || "")
+    .toLowerCase()
+    .trim();
+
+const isFemaleBooked =
+  gender === "female";
+
+const isMaleBooked =
+  gender === "male";
 // Colors:
-if (isBlocked)          { bg="rgba(239,68,68,0.22)";  border="#ef4444"; color="#ef4444"; }
-else if (isFemaleBooked){ bg="rgba(168,85,247,0.45)";  border="#a855f7"; color="#e9d5ff"; }
-else if (isBooked)      { bg="rgba(245,158,11,0.45)";  border="#f59e0b"; color="#fef3c7"; }
-else if (isLadies)      { bg="rgba(236,72,153,0.18)";  border="#ec4899"; color="#f9a8d4"; }
-else if (isSelected && selectedGender === "Female") { 
-  bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white"; 
+if (isBlocked) {
+  bg = "rgba(239,68,68,0.22)";
+  border = "#ef4444";
+  color = "#ef4444";
 }
-else if (isSelected)    { bg="var(--accent)"; border="var(--accent)"; color="white"; }
 
+else if (isFemaleBooked) {
+  bg = "rgba(168,85,247,0.45)";
+  border = "#a855f7";
+  color = "#e9d5ff";
+}
+
+else if (isMaleBooked) {
+  bg = "rgba(59,130,246,0.45)";
+  border = "#3b82f6";
+  color = "#dbeafe";
+}
+
+else if (isBooked) {
+  bg = "rgba(245,158,11,0.45)";
+  border = "#f59e0b";
+  color = "#fef3c7";
+}
+
+else if (isLadies) {
+  bg = "rgba(236,72,153,0.18)";
+  border = "#ec4899";
+  color = "#f9a8d4";
+}
+
+else if (
+  isSelected &&
+  selectedGender === "Female"
+) {
+  bg = "rgba(168,85,247,0.5)";
+  border = "#a855f7";
+  color = "white";
+}
+
+else if (isSelected) {
+  bg = "var(--accent)";
+  border = "var(--accent)";
+  color = "white";
+}
   const busIdForOp = manualBooking.busId || (selectedBus?._id || selectedBus?.id);
 
   return (
