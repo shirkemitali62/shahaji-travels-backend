@@ -1429,26 +1429,26 @@ const bookedSeatsForTrip = bookings
         : b.seatNo ? [b.seatNo] : [];
       return seats.map(String);
     });
- // हे REPLACE करा — App.js मध्ये bookingBySeat function:
-function bookingBySeat(seatNo) {
+ function bookingBySeat(seatNo) {
   return bookings.find(b => {
-    if (b.bookingStatus === "Cancelled" ||
+    // cancelled bookings skip
+    if (b.bookingStatus === "Cancelled" || 
         b.paymentStatus === "Cancelled") return false;
 
     const seatMatch =
       String(b.seatNo) === String(seatNo) ||
-      (Array.isArray(b.seatNumbers) &&
+      (Array.isArray(b.seatNumbers) && 
        b.seatNumbers.map(String).includes(String(seatNo)));
 
     if (selectedTripId) {
+      // Trip select केली असेल तर tripId match
       return String(b.tripId) === String(selectedTripId) && seatMatch;
-    }
-    if (manualBooking.busId) {
+    } else if (manualBooking.busId) {
+      // Bus select केली असेल — date आणि bus match
       const busMatch =
         String(b.bus) === String(manualBooking.busId) ||
         String(b.busNo) === String(manualBooking.busNo);
-      const dateMatch =
-        !manualBooking.journeyDate ||
+      const dateMatch = !manualBooking.journeyDate ||
         b.journeyDate === manualBooking.journeyDate ||
         b.date === manualBooking.journeyDate;
       return busMatch && dateMatch && seatMatch;
@@ -1456,6 +1456,7 @@ function bookingBySeat(seatNo) {
     return false;
   });
 }
+
   // ===================== AUTH =====================
   async function handleLogin(email, password) {
     try {
@@ -1754,7 +1755,10 @@ const bookedGender =
   seatGenderMap[seatStr] ||    // ✅ local selected gender
   bookedSeatMap?.[seatStr] ||  // ✅ fetched booked gender
   "Male";
-// Color logic मध्ये — isFemaleBooked check:
+  
+  const selectedGender = seatGenderMap[seatStr];
+
+ // Color logic मध्ये — isFemaleBooked check:
 const isFemaleBooked = isBooked && bookedGender === "Female";
 
 // Colors:
@@ -1766,6 +1770,7 @@ else if (isSelected && selectedGender === "Female") {
   bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white"; 
 }
 else if (isSelected)    { bg="var(--accent)"; border="var(--accent)"; color="white"; }
+
   const busIdForOp = manualBooking.busId || (selectedBus?._id || selectedBus?.id);
 
   return (
@@ -2165,7 +2170,7 @@ if (rawDate) {
                 bookedSeatsForTrip={bookedSeatsForTrip}
                 addManualBooking={addManualBooking}
                 updateBookingStatus={updateBookingStatus}
-                deleteBooking={deleteBooking} saveBooking={saveBooking} setBookings={setBookings}
+                deleteBooking={deleteBooking} saveBooking={saveBooking}setBookings={setBookings} 
                 selectedBookingForTicket={selectedBookingForTicket}
                 setSelectedBookingForTicket={setSelectedBookingForTicket}
                 selectedRoute={selectedRoute} selectedTrip={selectedTrip}
@@ -2310,7 +2315,7 @@ function getSeatDisplayLabel(seatNo) {
 // ===================== BOOKINGS PAGE =====================
 function BookingsPage(props) {
 const {
-    buses, trips, bookings, manualBooking, setManualBooking, setBookings,
+    buses, trips, bookings, manualBooking, setManualBooking,setBookings,
     selectedTripId, setSelectedTripId, selectedSeat, setSelectedSeat,
     bookedSeatsForTrip, addManualBooking, updateBookingStatus,
     deleteBooking, saveBooking, selectedBookingForTicket,
@@ -2668,85 +2673,33 @@ function renderSeatBtnNew(seat, isSleeper) {
   if (!seat) return <div key={"empty_" + Math.random()} style={{ width: isSleeper ? 44 : 38, height: isSleeper ? 38 : 36, margin: 2 }} />;
 
   const seatStr    = String(seat);
- // हे REPLACE करा — renderSeatBtnNew च्या आत:
-const seatData    = getSeatData(seatStr);
-const seatBooking = bookingBySeat(seat);
-const isBooked    = bookedSeatsForTrip.includes(seatStr);
-const isSelected  = String(selectedSeat) === seatStr ||
-                    (Array.isArray(manualBooking.seatNumbers) &&
-                     manualBooking.seatNumbers.includes(seatStr));
+  const seatData   = getSeatData(seatStr);
+  const seatBooking = bookingBySeat(seat);
+  const isBooked   = bookedSeatsForTrip.includes(seatStr);
+  const isSelected = String(selectedSeat) === seatStr;
+ const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
+  const currentBusObj = buses.find(b => String(b._id || b.id) === String(busIdForCheck));
+  const isBlocked =
+    seatData?.isBlocked === true ||
+    (Array.isArray(selectedTrip?.blockedSeats) && selectedTrip.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(selectedBus?.blockedSeats) && selectedBus.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
+    (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
+  const isLadies   = selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr);
+  const bookedGender = seatBooking?.gender || seatBooking?.passengers?.[0]?.gender || seatGenderMap[seatStr] || "Male";
+  const isFemaleBooked = isBooked && bookedGender === "Female";
+  const selectedGender = seatGenderMap[seatStr];
+  const isActive   = activeSeat === seatStr;
 
-const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
-const currentBusObj = buses.find(
-  b => String(b._id || b.id) === String(busIdForCheck)
-);
+  let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
+  if (isBlocked)         { bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444"; }
+  else if (isFemaleBooked){ bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
+  else if (isBooked)     { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
+  else if (isLadies)     { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
+  else if (isSelected && selectedGender === "Female") { bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white"; }
+  else if (isSelected)   { bg = "var(--accent)"; border = "var(--accent)"; color = "white"; }
+  else if (isActive)     { bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e"; }
 
-const isBlocked =
-  seatData?.isBlocked === true ||
-  (Array.isArray(selectedTrip?.blockedSeats) &&
-   selectedTrip.blockedSeats.includes(seatStr)) ||
-  (Array.isArray(selectedBus?.blockedSeats) &&
-   selectedBus.blockedSeats.includes(seatStr)) ||
-  (Array.isArray(currentBusObj?.blockedSeats) &&
-   currentBusObj.blockedSeats.includes(seatStr)) ||
-  (Array.isArray(currentBusObj?.seats) &&
-   currentBusObj.seats.some(
-     s => String(s.seatNo) === seatStr && s.isBlocked === true
-   ));
-
-const isLadies =
-  selectedTrip?.ladiesSeats?.includes(seatStr) ||
-  selectedBus?.ladiesSeats?.includes(seatStr);
-
-// ✅ KEY FIX — bookedSeatMap मधून per-seat gender घ्या
-const bookedGender =
-  seatBooking?.passengers?.find(
-    p => String(p.seatNumber) === seatStr
-  )?.gender ||
-  seatBooking?.gender ||
-  seatBooking?.passengers?.[0]?.gender ||
-  bookedSeatMap?.[seatStr] ||      // ✅ fetched gender map
-  seatGenderMap?.[seatStr] ||      // ✅ locally selected gender
-  "Male";
-
-const isFemaleBooked  = isBooked   && bookedGender === "Female";
-const selectedGender  = seatGenderMap?.[seatStr];
-const isFemaleSelected = isSelected && selectedGender === "Female";
-const isActive = activeSeat === seatStr;
-
-// ✅ Color logic — gender based
-// renderSeatBtnNew च्या आत — हे EXACT lines replace करा:
-
-
-
-// ✅ FIX: isSelected check — seatNumbers array मध्ये आहे का ते check
-const isSelectedSeat = Array.isArray(manualBooking.seatNumbers) && 
-                       manualBooking.seatNumbers.includes(seatStr);
-
-// Color logic
-let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
-
-if (isBlocked) {
-  bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444";
-} else if (isFemaleBooked) {
-  bg = "rgba(168,85,247,0.45)"; border = "#a855f7"; color = "#e9d5ff";
-} else if (isBooked) {
-  bg = "rgba(245,158,11,0.45)"; border = "#f59e0b"; color = "#fef3c7";
-} else if (isLadies) {
-  bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4";
-} else if (isSelectedSeat && selectedGender === "Female") {
-  // ✅ फक्त त्या seat चा gender check — seatGenderMap[seatStr]
-  bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white";
-} else if (isSelectedSeat && selectedGender === "Male") {
-  // ✅ Male selected — red/accent color
-  bg = "var(--accent)"; border = "var(--accent)"; color = "white";
-} else if (isSelectedSeat) {
-  // fallback
-  bg = "var(--accent)"; border = "var(--accent)"; color = "white";
-} else if (isActive) {
-  bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e";
-
-}
   return (
     <div key={seatStr} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       {/* SEAT BUTTON */}
@@ -3576,7 +3529,8 @@ function renderACSleeperLayout() {
             {renderSeatGrid(UPPER_SEAT_PAIRS, "🛏️ Upper Deck")}
           </div>
         )}
- {manualBooking.seatNumbers?.length > 0 && (
+ {/* ── Selected Seats Summary ── */}
+{manualBooking.seatNumbers?.length > 0 && (
   <div style={{
     padding: "12px 16px", borderRadius: 10, marginTop: 8,
     background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
@@ -3604,36 +3558,29 @@ function renderACSleeperLayout() {
                 {isFemale ? "👩F" : "👨M"}
               </span>
               <button
-               onClick={() => {
-  const busType = (selectedBus?.type || "").toLowerCase();
-  const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
-  
-  const newSeats = manualBooking.seatNumbers.filter(s => s !== seat);
-  
-  const newAmount = newSeats.reduce((total, s) => {
-    if (isSeaterSleeper) {
-      const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
-      const price = isSleeperSeat
-        ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
-        : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
-      return total + price;
-    }
-    return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
-  }, 0);
-
-  setManualBooking(p => ({
-    ...p,
-    seatNumbers: newSeats,
-    seatNo: newSeats[0] || "",
-    amount: String(newAmount),
-  }));
-  setSeatGenderMap(prev => { 
-    const n = {...prev}; 
-    delete n[String(seat)]; 
-    return n; 
-  });
-  setSelectedSeat(newSeats[0] || "");
-}}
+                onClick={() => {
+                  const busType = (selectedBus?.type || "").toLowerCase();
+                  const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
+                  const newSeats = manualBooking.seatNumbers.filter(s => s !== seat);
+                  const newAmount = newSeats.reduce((total, s) => {
+                    if (isSeaterSleeper) {
+                      const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
+                      const price = isSleeperSeat
+                        ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
+                        : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
+                      return total + price;
+                    }
+                    return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
+                  }, 0);
+                  setManualBooking(p => ({
+                    ...p,
+                    seatNumbers: newSeats,
+                    seatNo: newSeats[0] || "",
+                    amount: String(newAmount),
+                  }));
+                  setSeatGenderMap(prev => { const n = {...prev}; delete n[String(seat)]; return n; });
+                  setSelectedSeat(newSeats[0] || "");
+                }}
                 style={{
                   background: "none", border: "none", cursor: "pointer",
                   color: "#ef4444", fontSize: 14, marginLeft: 2, padding: 0,
@@ -3898,24 +3845,16 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
     }}
   />    
   {seatUnbookPopup && (
-  <div className="modal-backdrop" onClick={e => { 
-    if (e.target === e.currentTarget) setSeatUnbookPopup(null); 
-  }}>
+  <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setSeatUnbookPopup(null); }}>
     <div style={{
-      background: "var(--bg2)", 
-      border: "1px solid rgba(245,158,11,0.4)",
+      background: "var(--bg2)", border: "1px solid rgba(245,158,11,0.4)",
       borderRadius: 16, padding: 24, width: "100%", maxWidth: 380,
       boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
     }}>
       <div style={{ fontSize: 36, marginBottom: 10, textAlign: "center" }}>🪑</div>
-      <div style={{ 
-        fontFamily: "'Syne',sans-serif", fontSize: 18, 
-        fontWeight: 700, marginBottom: 14, textAlign: "center" 
-      }}>
-        Seat {seatUnbookPopup.seatNo} — Unbook
+      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 14, textAlign: "center" }}>
+        Seat {seatUnbookPopup.seatNo} — Booked
       </div>
-      
-      {/* Info rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 16 }}>
         {[
           ["👤 Passenger", seatUnbookPopup.passengerName || "—"],
@@ -3929,19 +3868,16 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
         ].map(([label, val]) => (
           <div key={label} style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
-            fontSize: 13, padding: "9px 0", 
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            fontSize: 13, padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}>
             <span style={{ color: "var(--text2)" }}>{label}</span>
-            <span style={{ fontWeight: 700, color: "var(--text)", 
-              maxWidth: "60%", textAlign: "right" }}>{val}</span>
+            <span style={{ fontWeight: 700, color: "var(--text)", maxWidth: "60%", textAlign: "right" }}>{val}</span>
           </div>
         ))}
       </div>
-
       <div style={{ display: "flex", gap: 10 }}>
         <button
-        onClick={async () => {
+          onClick={async () => {
   try {
     const unbookedSeatNo = String(seatUnbookPopup.seatNo || "");
     const unbookedId     = seatUnbookPopup._id;
@@ -4028,28 +3964,23 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
     showToast("Unbook failed: " + e.message, "error");
   }
 }}
+  
+
+          
           style={{
-            flex: 1, 
-            background: "linear-gradient(135deg,#d97706,#b45309)",
+            flex: 1, background: "linear-gradient(135deg,#d97706,#b45309)",
             color: "white", border: "none", borderRadius: 9,
-            padding: "11px 0", cursor: "pointer", 
-            fontWeight: 700, fontSize: 14,
+            padding: "11px 0", cursor: "pointer", fontWeight: 700, fontSize: 14,
           }}
-        >
-          🔓 Unbook Seat
-        </button>
-        
+        >🔓 Unbook Seat</button>
         <button
           onClick={() => setSeatUnbookPopup(null)}
           style={{
-            flex: 1, background: "var(--bg3)", 
-            border: "1px solid var(--border)",
+            flex: 1, background: "var(--bg3)", border: "1px solid var(--border)",
             color: "var(--text2)", borderRadius: 9, padding: "11px 0",
             cursor: "pointer", fontWeight: 600, fontSize: 14,
           }}
-        >
-          Close
-        </button>
+        >Close</button>
       </div>
     </div>
   </div>
@@ -8673,3 +8604,11 @@ code { font-family: 'Courier New', monospace; font-size: 12px; background: var(-
   }
 }
 `;
+
+
+
+
+
+
+
+
