@@ -3124,7 +3124,9 @@ const backupSchema = new mongoose.Schema({
 });
 // Index for fast date queries
 backupSchema.index({ savedAt: -1 });
-const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);
+const Backup =
+  mongoose.models.Backup ||
+  mongoose.model("Backup", backupSchema);
 app.post("/api/admin/backup-silent", async (req, res) => {
   try {
     const [buses, bookings, customers] = await Promise.all([
