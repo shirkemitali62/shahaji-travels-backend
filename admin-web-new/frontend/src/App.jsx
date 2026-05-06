@@ -1429,26 +1429,26 @@ const bookedSeatsForTrip = bookings
         : b.seatNo ? [b.seatNo] : [];
       return seats.map(String);
     });
-  function bookingBySeat(seatNo) {
+ // हे REPLACE करा — App.js मध्ये bookingBySeat function:
+function bookingBySeat(seatNo) {
   return bookings.find(b => {
-    // cancelled bookings skip
-    if (b.bookingStatus === "Cancelled" || 
+    if (b.bookingStatus === "Cancelled" ||
         b.paymentStatus === "Cancelled") return false;
 
     const seatMatch =
       String(b.seatNo) === String(seatNo) ||
-      (Array.isArray(b.seatNumbers) && 
+      (Array.isArray(b.seatNumbers) &&
        b.seatNumbers.map(String).includes(String(seatNo)));
 
     if (selectedTripId) {
-      // Trip select केली असेल तर tripId match
       return String(b.tripId) === String(selectedTripId) && seatMatch;
-    } else if (manualBooking.busId) {
-      // Bus select केली असेल — date आणि bus match
+    }
+    if (manualBooking.busId) {
       const busMatch =
         String(b.bus) === String(manualBooking.busId) ||
         String(b.busNo) === String(manualBooking.busNo);
-      const dateMatch = !manualBooking.journeyDate ||
+      const dateMatch =
+        !manualBooking.journeyDate ||
         b.journeyDate === manualBooking.journeyDate ||
         b.date === manualBooking.journeyDate;
       return busMatch && dateMatch && seatMatch;
@@ -2668,33 +2668,70 @@ function renderSeatBtnNew(seat, isSleeper) {
   if (!seat) return <div key={"empty_" + Math.random()} style={{ width: isSleeper ? 44 : 38, height: isSleeper ? 38 : 36, margin: 2 }} />;
 
   const seatStr    = String(seat);
-  const seatData   = getSeatData(seatStr);
-  const seatBooking = bookingBySeat(seat);
-  const isBooked   = bookedSeatsForTrip.includes(seatStr);
-  const isSelected = String(selectedSeat) === seatStr;
- const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
-  const currentBusObj = buses.find(b => String(b._id || b.id) === String(busIdForCheck));
-  const isBlocked =
-    seatData?.isBlocked === true ||
-    (Array.isArray(selectedTrip?.blockedSeats) && selectedTrip.blockedSeats.includes(seatStr)) ||
-    (Array.isArray(selectedBus?.blockedSeats) && selectedBus.blockedSeats.includes(seatStr)) ||
-    (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
-    (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
-  const isLadies   = selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr);
-  const bookedGender = seatBooking?.gender || seatBooking?.passengers?.[0]?.gender || seatGenderMap[seatStr] || "Male";
-  const isFemaleBooked = isBooked && bookedGender === "Female";
-  const selectedGender = seatGenderMap[seatStr];
-  const isActive   = activeSeat === seatStr;
+ // हे REPLACE करा — renderSeatBtnNew च्या आत:
+const seatData    = getSeatData(seatStr);
+const seatBooking = bookingBySeat(seat);
+const isBooked    = bookedSeatsForTrip.includes(seatStr);
+const isSelected  = String(selectedSeat) === seatStr ||
+                    (Array.isArray(manualBooking.seatNumbers) &&
+                     manualBooking.seatNumbers.includes(seatStr));
 
-  let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
-  if (isBlocked)         { bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444"; }
-  else if (isFemaleBooked){ bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
-  else if (isBooked)     { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
-  else if (isLadies)     { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
-  else if (isSelected && selectedGender === "Female") { bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white"; }
-  else if (isSelected)   { bg = "var(--accent)"; border = "var(--accent)"; color = "white"; }
-  else if (isActive)     { bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e"; }
+const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
+const currentBusObj = buses.find(
+  b => String(b._id || b.id) === String(busIdForCheck)
+);
 
+const isBlocked =
+  seatData?.isBlocked === true ||
+  (Array.isArray(selectedTrip?.blockedSeats) &&
+   selectedTrip.blockedSeats.includes(seatStr)) ||
+  (Array.isArray(selectedBus?.blockedSeats) &&
+   selectedBus.blockedSeats.includes(seatStr)) ||
+  (Array.isArray(currentBusObj?.blockedSeats) &&
+   currentBusObj.blockedSeats.includes(seatStr)) ||
+  (Array.isArray(currentBusObj?.seats) &&
+   currentBusObj.seats.some(
+     s => String(s.seatNo) === seatStr && s.isBlocked === true
+   ));
+
+const isLadies =
+  selectedTrip?.ladiesSeats?.includes(seatStr) ||
+  selectedBus?.ladiesSeats?.includes(seatStr);
+
+// ✅ KEY FIX — bookedSeatMap मधून per-seat gender घ्या
+const bookedGender =
+  seatBooking?.passengers?.find(
+    p => String(p.seatNumber) === seatStr
+  )?.gender ||
+  seatBooking?.gender ||
+  seatBooking?.passengers?.[0]?.gender ||
+  bookedSeatMap?.[seatStr] ||      // ✅ fetched gender map
+  seatGenderMap?.[seatStr] ||      // ✅ locally selected gender
+  "Male";
+
+const isFemaleBooked  = isBooked   && bookedGender === "Female";
+const selectedGender  = seatGenderMap?.[seatStr];
+const isFemaleSelected = isSelected && selectedGender === "Female";
+const isActive = activeSeat === seatStr;
+
+// ✅ Color logic — gender based
+let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
+
+if (isBlocked) {
+  bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444";
+} else if (isFemaleBooked) {
+  bg = "rgba(168,85,247,0.45)"; border = "#a855f7"; color = "#e9d5ff";
+} else if (isBooked) {
+  bg = "rgba(245,158,11,0.45)"; border = "#f59e0b"; color = "#fef3c7";
+} else if (isLadies) {
+  bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4";
+} else if (isFemaleSelected) {
+  bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white";
+} else if (isSelected) {
+  bg = "var(--accent)"; border = "var(--accent)"; color = "white";
+} else if (isActive) {
+  bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e";
+}
   return (
     <div key={seatStr} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       {/* SEAT BUTTON */}

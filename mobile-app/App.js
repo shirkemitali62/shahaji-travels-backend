@@ -2835,24 +2835,29 @@ try {
       
 // handleSelectBus मध्ये booked seats fetch केल्यावर:
 // bGenderMap build करताना — हे exact replacement:
-
+// Method 2 मधील bookings forEach — REPLACE करा:
 bookings.forEach(b => {
-  if (b.bookingStatus === "Cancelled" || 
+  if (b.bookingStatus === "Cancelled" ||
       b.paymentStatus === "Cancelled") return;
 
   const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
     ? b.seatNumbers
     : b.seatNo ? [b.seatNo] : [];
 
-  const gender = b.gender || 
-                 b.passengers?.[0]?.gender || 
-                 "Male";
-
-  seats.forEach(s => {
-    if (s) bGenderMap[String(s)] = gender;
+  // ✅ Per-seat gender — passengers array मधून घ्या
+  seats.forEach((s, idx) => {
+    if (!s) return;
+    // passengers array मध्ये per-seat gender असेल तर ते वापरा
+    const perSeatGender =
+      b.passengers?.[idx]?.gender ||
+      b.passengers?.[0]?.gender ||
+      b.gender ||
+      "Male";
+    bGenderMap[String(s)] = perSeatGender;
   });
 });
-      console.log("🎫 Booked seats from bookings API:", bSeats);
+
+console.log("🎫 Gender map:", bGenderMap);
     } catch(e) {
       console.log("Bookings API error:", e.message);
     }
