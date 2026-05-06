@@ -2354,40 +2354,39 @@ function handleAdminGenderSelect(gender) {
   setAdminGenderPicker({ visible: false, seat: null });
   if (!seat) return;
 
-  // ✅先 seatNumbers update, मग gender map
+  setSeatGenderMap(prev => ({ ...prev, [String(seat)]: gender }));
+
   setManualBooking(prev => {
     const existing = Array.isArray(prev.seatNumbers) ? prev.seatNumbers : [];
     if (existing.includes(String(seat))) return prev;
-    
     const newSeats = [...existing, String(seat)];
     
+    // ✅ FIX 1: Per-seat price calculation
     const busType = (selectedBus?.type || "").toLowerCase();
     const isSeaterSleeper = busType.includes("seater") && busType.includes("sleeper");
     
-    const calcAmount = (seats) => seats.reduce((total, s) => {
+    const newAmount = newSeats.reduce((total, s) => {
       if (isSeaterSleeper) {
+        // V1-V12 = single (seater), 1-24 = seater, A1-A6/A-L = sleeper
         const isSleeperSeat = /^A[1-6]$/.test(String(s)) || /^[A-L]$/.test(String(s));
         const price = isSleeperSeat
           ? (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.upperPrice) || 0)
-          : (Number(selectedBus?.seaterPrice)  || Number(selectedBus?.price)      || 0);
+          : (Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0);
         return total + price;
+      } else {
+        // AC Sleeper only
+        return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
       }
-      return total + (Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0);
     }, 0);
 
     return {
       ...prev,
-      seatNo:      newSeats[0],
+      seatNo: newSeats[0],
       seatNumbers: newSeats,
-      amount:      String(calcAmount(newSeats)),
+      gender,
+      amount: String(newAmount),
     };
   });
-
-  // ✅ gender map SEPARATELY update — per seat
-  setSeatGenderMap(prev => ({ 
-    ...prev, 
-    [String(seat)]: gender  // फक्त त्या seat साठी
-  }));
 
   setSelectedSeat(seat);
 }
@@ -2717,6 +2716,7 @@ const isActive = activeSeat === seatStr;
 
 // ✅ Color logic — gender based
 // renderSeatBtnNew च्या आत — हे EXACT lines replace करा:
+
 
 
 // ✅ FIX: isSelected check — seatNumbers array मध्ये आहे का ते check
