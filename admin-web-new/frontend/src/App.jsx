@@ -2738,15 +2738,48 @@ function renderSeatBtnNew(seat, isSleeper) {
     (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
     (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
   const isLadies   = selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr);
-  const bookedGender = seatBooking?.gender || seatBooking?.passengers?.[0]?.gender || seatGenderMap[seatStr] || "Male";
+  const bookedPassenger =
+  seatBooking?.passengers?.find(
+    p =>
+      String(
+        p.seatNo ||
+        p.seatNumber ||
+        p.seat
+      ) === seatStr
+  ) || {};
 
+const bookedGender =
+  bookedPassenger.gender ||
+  seatBooking?.gender ||
+  seatGenderMap[seatStr] ||
+  "Male";
+
+const gender =
+  String(bookedGender || "")
+    .toLowerCase()
+    .trim();
+
+const isFemaleBooked =
+  isBooked &&
+  gender === "female";
+
+const isMaleBooked =
+  isBooked &&
+  gender === "male";
+
+const selectedGender =
+  seatGenderMap?.[seatStr];
   
   const isActive   = activeSeat === seatStr;
 
   let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
   if (isBlocked)         { bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444"; }
   else if (isFemaleBooked){ bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
-  else if (isBooked)     { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
+  else if (isMaleBooked) {
+  bg = "rgba(59,130,246,0.28)";
+  border = "#3b82f6";
+  color = "#bfdbfe";
+}
   else if (isLadies)     { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
   else if (isSelected && selectedGender === "Female") { bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white"; }
   else if (isSelected)   { bg = "var(--accent)"; border = "var(--accent)"; color = "white"; }
@@ -2963,11 +2996,16 @@ function renderSeatBtn(seat) {
     selectedTrip?.ladiesSeats?.includes(seat) ||
     selectedBus?.ladiesSeats?.includes(seat);
 
- const bookedPassenger =
+const seatStr = String(seat);
+
+const bookedPassenger =
   seatBooking?.passengers?.find(
     p =>
-      String(p.seatNo || p.seatNumber || p.seat)
-      === seatStr
+      String(
+        p.seatNo ||
+        p.seatNumber ||
+        p.seat
+      ) === seatStr
   ) || {};
 
 const bookedGender =
@@ -2976,24 +3014,26 @@ const bookedGender =
   seatGenderMap[seatStr] ||
   "Male";
 
-  const gender =
-  String(bookedGender)
+const gender =
+  String(bookedGender || "")
     .toLowerCase()
     .trim();
 
+const isFemaleBooked =
+  isBooked &&
+  gender === "female";
 
 const isMaleBooked =
   isBooked &&
-  gender === "male";
-
-  
+  gender === "male";  
   const selectedGender = seatGenderMap[String(seat)];
 
   let seatClass = "seat-btn available";
 
   if (isBlocked) seatClass = "seat-btn blocked";
   else if (isFemaleBooked) seatClass = "seat-btn ladies";
-  else if (isBooked) seatClass = "seat-btn booked";
+  else if (isFemaleBooked) seatClass = "seat-btn ladies";
+else if (isMaleBooked) seatClass = "seat-btn booked";
   else if (isLadies) seatClass = "seat-btn ladies";
   else if (isSelected && selectedGender === "Female") seatClass = "seat-btn ladies";
   else if (isSelected) seatClass = "seat-btn selected";
