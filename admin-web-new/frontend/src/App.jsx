@@ -1429,6 +1429,10 @@ const bookedSeatsForTrip = bookings
         : b.seatNo ? [b.seatNo] : [];
       return seats.map(String);
     });
+    const bookedSeatMap = {};
+bookedSeatsForTrip.forEach(seat => {
+  bookedSeatMap[String(seat)] = true;
+});
  // हे REPLACE करा — App.js मध्ये bookingBySeat function:
 function bookingBySeat(seatNo) {
   return bookings.find(b => {
