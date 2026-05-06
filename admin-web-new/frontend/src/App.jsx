@@ -3824,16 +3824,24 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
     }}
   />    
   {seatUnbookPopup && (
-  <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setSeatUnbookPopup(null); }}>
+  <div className="modal-backdrop" onClick={e => { 
+    if (e.target === e.currentTarget) setSeatUnbookPopup(null); 
+  }}>
     <div style={{
-      background: "var(--bg2)", border: "1px solid rgba(245,158,11,0.4)",
+      background: "var(--bg2)", 
+      border: "1px solid rgba(245,158,11,0.4)",
       borderRadius: 16, padding: 24, width: "100%", maxWidth: 380,
       boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
     }}>
       <div style={{ fontSize: 36, marginBottom: 10, textAlign: "center" }}>🪑</div>
-      <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 14, textAlign: "center" }}>
-        Seat {seatUnbookPopup.seatNo} — Booked
+      <div style={{ 
+        fontFamily: "'Syne',sans-serif", fontSize: 18, 
+        fontWeight: 700, marginBottom: 14, textAlign: "center" 
+      }}>
+        Seat {seatUnbookPopup.seatNo} — Unbook
       </div>
+      
+      {/* Info rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: 16 }}>
         {[
           ["👤 Passenger", seatUnbookPopup.passengerName || "—"],
@@ -3847,74 +3855,77 @@ setSeatGenderMap({}); // 🔥 YE ADD KAR
         ].map(([label, val]) => (
           <div key={label} style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
-            fontSize: 13, padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.06)",
+            fontSize: 13, padding: "9px 0", 
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}>
             <span style={{ color: "var(--text2)" }}>{label}</span>
-            <span style={{ fontWeight: 700, color: "var(--text)", maxWidth: "60%", textAlign: "right" }}>{val}</span>
+            <span style={{ fontWeight: 700, color: "var(--text)", 
+              maxWidth: "60%", textAlign: "right" }}>{val}</span>
           </div>
         ))}
       </div>
+
       <div style={{ display: "flex", gap: 10 }}>
         <button
-        onClick={async () => {
-  try {
-    // ✅ FIX 3: Booking delete (cancel) करा
-    await apiFetch("/api/bookings/" + seatUnbookPopup._id, {
-      method: "PATCH",
-      body: JSON.stringify({ 
-        paymentStatus: "Cancelled", 
-        bookingStatus: "Cancelled" 
-      }),
-    });
+          onClick={async () => {
+            try {
+              const unbookedSeatNo = String(seatUnbookPopup.seatNo || "");
+              const unbookedId     = seatUnbookPopup._id;
 
-    // Local state मधून हा booking remove करा
-    const unbookedId = seatUnbookPopup._id;
-    
-    // setBookings update (props मधून)
-    if (typeof deleteBooking === "function") {
-      deleteBooking(unbookedId);
-    }
+              // ✅ Step 1: Backend cancel
+              await apiFetch("/api/bookings/" + unbookedId, {
+                method: "PATCH",
+                body: JSON.stringify({ 
+                  paymentStatus: "Cancelled", 
+                  bookingStatus: "Cancelled" 
+                }),
+              });
 
-    // Selected seats मधून remove करा जर असेल तर
-    const unbookedSeatNo = seatUnbookPopup.seatNo;
-    if (unbookedSeatNo) {
-      setManualBooking(prev => {
-        const newSeats = (prev.seatNumbers || []).filter(s => s !== String(unbookedSeatNo));
-        return { ...prev, seatNumbers: newSeats, seatNo: newSeats[0] || "" };
-      });
-    }
+              // ✅ Step 2: Local bookings state मध्ये 
+              // फक्त त्या booking ची status update करा
+              // deleteBooking नाही — status update
+              saveBooking({
+                paymentStatus: "Cancelled",
+                bookingStatus: "Cancelled",
+              }, unbookedId);
 
-    // Gender map मधून remove
-    setSeatGenderMap(prev => {
-      const n = { ...prev };
-      delete n[String(unbookedSeatNo)];
-      return n;
-    });
-    
-    setSelectedSeat("");
-    setSeatUnbookPopup(null);
-    showToast("✅ Seat unbooked successfully!");
-  } catch (e) {
-    showToast("Unbook failed: " + e.message, "error");
-  }
+              // ✅ Step 3: Gender map मधून फक्त ती seat remove
+              setSeatGenderMap(prev => {
+                const n = { ...prev };
+                delete n[unbookedSeatNo];
+                return n;
+              });
 
-}}
+              // ✅ Step 4: Modal close
+              setSeatUnbookPopup(null);
+              showToast("✅ Seat " + unbookedSeatNo + " unbooked!");
 
-          
-          style={{
-            flex: 1, background: "linear-gradient(135deg,#d97706,#b45309)",
-            color: "white", border: "none", borderRadius: 9,
-            padding: "11px 0", cursor: "pointer", fontWeight: 700, fontSize: 14,
+            } catch (e) {
+              showToast("Unbook failed: " + e.message, "error");
+            }
           }}
-        >🔓 Unbook Seat</button>
+          style={{
+            flex: 1, 
+            background: "linear-gradient(135deg,#d97706,#b45309)",
+            color: "white", border: "none", borderRadius: 9,
+            padding: "11px 0", cursor: "pointer", 
+            fontWeight: 700, fontSize: 14,
+          }}
+        >
+          🔓 Unbook Seat
+        </button>
+        
         <button
           onClick={() => setSeatUnbookPopup(null)}
           style={{
-            flex: 1, background: "var(--bg3)", border: "1px solid var(--border)",
+            flex: 1, background: "var(--bg3)", 
+            border: "1px solid var(--border)",
             color: "var(--text2)", borderRadius: 9, padding: "11px 0",
             cursor: "pointer", fontWeight: 600, fontSize: 14,
           }}
-        >Close</button>
+        >
+          Close
+        </button>
       </div>
     </div>
   </div>
