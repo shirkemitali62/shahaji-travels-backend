@@ -2741,9 +2741,8 @@ const gender =
     .toLowerCase()
     .trim();
 
-const isFemaleBooked =
-  isBooked &&
-  gender === "female";
+
+
 
 const isMaleBooked =
   isBooked &&
@@ -2990,10 +2989,6 @@ const bookedGender =
     .trim();
 
 
-const isFemaleBooked =
-  isBooked &&
-  gender === "female";
-
 const isMaleBooked =
   isBooked &&
   gender === "male";
@@ -3105,7 +3100,6 @@ const isFemaleBooked =
 const isMaleBooked =
   isBooked &&
   gender === "male";
-   const isFemaleBooked = isBooked && bookedGender === "Female";
     const selectedGender = seatGenderMap[seatStr];
     if (!seat) return <div style={{ width:46, height:40 }} />;
 
