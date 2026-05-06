@@ -282,7 +282,7 @@ const AllowedDevice = mongoose.models.AllowedDevice ||
   mongoose.model("AllowedDevice", allowedDeviceSchema);
 // ─── QR PAYMENT SETTINGS ─────────────────────────────────────────
 const qrSettingsSchema = new mongoose.Schema({
-  upiId:          { type: String, default: "9763063567@ybl" },
+  upiId:          { type: String, default: "shmitali27@okhdfcbank" },
   upiName:        { type: String, default: "KAVIRAJ KRISHNAT BARGE" },
   qrImageBase64:  { type: String, default: "", maxlength: 5000000 }, // ✅ 5MB limit add
   qrEnabled:      { type: Boolean, default: true },
@@ -1586,11 +1586,28 @@ const query = {
   }
 });
 // ─── BOOKINGS API ─────────────────────────────────────────────────
+// REPLACE WITH हे:
 app.get("/api/bookings", async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt:-1 });
+    const { userId, phone } = req.query;
+    
+    let query = {};
+    if (userId) {
+      query.$or = [
+        { userId: userId },
+        { phone: userId },
+        { mobile: userId },
+      ];
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        query.$or.push({ _id: new mongoose.Types.ObjectId(userId) });
+      }
+    } else if (phone) {
+      query.$or = [{ phone }, { mobile: phone }];
+    }
+    
+    const bookings = await Booking.find(query).sort({ createdAt: -1 });
     res.json(bookings);
-  } catch(err) { res.status(500).json({ message:err.message }); }
+  } catch(err) { res.status(500).json({ message: err.message }); }
 });
 
 app.get("/api/bookings/user/:userId", async (req, res) => {
@@ -3190,7 +3207,7 @@ app.post("/api/upi/init-payment", async (req, res) => {
  
     // Fetch UPI settings from DB
     const qrSettings = await QRSettings.findOne();
-    const upiId   = qrSettings?.upiId   || "9763063567@ybl";
+    const upiId   = qrSettings?.upiId   || "shmitali27@okhdfcbank";
     const payeeName = qrSettings?.upiName || "SHAHAJI TRAVELS";
  
     payment = await UPIPayment.create({

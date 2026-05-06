@@ -4236,7 +4236,7 @@ onVerify={async () => {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
-                {qrSettings?.upiId || "9763063567@ybl"}
+                {qrSettings?.upiId || "shmitali27@okhdfcbank"}
               </Text>
               <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
                 {qrSettings?.upiName || "KAVIRAJ KRISHNAT BARGE"}
@@ -4318,7 +4318,7 @@ onVerify={async () => {
                 getUrl: (base) => `upi://pay?${base}`,
               },
             ].map((app, i) => {
-              const upiBase = `pa=${qrSettings?.upiId || "9763063567@ybl"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${getFinalAmount()}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+              const upiBase = `pa=${qrSettings?.upiId || "shmitali27@okhdfcbank"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${getFinalAmount()}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
               const url = app.getUrl(upiBase);
               return (
                 <TouchableOpacity
@@ -4331,22 +4331,34 @@ onVerify={async () => {
                   }}
 
                   activeOpacity={0.75}
-              onPress={async () => {
+             
+onPress={async () => {
   const amt = getFinalAmount();
   const upiId = qrSettings?.upiId || "digubarge123@okaxis";
   const upiName = qrSettings?.upiName || "Shahaji Travels";
   
-  // ✅ Simple upi:// — PIN screen guaranteed
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravelsBooking&tr=${Date.now()}`;
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels&tr=${Date.now()}`;
   
-  try {
-    await Linking.openURL(upiLink);
-  } catch (err) {
-    // Fallback: manual payment info show करा
-    showAlert(
-      "UPI App Open करा",
-      `Phone वर manually open करा:\n\nUPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay केल्यावर UTR खाली enter करा.`
-    );
+  console.log("🔗 UPI Link:", upiLink);
+  
+  if (Platform.OS === "android") {
+    try {
+      await Linking.sendIntent("android.intent.action.VIEW", [
+        { key: "android.intent.extra.STREAM", value: upiLink }
+      ]);
+    } catch {
+      try {
+        await Linking.openURL(upiLink);
+      } catch (err2) {
+        showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay करून UTR enter करा.`);
+      }
+    }
+  } else {
+    try {
+      await Linking.openURL(upiLink);
+    } catch {
+      showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}`);
+    }
   }
 }}
                 >
@@ -5451,7 +5463,7 @@ onVerify={async () => {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
-                {qrSettings?.upiId || "9763063567@ybl"}
+                {qrSettings?.upiId || "shmitali27@okhdfcbank"}
               </Text>
               <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
                 {qrSettings?.upiName || "KAVIRAJ KRISHNAT BARGE"}
@@ -5493,31 +5505,41 @@ onVerify={async () => {
               },
             ].map((app, i) => {
               const amt = getFinalAmount();
-              const upiBase = `pa=${qrSettings?.upiId || "9763063567@ybl"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+              const upiBase = `pa=${qrSettings?.upiId || "shmitali27@okhdfcbank"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
               const url = app.getUrl(upiBase);
               return (
                 <TouchableOpacity key={i}
                   style={{ flexDirection: "row", alignItems: "center", backgroundColor: app.bg, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: app.border, gap: 12, marginBottom: 4 }}
                   activeOpacity={0.75}
-               onPress={async () => {
+             onPress={async () => {
   const amt = getFinalAmount();
   const upiId = qrSettings?.upiId || "digubarge123@okaxis";
   const upiName = qrSettings?.upiName || "Shahaji Travels";
   
-  // ✅ Simple upi:// — PIN screen guaranteed
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravelsBooking&tr=${Date.now()}`;
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels&tr=${Date.now()}`;
   
-  try {
-    await Linking.openURL(upiLink);
-  } catch (err) {
-    // Fallback: manual payment info show करा
-    showAlert(
-      "UPI App Open करा",
-      `Phone वर manually open करा:\n\nUPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay केल्यावर UTR खाली enter करा.`
-    );
+  console.log("🔗 UPI Link:", upiLink);
+  
+  if (Platform.OS === "android") {
+    try {
+      await Linking.sendIntent("android.intent.action.VIEW", [
+        { key: "android.intent.extra.STREAM", value: upiLink }
+      ]);
+    } catch {
+      try {
+        await Linking.openURL(upiLink);
+      } catch (err2) {
+        showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay करून UTR enter करा.`);
+      }
+    }
+  } else {
+    try {
+      await Linking.openURL(upiLink);
+    } catch {
+      showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}`);
+    }
   }
-}}
-                >
+}}    >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>

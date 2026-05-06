@@ -220,12 +220,20 @@ export const MyBookingsScreen = ({ visible, onClose, user, api }) => {
 const loadBookings = async () => {
   setLoading(true);
   try {
-    const res = await fetch("https://shahaji-travels-backend.onrender.com/api/bookings");
+    const userId = user?._id || user?.id;
+    const phone = user?.phone;
+    
+    let url = "https://shahaji-travels-backend.onrender.com/api/bookings";
+    if (userId) {
+      url += `?userId=${userId}`;
+    } else if (phone) {
+      url += `?phone=${phone}`;
+    }
+    
+    const res = await fetch(url);
     const data = await res.json();
-
-    console.log("ALL BOOKINGS:", data);
-
-    setBookings(data || []);
+    const list = Array.isArray(data) ? data : (data.bookings || []);
+    setBookings(list);
   } catch (err) {
     console.log("ERROR:", err);
     setBookings([]);

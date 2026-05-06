@@ -23,7 +23,10 @@
       }
     },
     "android": {
-      "package": "com.anonymous.mobileapp",
+  "package": "com.anonymous.mobileapp",
+  "queries": {
+    "schemes": ["upi", "gpay", "phonepe", "paytmmp", "tez", "bhim"]
+  },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
