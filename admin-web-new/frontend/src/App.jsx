@@ -1429,10 +1429,15 @@ const bookedSeatsForTrip = bookings
         : b.seatNo ? [b.seatNo] : [];
       return seats.map(String);
     });
-    const bookedSeatMap = {};
-bookedSeatsForTrip.forEach(seat => {
-  bookedSeatMap[String(seat)] = true;
-});
+    const bookedSeatMap = React.useMemo(() => {
+  const map = {};
+
+  bookedSeatsForTrip.forEach(seat => {
+    map[String(seat)] = true;
+  });
+
+  return map;
+}, [bookedSeatsForTrip]);
  // हे REPLACE करा — App.js मध्ये bookingBySeat function:
 function bookingBySeat(seatNo) {
   return bookings.find(b => {
