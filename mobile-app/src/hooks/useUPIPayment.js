@@ -51,7 +51,7 @@ export function buildUPILink({ upiId, payeeName, amount, note }) {
   const cu = "INR";
   const tn = safeEncode((note || "Shahaji Travels Booking").trim());
 
-  return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}`;
+ return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}&tr=${Date.now()}`;
 }
 
 // ─── SAFE URL OPENER ─────────────────────────────────────────────────────────
