@@ -1590,19 +1590,26 @@ app.get("/api/bookings", async (req, res) => {
   try {
     const { userId, phone } = req.query;
     
-    let query = {};
+    // No filter = admin wants all bookings
+    if (!userId && !phone) {
+      const bookings = await Booking.find({}).sort({ createdAt: -1 });
+      return res.json(bookings);
+    }
+    
+    let query = { $or: [] };
+    
     if (userId) {
-      const orConditions = [
+      query.$or.push(
         { userId: userId },
-        { phone: userId },      // userId च्या जागी phone match
+        { phone: userId },
         { mobile: userId },
-      ];
-      if (mongoose.Types.ObjectId.isValid(userId)) {
-        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
-      }
-      query.$or = orConditions;
-    } else if (phone) {
-      query.$or = [{ phone }, { mobile: phone }];
+      );
+    }
+    if (phone) {
+      query.$or.push(
+        { phone: phone },
+        { mobile: phone },
+      );
     }
     
     const bookings = await Booking.find(query).sort({ createdAt: -1 });
