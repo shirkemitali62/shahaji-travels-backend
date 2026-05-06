@@ -1773,9 +1773,7 @@ const gender =
 const isFemaleBooked =
   gender === "female";
 
-const isMaleBooked =
-  isBooked &&
-  bookedGender === "Male";
+c
 // Colors:
 if (isBlocked) {
   bg = "rgba(239,68,68,0.22)";
@@ -2736,7 +2734,18 @@ function renderSeatBtnNew(seat, isSleeper) {
     (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
   const isLadies   = selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr);
   const bookedGender = seatBooking?.gender || seatBooking?.passengers?.[0]?.gender || seatGenderMap[seatStr] || "Male";
-  const isFemaleBooked = isBooked && bookedGender === "Female";
+const gender =
+  String(bookedGender)
+    .toLowerCase()
+    .trim();
+
+const isFemaleBooked =
+  isBooked &&
+  gender === "female";
+
+const isMaleBooked =
+  isBooked &&
+  gender === "male";
   const selectedGender = seatGenderMap[seatStr];
   const isActive   = activeSeat === seatStr;
 
@@ -2973,10 +2982,21 @@ const bookedGender =
   seatGenderMap[seatStr] ||
   "Male";
 
-  const isFemaleBooked = isBooked && bookedGender === "Female";
-  const isMaleBooked =
+  const gender =
+  String(bookedGender)
+    .toLowerCase()
+    .trim();
+
+
+const isFemaleBooked =
   isBooked &&
-  bookedGender === "Male";
+  gender === "female";
+
+const isMaleBooked =
+  isBooked &&
+  gender === "male";
+
+  
   const selectedGender = seatGenderMap[String(seat)];
 
   let seatClass = "seat-btn available";
@@ -3071,8 +3091,19 @@ const bookedGender =
   bookedPassenger.gender ||
   seatBooking?.gender ||
   seatGenderMap[seatStr] ||
-  "Male";
-      const isFemaleBooked = isBooked && bookedGender === "Female";
+  "Male";const gender =
+  String(bookedGender)
+    .toLowerCase()
+    .trim();
+
+const isFemaleBooked =
+  isBooked &&
+  gender === "female";
+
+const isMaleBooked =
+  isBooked &&
+  gender === "male";
+   const isFemaleBooked = isBooked && bookedGender === "Female";
     const selectedGender = seatGenderMap[seatStr];
     if (!seat) return <div style={{ width:46, height:40 }} />;
 
