@@ -7649,9 +7649,19 @@ const blockedRows = blockedSeats.length
 }
 // ===================== BACKUP PAGE =====================
 function BackupPage({ showToast }) {
+  const [backupList, setBackupList] = React.useState([]);
   const [restoring, setRestoring] = React.useState(false);
   const [msg, setMsg] = React.useState("");
   const [downloading, setDownloading] = React.useState(false);
+
+  React.useEffect(() => { loadBackupList(); }, []);
+
+  async function loadBackupList() {
+    try {
+      const res = await apiFetch("/api/admin/backups-list");
+      setBackupList(res.backups || []);
+    } catch(e) {}
+  }
 
   const downloadBackup = async () => {
     setDownloading(true);
@@ -7672,43 +7682,46 @@ function BackupPage({ showToast }) {
     }
   };
 
+  async function restoreFromBackupId(backupId) {
+    if (!window.confirm("या backup मधून restore करायचं?")) return;
+    setRestoring(true);
+    try {
+      const res = await apiFetch(`/api/admin/restore-by-id/${backupId}`, { method: "POST" });
+      setMsg("✅ " + res.message);
+      showToast("✅ Restore complete!");
+    } catch(err) {
+      setMsg("❌ " + err.message);
+      showToast("Restore failed!", "error");
+    }
+    setRestoring(false);
+  }
+
   const restoreAll = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!window.confirm("⚠️ Restore करायचं का? Existing data वर affect होणार नाही.")) {
-      e.target.value = ""; return;
-    }
+    if (!window.confirm("Restore करायचं?")) { e.target.value = ""; return; }
     setRestoring(true);
-    setMsg("");
     try {
       const text = await file.text();
       const data = JSON.parse(text);
       let results = [];
-
       if (data.buses?.length) {
-        const res = await apiFetch("/api/admin/restore/buses", {
-          method: "POST", body: JSON.stringify({ buses: data.buses })
-        });
-        results.push(`🚌 ${res.restored} buses restored`);
+        const res = await apiFetch("/api/admin/restore/buses", { method: "POST", body: JSON.stringify({ buses: data.buses }) });
+        results.push(`🚌 ${res.restored} buses`);
       }
       if (data.bookings?.length) {
-        const res = await apiFetch("/api/admin/restore/bookings", {
-          method: "POST", body: JSON.stringify({ bookings: data.bookings })
-        });
-        results.push(`🎫 ${res.restored} bookings restored`);
+        const res = await apiFetch("/api/admin/restore/bookings", { method: "POST", body: JSON.stringify({ bookings: data.bookings }) });
+        results.push(`🎫 ${res.restored} bookings`);
       }
       if (data.customers?.length) {
-        const res = await apiFetch("/api/admin/restore/customers", {
-          method: "POST", body: JSON.stringify({ customers: data.customers })
-        });
-        results.push(`👤 ${res.restored} customers restored`);
+        const res = await apiFetch("/api/admin/restore/customers", { method: "POST", body: JSON.stringify({ customers: data.customers }) });
+        results.push(`👤 ${res.restored} customers`);
       }
-
-      setMsg(`✅ Success! ${results.join(" | ")}`);
+      setMsg(`✅ ${results.join(" | ")}`);
       showToast("✅ Restore complete!");
     } catch (err) {
-      setMsg("❌ Failed: " + err.message);
-      showToast("Restore failed: " + err.message, "error");
+      setMsg("❌ " + err.message);
+      showToast("Restore failed!", "error");
     } finally {
       setRestoring(false);
       e.target.value = "";
@@ -7719,85 +7732,79 @@ function BackupPage({ showToast }) {
     <div className="page">
       <div className="page-header">
         <h1>🗄️ Backup & Restore</h1>
-        <p>Data safe ठेव — रोज backup घे!</p>
+        <p>सगळे backups permanently save होतात — कधीही restore करा!</p>
       </div>
 
+      {/* Download */}
       <div className="section-card">
-        <div className="section-title">📥 Download Full Backup</div>
-        <p style={{ color: "var(--text2)", marginBottom: 16, fontSize: 13 }}>
-          Buses + Bookings + Customers सगळं एका JSON file मध्ये download होईल
-        </p>
-        <button
-          className="btn-primary"
-          onClick={downloadBackup}
-          disabled={downloading}
-          style={{ display: "flex", alignItems: "center", gap: 8 }}
-        >
-          {downloading ? "⏳ Downloading..." : "📥 Download Backup"}
+        <div className="section-title">📥 Download Current Backup</div>
+        <button className="btn-primary" onClick={downloadBackup} disabled={downloading}>
+          {downloading ? "⏳..." : "📥 Download Backup"}
         </button>
-        <p style={{ color: "var(--text2)", fontSize: 12, marginTop: 10 }}>
-          💡 रोज एकदा backup घ्या — safe राहाल!
-        </p>
       </div>
-<div className="section-card">
-        <div className="section-title">⚡ Quick Restore (Auto Backup मधून)</div>
-        <p style={{ color: "var(--text2)", marginBottom: 16, fontSize: 13 }}>
-          Last auto backup मधून instantly restore कर — कोणतीही file नको!
-        </p>
-        <button
-          className="btn-primary"
-          onClick={async () => {
-            if (!window.confirm("Last auto backup मधून restore करायचं?")) return;
-            try {
-             const res = await apiFetch("/api/admin/restore-silent", { method: "POST" });
-              setMsg("✅ " + res.message);
-              showToast("✅ Restore complete!");
-              setTimeout(() => window.location.reload(), 1500);
-            } catch(err) {
-              setMsg("❌ Failed: " + err.message);
-              showToast("Restore failed!", "error");
-            }
-          }}
-          style={{ background: "linear-gradient(135deg,#16a34a,#15803d)", display: "flex", alignItems: "center", gap: 8 }}
-        >
-          ⚡ Quick Restore
-        </button>
-        {msg && (
-          <div style={{
-            padding: "10px 14px", borderRadius: 8, marginTop: 12, fontWeight: 700,
-            background: msg.includes('✅') ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-            border: `1px solid ${msg.includes('✅') ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-            color: msg.includes('✅') ? "#22c55e" : "#f87171",
-          }}>
-            {msg}
+
+      {/* All Saved Backups List */}
+      <div className="section-card">
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div className="section-title" style={{ margin:0 }}>📋 All Saved Backups ({backupList.length})</div>
+          <button className="btn-secondary" style={{ fontSize:12, padding:"6px 12px" }} onClick={loadBackupList}>↻ Refresh</button>
+        </div>
+
+        {backupList.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🗄️</div>
+            <div className="empty-text">No backups yet</div>
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {backupList.map((b, i) => (
+              <div key={b._id} style={{
+                display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"12px 16px", background:"var(--bg3)",
+                border:"1px solid var(--border)", borderRadius:10,
+                flexWrap:"wrap", gap:10,
+              }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14 }}>
+                    {i === 0 ? "🟢 Latest — " : `#${backupList.length - i} — `}
+                    {new Date(b.savedAt).toLocaleString("en-IN")}
+                  </div>
+                  <div style={{ fontSize:12, color:"var(--text2)", marginTop:3 }}>
+                    🚌 {b.busCount} buses &nbsp;·&nbsp;
+                    🎫 {b.bookingCount} bookings &nbsp;·&nbsp;
+                    👤 {b.customerCount} customers
+                  </div>
+                </div>
+                <button
+                  onClick={() => restoreFromBackupId(b._id)}
+                  disabled={restoring}
+                  style={{
+                    background: i === 0
+                      ? "linear-gradient(135deg,#16a34a,#15803d)"
+                      : "rgba(59,130,246,0.15)",
+                    color: i === 0 ? "white" : "#60a5fa",
+                    border: i === 0 ? "none" : "1px solid rgba(59,130,246,0.3)",
+                    borderRadius:8, padding:"8px 16px",
+                    cursor:"pointer", fontWeight:700, fontSize:13,
+                  }}
+                >
+                  {restoring ? "⏳..." : "♻️ Restore"}
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Manual Upload */}
       <div className="section-card">
-        <div className="section-title">♻️ Restore from Backup</div>
-        <p style={{ color: "var(--text2)", marginBottom: 8, fontSize: 13 }}>
-          Backup JSON file upload करा — deleted data restore होईल
-        </p>
-        <div style={{
-          padding: "10px 14px", marginBottom: 16, borderRadius: 8,
-          background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
-          color: "#f59e0b", fontSize: 13,
-        }}>
-          ⚠️ Already existing records वर affect होणार नाही — फक्त missing data restore होईल
-        </div>
-        <input
-          type="file"
-          accept=".json"
-          onChange={restoreAll}
-          disabled={restoring}
-          style={{ marginBottom: 12, display: "block", color: "var(--text)" }}
-        />
-        {restoring && (
-          <p style={{ color: "#60a5fa", fontWeight: 600 }}>⏳ Restoring... please wait</p>
-        )}
+        <div className="section-title">♻️ Restore from JSON File</div>
+        <input type="file" accept=".json" onChange={restoreAll} disabled={restoring}
+          style={{ marginBottom:12, display:"block", color:"var(--text)" }} />
+        {restoring && <p style={{ color:"#60a5fa", fontWeight:600 }}>⏳ Restoring...</p>}
         {msg && (
           <div style={{
-            padding: "10px 14px", borderRadius: 8, marginTop: 8, fontWeight: 700,
+            padding:"10px 14px", borderRadius:8, marginTop:8, fontWeight:700,
             background: msg.includes('✅') ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
             border: `1px solid ${msg.includes('✅') ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
             color: msg.includes('✅') ? "#22c55e" : "#f87171",

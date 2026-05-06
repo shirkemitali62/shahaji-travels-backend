@@ -2997,12 +2997,12 @@ app.delete("/api/admin/devices/:id", async (req, res) => {
 // SILENT AUTO BACKUP — MongoDB मध्ये save
 const backupSchema = new mongoose.Schema({
   savedAt: { type: Date, default: Date.now },
-  buses: Array,
+  label:   { type: String, default: "" },
+  buses:    Array,
   bookings: Array,
   customers: Array,
 });
 const Backup = mongoose.models.Backup || mongoose.model("Backup", backupSchema);
-
 app.post("/api/admin/backup-silent", async (req, res) => {
   try {
     const [buses, bookings, customers] = await Promise.all([
@@ -3011,12 +3011,16 @@ app.post("/api/admin/backup-silent", async (req, res) => {
       Customer.find({}).lean(),
     ]);
 
-    // आधीचा backup delete कर — फक्त latest ठेव
-    await Backup.deleteMany({});
+    // ✅ NEVER DELETE — हर backup permanently save होतो
+    await Backup.create({ 
+      buses, 
+      bookings, 
+      customers,
+      savedAt: new Date(),
+      label: `Auto_${new Date().toISOString().slice(0,10)}_${Date.now()}`
+    });
     
-    await Backup.create({ buses, bookings, customers });
-    
-    res.json({ success: true, message: "Backup saved silently" });
+    res.json({ success: true, message: "Backup saved permanently" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -3410,6 +3414,80 @@ app.get("/api/upi/pending-verifications", async (req, res) => {
     const pending = await UPIPayment.find({ status: "pending" }).sort({ createdAt: -1 });
     res.json({ success: true, payments: pending, count: pending.length });
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+// GET all backups list (count only, not full data)
+app.get("/api/admin/backups-list", async (req, res) => {
+  try {
+    const backups = await Backup.find({}, { 
+      savedAt: 1, label: 1,
+      busCount: { $size: { $ifNull: ["$buses", []] } },
+    }).sort({ savedAt: -1 });
+    
+    // Count fields manually
+    const list = await Backup.find({}).sort({ savedAt: -1 }).lean();
+    const result = list.map(b => ({
+      _id: b._id,
+      savedAt: b.savedAt,
+      label: b.label || "",
+      busCount: b.buses?.length || 0,
+      bookingCount: b.bookings?.length || 0,
+      customerCount: b.customers?.length || 0,
+    }));
+    
+    res.json({ success: true, backups: result });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Restore from specific backup ID
+app.post("/api/admin/restore-by-id/:id", async (req, res) => {
+  try {
+    const backup = await Backup.findById(req.params.id);
+    if (!backup) return res.status(404).json({ success: false, message: "Backup not found" });
+
+    let restoredBuses = 0, restoredBookings = 0, restoredCustomers = 0;
+
+    for (const bus of (backup.buses || [])) {
+      try {
+        const exists = await mongoose.connection.db.collection("buses")
+          .findOne({ _id: new mongoose.Types.ObjectId(String(bus._id)) });
+        if (!exists) {
+          await mongoose.connection.db.collection("buses").insertOne({
+            ...bus, _id: new mongoose.Types.ObjectId(String(bus._id))
+          });
+          restoredBuses++;
+        }
+      } catch(e) {}
+    }
+
+    for (const booking of (backup.bookings || [])) {
+      try {
+        const exists = await Booking.findById(booking._id);
+        if (!exists) {
+          await Booking.create({ ...booking, _id: booking._id });
+          restoredBookings++;
+        }
+      } catch(e) {}
+    }
+
+    for (const customer of (backup.customers || [])) {
+      try {
+        const exists = await Customer.findById(customer._id);
+        if (!exists) {
+          await Customer.create({ ...customer, _id: customer._id });
+          restoredCustomers++;
+        }
+      } catch(e) {}
+    }
+
+    res.json({
+      success: true,
+      message: `Restored: ${restoredBuses} buses, ${restoredBookings} bookings, ${restoredCustomers} customers`,
+    });
+  } catch(err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
