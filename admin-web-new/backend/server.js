@@ -1594,11 +1594,9 @@ app.get("/api/bookings", async (req, res) => {
     if (userId) {
       const orConditions = [
         { userId: userId },
-        { userId: String(userId) },
-        { phone: userId },
+        { phone: userId },      // userId च्या जागी phone match
         { mobile: userId },
       ];
-      // ObjectId valid असेल तर तेही add कर
       if (mongoose.Types.ObjectId.isValid(userId)) {
         orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
       }

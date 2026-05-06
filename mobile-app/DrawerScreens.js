@@ -221,21 +221,36 @@ const loadBookings = async () => {
   setLoading(true);
   try {
     const userId = user?._id || user?.id;
-    const phone = user?.phone;
-    
+    const phone = user?.phone || user?.mobile;
+
+    console.log("🔍 User object:", JSON.stringify(user)); // debug
+    console.log("🔍 userId:", userId, "phone:", phone);
+
     let url = "https://shahaji-travels-backend.onrender.com/api/bookings";
-    if (userId) {
-      url += `?userId=${userId}`;
-    } else if (phone) {
-      url += `?phone=${phone}`;
+    
+   // userId आणि phone दोन्ही पाठव
+if (userId && userId !== "undefined") {
+  url += `?userId=${userId}&phone=${phone || ""}`;
+} else if (phone) {
+  url += `?phone=${phone}`;
+}
+    else {
+      console.log("❌ No userId or phone found!");
+      setBookings([]);
+      return;
     }
+
+    console.log("📡 Fetching:", url);
     
     const res = await fetch(url);
     const data = await res.json();
+    
+    console.log("📦 Response:", JSON.stringify(data).slice(0, 200));
+    
     const list = Array.isArray(data) ? data : (data.bookings || []);
     setBookings(list);
   } catch (err) {
-    console.log("ERROR:", err);
+    console.log("❌ ERROR:", err);
     setBookings([]);
   } finally {
     setLoading(false);
