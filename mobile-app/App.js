@@ -4330,13 +4330,30 @@ onVerify={async () => {
                     gap: 12, marginBottom: 4,
                   }}
                   activeOpacity={0.75}
-                 onPress={async () => {
+                onPress={async () => {
   const amt = getFinalAmount();
-  const upiStr = `upi://pay?pa=${qrSettings?.upiId || "kavirajbarge@ybl"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+  const upiId = qrSettings?.upiId || "digubarge123@okaxis";
+  const upiName = qrSettings?.upiName || "Shahaji Travels";
+  
+  // Simple upi:// — PIN screen येतो guaranteed
+  const upiStr = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravelsBooking&tr=${Date.now()}`;
+  
   try {
-    await Linking.openURL(upiStr);
-  } catch {
-    showAlert("Cannot Open", `UPI app manually open करा\n₹${amt} pay करा\nUPI ID: ${qrSettings?.upiId || "kavirajbarge@ybl"}`);
+    const canOpen = await Linking.canOpenURL(upiStr);
+    if (canOpen) {
+      await Linking.openURL(upiStr);
+    } else {
+      // Fallback — direct UPI ID show करा
+      showAlert(
+        "UPI App Open करा",
+        `Manual payment करा:\n\nUPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay केल्यावर UTR enter करा.`
+      );
+    }
+  } catch (err) {
+    showAlert(
+      "UPI App Open करा", 
+      `Manual payment:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+    );
   }
 }}
                 >
