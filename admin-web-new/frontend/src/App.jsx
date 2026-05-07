@@ -1522,28 +1522,17 @@ const bookedSeatsForTrip = bookings
     if (!finalSeats.length) {
       showToast("Please select at least one seat!", "error"); return;
     }
-
-    // Build per-seat passenger array with correct gender per seat
-    const passengersPayload = finalSeats.map((seat) => ({
-      name:        manualBooking.passengerName.trim(),
-      age:         Number(manualBooking.age) || 0,
-      gender:      String(seatGenderMap[String(seat)] || manualBooking.gender || "Male"),
-      seatNo:      String(seat),
-      seatNumber:  String(seat),
-      seat:        String(seat),
-      phone:       manualBooking.phone || "",
-    }));
-
-    // Top-level gender = gender of first seat
-    const primaryGender = seatGenderMap[String(finalSeats[0])] || manualBooking.gender || "Male";
-
+console.log("BOOKING PASSENGERS BEING SENT:", finalSeats.map((seat) => ({
+  seat,
+  gender: seatGenderMap[String(seat)],
+})));
     const payload = {
       passengerName:  manualBooking.passengerName.trim(),
       customerName:   manualBooking.passengerName.trim(),
       phone:          manualBooking.phone || "",
       mobile:         manualBooking.phone || "",
       age:            Number(manualBooking.age) || 0,
-      gender:         primaryGender,  // ← first seat's gender
+      gender:         manualBooking.gender || "Male",
       bus:            manualBooking.busId || null,
       trip:           selectedTripId || manualBooking.tripId || null,
       tripId:         selectedTripId || manualBooking.tripId || "",
@@ -1564,7 +1553,16 @@ const bookedSeatsForTrip = bookings
       refundStatus:   manualBooking.refundStatus || "Not Applicable",
       bookingStatus:  "Confirmed",
       conductorNote:  manualBooking.conductorNote || "",
-      passengers:     passengersPayload,
+      
+passengers: finalSeats.map((seat) => ({
+  name:        manualBooking.passengerName.trim(),
+  age:         Number(manualBooking.age) || 0,
+  gender:      seatGenderMap[String(seat)] || manualBooking.gender || "Male",
+  seatNo:      String(seat),
+  seatNumber:  String(seat),
+  phone:       manualBooking.phone || "",
+  
+})),
     };
 
     try {
@@ -1572,11 +1570,17 @@ const bookedSeatsForTrip = bookings
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const saved = normalizeBooking(data.booking || data);
+     const saved = normalizeBooking(data.booking || data);
+console.log("SAVED BOOKING PASSENGERS:", saved.passengers);
+console.log("SAVED BOOKING:", {
+  seatNumbers: saved.seatNumbers,
+  passengers: saved.passengers,
+  gender: saved.gender,
+});
       setBookings(prev => [saved, ...prev]);
       setManualBooking({ ...emptyBookingForm, seatNumbers: [] });
       setSelectedSeat("");
-      setSeatGenderMap({});
+      
       showToast("✅ Booking added successfully!");
       triggerAutoBackup();
       sendTicketOnWhatsApp(saved);
@@ -1745,7 +1749,8 @@ function renderSeatBtnNew(seat, isSleeper) {
   const seatStr = String(seat || "");
   const seatBooking = bookingBySeat(seat);
   const isBooked = bookedSeatsForTrip.includes(seatStr);
-  const isSelected = (manualBooking.seatNumbers || []).includes(seatStr);
+  const isSelected = String(selectedSeat) === seatStr;
+
   // Check blocked from bus OR trip
   const isBlocked =
     selectedTrip?.blockedSeats?.includes(seatStr) ||
@@ -2365,30 +2370,22 @@ const [blockingLoading,setBlockingLoading]= React.useState(false);
 const [busSeats,       setBusSeats]       = React.useState([]);
 const [seatGenderMap, setSeatGenderMap] = React.useState({});
   // ── FIX: selectedBus — match by _id OR by number/name ──────────
- const bookedSeatMap = React.useMemo(() => {
+  const bookedSeatMap = React.useMemo(() => {
   const map = {};
   bookings.forEach(b => {
     if (b.bookingStatus === "Cancelled" || b.paymentStatus === "Cancelled") return;
     const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
       ? b.seatNumbers : b.seatNo ? [b.seatNo] : [];
-    
-    seats.forEach((seat) => {
+    seats.forEach((seat, idx) => {
       const sStr = String(seat);
-      // Try to find per-seat passenger by matching seatNo/seatNumber/seat field
-      const perSeat = (b.passengers || []).find(p => {
-        const pSeat = String(p.seatNo || p.seatNumber || p.seat || "").trim();
-        return pSeat === sStr && pSeat !== "";
-      });
-      
-      if (perSeat?.gender) {
-        map[sStr] = perSeat.gender;
-      } else {
-        // Fallback: index-based lookup
-        const idx = seats.findIndex(s => String(s) === sStr);
-        map[sStr] = (b.passengers?.[idx]?.gender) || b.gender || "Male";
-      }
+      const perSeat = (b.passengers || []).find(
+        p => String(p.seatNo || p.seatNumber || p.seat || "") === sStr
+      );
+      map[sStr] = perSeat?.gender || b.passengers?.[idx]?.gender || b.gender || "Male";
     });
   });
+  // DEBUG
+  console.log("bookedSeatMap built:", map);
   return map;
 }, [bookings]);
  const selectedBus = useMemo(() => {
@@ -2737,13 +2734,16 @@ function renderSeatBtnNew(seat, isSleeper) {
     (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
     (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
   const isLadies   = selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr);
-  const bookedGender = bookedSeatMap[seatStr] || (() => {
-  if (!seatBooking) return "Male";
-  const p = (seatBooking.passengers || []).find(
-    p => String(p.seatNo || p.seatNumber || p.seat || "").trim() === seatStr
-  );
-  return p?.gender || seatBooking?.gender || "Male";
-})();
+  const bookedGender =
+  bookedSeatMap?.[seatStr] ||
+  seatGenderMap[seatStr] ||
+  (() => {
+    if (!seatBooking) return "Male";
+    const p = seatBooking.passengers?.find(
+      p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
+    );
+    return p?.gender || seatBooking?.gender || "Male";
+  })();
   const isFemaleBooked = isBooked && bookedGender === "Female";
   const selectedGender = seatGenderMap[seatStr];
   const isActive   = activeSeat === seatStr;
@@ -2958,7 +2958,8 @@ function renderSeatGrid(pairs, deckTitle) {
 function renderSeatBtn(seat) {
   const seatBooking = bookingBySeat(seat);
   const isBooked = bookedSeatsForTrip.includes(String(seat));
-  const isSelected = Array.isArray(manualBooking.seatNumbers) && manualBooking.seatNumbers.includes(seatStr);
+  const isSelected = String(selectedSeat) === String(seat);
+
   const isBlocked =
     selectedTrip?.blockedSeats?.includes(String(seat)) ||
     selectedBus?.blockedSeats?.includes(String(seat));
@@ -2967,13 +2968,21 @@ function renderSeatBtn(seat) {
     selectedTrip?.ladiesSeats?.includes(seat) ||
     selectedBus?.ladiesSeats?.includes(seat);
 
-const bookedGender = bookedSeatMap[seatStr] || (() => {
-  if (!seatBooking) return "Male";
-  const p = (seatBooking.passengers || []).find(
-    p => String(p.seatNo || p.seatNumber || p.seat || "").trim() === seatStr
+const bookedGender = (() => {
+  if (!seatBooking) return seatGenderMap[seatStr] || "Male";
+  // per-seat gender from passengers array
+  const perSeatPassenger = seatBooking.passengers?.find(
+    p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
   );
-  return p?.gender || seatBooking?.gender || "Male";
+  return (
+    perSeatPassenger?.gender ||
+    seatGenderMap[seatStr] ||
+    bookedSeatMap?.[seatStr] ||
+    seatBooking?.gender ||
+    "Male"
+  );
 })();
+
   const isFemaleBooked = isBooked && bookedGender === "Female";
   const selectedGender = seatGenderMap[String(seat)];
 
@@ -3045,8 +3054,7 @@ function renderACSleeperLayout() {
     const seatStr = String(seat || "");
     const seatBooking = seat ? bookingBySeat(seat) : null;
     const isBooked = seat ? bookedSeatsForTrip.includes(seatStr) : false;
-    const isSelected = seat ? (manualBooking.seatNumbers || []).includes(seatStr) : false;
-  
+    const isSelected = seat ? String(selectedSeat) === seatStr : false;
     const isLadies = seat ? (selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr)) : false;
     const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
     const freshBus = buses.find(b => String(b._id || b.id) === String(busIdForCheck));
@@ -3059,12 +3067,12 @@ function renderACSleeperLayout() {
       (Array.isArray(freshBus?.seats) ? freshBus.seats : [])
         .find(s => String(s.seatNo) === seatStr) || {}
     ) : {};
-const bookedGender = bookedSeatMap[seatStr] || (() => {
-  if (!seatBooking) return "Male";
-  const p = (seatBooking.passengers || []).find(
-    p => String(p.seatNo || p.seatNumber || p.seat || "").trim() === seatStr
+const bookedGender = (() => {
+  if (!seatBooking) return seatGenderMap[seatStr] || "Male";
+  const p = seatBooking.passengers?.find(
+    p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
   );
-  return p?.gender || seatBooking?.gender || "Male";
+  return p?.gender || seatGenderMap[seatStr] || seatBooking?.gender || "Male";
 })();
     const isFemaleBooked = isBooked && bookedGender === "Female";
     const selectedGender = seatGenderMap[seatStr];
