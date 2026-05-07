@@ -1522,7 +1522,10 @@ const bookedSeatsForTrip = bookings
     if (!finalSeats.length) {
       showToast("Please select at least one seat!", "error"); return;
     }
-
+console.log("BOOKING PASSENGERS BEING SENT:", finalSeats.map((seat) => ({
+  seat,
+  gender: seatGenderMap[String(seat)],
+})));
     const payload = {
       passengerName:  manualBooking.passengerName.trim(),
       customerName:   manualBooking.passengerName.trim(),
@@ -1550,6 +1553,7 @@ const bookedSeatsForTrip = bookings
       refundStatus:   manualBooking.refundStatus || "Not Applicable",
       bookingStatus:  "Confirmed",
       conductorNote:  manualBooking.conductorNote || "",
+      
 passengers: finalSeats.map((seat) => ({
   name:        manualBooking.passengerName.trim(),
   age:         Number(manualBooking.age) || 0,
@@ -1557,6 +1561,7 @@ passengers: finalSeats.map((seat) => ({
   seatNo:      String(seat),
   seatNumber:  String(seat),
   phone:       manualBooking.phone || "",
+  
 })),
     };
 
@@ -1565,7 +1570,13 @@ passengers: finalSeats.map((seat) => ({
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const saved = normalizeBooking(data.booking || data);
+     const saved = normalizeBooking(data.booking || data);
+console.log("SAVED BOOKING PASSENGERS:", saved.passengers);
+console.log("SAVED BOOKING:", {
+  seatNumbers: saved.seatNumbers,
+  passengers: saved.passengers,
+  gender: saved.gender,
+});
       setBookings(prev => [saved, ...prev]);
       setManualBooking({ ...emptyBookingForm, seatNumbers: [] });
       setSelectedSeat("");
