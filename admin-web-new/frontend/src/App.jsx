@@ -1745,8 +1745,7 @@ function renderSeatBtnNew(seat, isSleeper) {
   const seatStr = String(seat || "");
   const seatBooking = bookingBySeat(seat);
   const isBooked = bookedSeatsForTrip.includes(seatStr);
-  const isSelected = String(selectedSeat) === seatStr;
-
+  const isSelected = (manualBooking.seatNumbers || []).includes(seatStr);
   // Check blocked from bus OR trip
   const isBlocked =
     selectedTrip?.blockedSeats?.includes(seatStr) ||
@@ -2959,8 +2958,7 @@ function renderSeatGrid(pairs, deckTitle) {
 function renderSeatBtn(seat) {
   const seatBooking = bookingBySeat(seat);
   const isBooked = bookedSeatsForTrip.includes(String(seat));
-  const isSelected = String(selectedSeat) === String(seat);
-
+  const isSelected = Array.isArray(manualBooking.seatNumbers) && manualBooking.seatNumbers.includes(seatStr);
   const isBlocked =
     selectedTrip?.blockedSeats?.includes(String(seat)) ||
     selectedBus?.blockedSeats?.includes(String(seat));
@@ -3047,7 +3045,8 @@ function renderACSleeperLayout() {
     const seatStr = String(seat || "");
     const seatBooking = seat ? bookingBySeat(seat) : null;
     const isBooked = seat ? bookedSeatsForTrip.includes(seatStr) : false;
-    const isSelected = seat ? String(selectedSeat) === seatStr : false;
+    const isSelected = seat ? (manualBooking.seatNumbers || []).includes(seatStr) : false;
+  
     const isLadies = seat ? (selectedTrip?.ladiesSeats?.includes(seatStr) || selectedBus?.ladiesSeats?.includes(seatStr)) : false;
     const busIdForCheck = manualBooking.busId || selectedBus?._id || selectedBus?.id;
     const freshBus = buses.find(b => String(b._id || b.id) === String(busIdForCheck));
