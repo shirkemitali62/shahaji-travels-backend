@@ -2191,25 +2191,27 @@ if (rawDate) {
           <div className="content">
             {page === "dashboard" && <DashboardPage dashboard={dashboard} />}
             {page === "bookings" && (
-              <BookingsPage
-                buses={buses} trips={trips} bookings={bookings}
-                manualBooking={manualBooking} setManualBooking={setManualBooking}
-                selectedTripId={selectedTripId} setSelectedTripId={setSelectedTripId}
-                selectedSeat={selectedSeat} setSelectedSeat={setSelectedSeat}
-                bookedSeatsForTrip={bookedSeatsForTrip}
-                addManualBooking={addManualBooking}
-                updateBookingStatus={updateBookingStatus}
-                deleteBooking={deleteBooking} saveBooking={saveBooking}setBookings={setBookings} 
-                selectedBookingForTicket={selectedBookingForTicket}
-                setSelectedBookingForTicket={setSelectedBookingForTicket}
-                selectedRoute={selectedRoute} selectedTrip={selectedTrip}
-                bookingBySeat={bookingBySeat}
-                toggleTripSeatFlag={toggleTripSeatFlag}
-                setSeatPopup={setSeatPopup}
-                showToast={showToast}
-                setBuses={setBuses}
-              />
-            )}
+  <BookingsPage
+    buses={buses} trips={trips} bookings={bookings}
+    manualBooking={manualBooking} setManualBooking={setManualBooking}
+    selectedTripId={selectedTripId} setSelectedTripId={setSelectedTripId}
+    selectedSeat={selectedSeat} setSelectedSeat={setSelectedSeat}
+    bookedSeatsForTrip={bookedSeatsForTrip}
+    addManualBooking={addManualBooking}
+    updateBookingStatus={updateBookingStatus}
+    deleteBooking={deleteBooking} saveBooking={saveBooking} setBookings={setBookings}
+    selectedBookingForTicket={selectedBookingForTicket}
+    setSelectedBookingForTicket={setSelectedBookingForTicket}
+    selectedRoute={selectedRoute} selectedTrip={selectedTrip}
+    bookingBySeat={bookingBySeat}
+    toggleTripSeatFlag={toggleTripSeatFlag}
+    setSeatPopup={setSeatPopup}
+    showToast={showToast}
+    setBuses={setBuses}
+    seatGenderMap={seatGenderMap}        
+    setSeatGenderMap={setSeatGenderMap}  
+  />
+)}
             
             {page === "trips"     && <TripsPage buses={buses} trips={trips} routes={routes} saveTrip={saveTrip} deleteTrip={deleteTrip} />}
             {page === "buses"     && <BusesPage buses={buses} saveBus={saveBus} deleteBus={deleteBus} />}
@@ -2349,7 +2351,7 @@ const {
     selectedTripId, setSelectedTripId, selectedSeat, setSelectedSeat,
     bookedSeatsForTrip, addManualBooking, updateBookingStatus,
     deleteBooking, saveBooking, selectedBookingForTicket,
-    setSelectedBookingForTicket, selectedRoute, selectedTrip,
+    setSelectedBookingForTicket, selectedRoute, selectedTrip,seatGenderMap, setSeatGenderMap,
     bookingBySeat, toggleTripSeatFlag, setSeatPopup,
     toggleBusSeatFlag, toggleBusSeatBlock,
     showToast, setBuses,
@@ -2368,7 +2370,7 @@ const [seatGenderPick, setSeatGenderPick] = React.useState({});
 const [blockForm,      setBlockForm]      = React.useState({ name: "", mobile: "" });
 const [blockingLoading,setBlockingLoading]= React.useState(false);
 const [busSeats,       setBusSeats]       = React.useState([]);
-const [seatGenderMap, setSeatGenderMap] = React.useState({});
+
   // ── FIX: selectedBus — match by _id OR by number/name ──────────
   const bookedSeatMap = React.useMemo(() => {
   const map = {};
