@@ -4346,37 +4346,30 @@ onVerify={async () => {
                   }}
 
                   activeOpacity={0.75}
-             
 onPress={async () => {
   const amt = getFinalAmount();
   const upiId = qrSettings?.upiId || "digubarge123@okaxis";
   const upiName = qrSettings?.upiName || "Shahaji Travels";
   
-  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels&tr=${Date.now()}`;
+  // ✅ CORRECT UPI link format
+  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels`;
   
-  console.log("🔗 UPI Link:", upiLink);
-  
-  if (Platform.OS === "android") {
-    try {
-      await Linking.sendIntent("android.intent.action.VIEW", [
-        { key: "android.intent.extra.STREAM", value: upiLink }
-      ]);
-    } catch {
-      try {
-        await Linking.openURL(upiLink);
-      } catch (err2) {
-        showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay करून UTR enter करा.`);
-      }
-    }
-  } else {
-    try {
+  try {
+    const supported = await Linking.canOpenURL(upiLink);
+    if (supported) {
       await Linking.openURL(upiLink);
-    } catch {
-      showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}`);
+    } else {
+      // ✅ Fallback - intent format
+      const intentLink = `intent://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels#Intent;scheme=upi;end`;
+      await Linking.openURL(intentLink);
     }
+  } catch (err) {
+    showAlert(
+      "UPI Error", 
+      `Manual payment करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+    );
   }
-}}
-                >
+}}           >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>
@@ -5526,35 +5519,30 @@ onPress={async () => {
                 <TouchableOpacity key={i}
                   style={{ flexDirection: "row", alignItems: "center", backgroundColor: app.bg, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: app.border, gap: 12, marginBottom: 4 }}
                   activeOpacity={0.75}
-             onPress={async () => {
+           onPress={async () => {
   const amt = getFinalAmount();
   const upiId = qrSettings?.upiId || "digubarge123@okaxis";
   const upiName = qrSettings?.upiName || "Shahaji Travels";
   
-  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels&tr=${Date.now()}`;
+  // ✅ CORRECT UPI link format
+  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels`;
   
-  console.log("🔗 UPI Link:", upiLink);
-  
-  if (Platform.OS === "android") {
-    try {
-      await Linking.sendIntent("android.intent.action.VIEW", [
-        { key: "android.intent.extra.STREAM", value: upiLink }
-      ]);
-    } catch {
-      try {
-        await Linking.openURL(upiLink);
-      } catch (err2) {
-        showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPay करून UTR enter करा.`);
-      }
-    }
-  } else {
-    try {
+  try {
+    const supported = await Linking.canOpenURL(upiLink);
+    if (supported) {
       await Linking.openURL(upiLink);
-    } catch {
-      showAlert("Manual Payment", `UPI ID: ${upiId}\nAmount: ₹${amt}`);
+    } else {
+      // ✅ Fallback - intent format
+      const intentLink = `intent://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels#Intent;scheme=upi;end`;
+      await Linking.openURL(intentLink);
     }
+  } catch (err) {
+    showAlert(
+      "UPI Error", 
+      `Manual payment करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+    );
   }
-}}    >
+}}  >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>

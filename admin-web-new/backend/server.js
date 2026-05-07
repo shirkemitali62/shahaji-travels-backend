@@ -3398,43 +3398,28 @@ app.post("/api/upi/verify-payment", async (req, res) => {
     if (!bookingId || !utr) {
       return res.status(400).json({ success: false, message: "bookingId and utr are required" });
     }
- 
+
     const cleanUTR = utr.trim().toUpperCase().replace(/\s+/g, "");
- 
-    // 1. Validate UTR format
+
     if (!isValidUTR(cleanUTR)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid UTR format. Please enter the correct transaction ID from your UPI app.",
+        message: "Invalid UTR format.",
         errorCode: "INVALID_UTR_FORMAT"
       });
     }
- 
-    // 2. Check for duplicate UTR (another booking already used this UTR)
-    const duplicatePayment = await UPIPayment.findOne({
-      utr: cleanUTR,
-      status: "success",
-      bookingId: { $ne: bookingId }
-    });
-    if (duplicatePayment) {
-      return res.status(400).json({
-        success: false,
-        message: "This UTR has already been used for another booking. Please contact support.",
-        errorCode: "DUPLICATE_UTR"
-      });
-    }
- 
-    // 3. Find this booking's payment record
-    const payment = await UPIPayment.findOne({ bookingId });
+
+    // ✅ Payment record नसेल तर auto-create करा
+    let payment = await UPIPayment.findOne({ bookingId });
     if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: "Payment record not found. Please start booking again.",
-        errorCode: "PAYMENT_NOT_FOUND"
+      payment = await UPIPayment.create({
+        bookingId,
+        amount: Number(amount || 0),
+        status: "pending",
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       });
     }
- 
-    // 4. Already verified?
+
     if (payment.status === "success") {
       return res.json({
         success: true,
@@ -3443,48 +3428,35 @@ app.post("/api/upi/verify-payment", async (req, res) => {
         payment
       });
     }
- 
-    // 5. Expired?
+
     if (new Date() > payment.expiresAt) {
       payment.status = "expired";
       await payment.save();
       return res.status(400).json({
         success: false,
-        message: "Payment session expired (30 min limit). Please start a new booking.",
+        message: "Payment session expired. Please start a new booking.",
         errorCode: "PAYMENT_EXPIRED"
       });
     }
- 
-    // 6. Amount mismatch check (if amount provided)
-    if (amount && Math.abs(Number(amount) - payment.amount) > 1) {
-      return res.status(400).json({
-        success: false,
-        message: `Amount mismatch. Expected ₹${payment.amount}, got ₹${amount}.`,
-        errorCode: "AMOUNT_MISMATCH"
-      });
-    }
- 
-    // 7. Mark payment as SUCCESS
+
     payment.utr        = cleanUTR;
     payment.status     = "success";
     payment.verifiedAt = new Date();
     await payment.save();
- 
-    // 8. Confirm the booking in Booking collection
+
     const booking = await Booking.findOne({
       $or: [
         { bookingCode: bookingId },
         { pnr: bookingId }
       ]
     });
- 
+
     if (booking) {
       booking.paymentStatus = "Paid";
       booking.bookingStatus = "Confirmed";
       booking.conductorNote = `UPI UTR: ${cleanUTR}`;
       await booking.save();
- 
-      // FCM notification to admin
+
       try {
         await sendFCMToAll(
           "💰 UPI Payment Verified!",
@@ -3497,10 +3469,10 @@ app.post("/api/upi/verify-payment", async (req, res) => {
         });
       } catch (_) {}
     }
- 
+
     res.json({
       success:   true,
-      message:   "Payment verified successfully! Your booking is confirmed.",
+      message:   "Payment verified! Booking confirmed.",
       payment,
       booking:   booking || null,
       bookingId,
@@ -3508,7 +3480,7 @@ app.post("/api/upi/verify-payment", async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
+});;
  
 // ── GET /api/upi/payment-status/:bookingId ───────────────────────────────────
 // Poll this to check if admin manually confirmed payment
