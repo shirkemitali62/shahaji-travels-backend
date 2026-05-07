@@ -1567,13 +1567,17 @@ const query = {
       ).map(String).filter(Boolean);
 
       seats.forEach((seatId, idx) => {
-        const gender =
-          booking.passengers?.[idx]?.gender ||
-          booking.passengers?.[0]?.gender ||
-          booking.gender ||
-          "Male";
-        if (seatId) bookedSeats.push({ id: String(seatId), gender });
-      });
+  // per-seat gender — seat number ने exact match करा
+  const perSeatPassenger = (booking.passengers || []).find(
+    p => String(p.seatNo || p.seatNumber || p.seat || "") === String(seatId)
+  );
+  const gender =
+    perSeatPassenger?.gender ||
+    booking.passengers?.[idx]?.gender ||
+    booking.gender ||
+    "Male";
+  if (seatId) bookedSeats.push({ id: String(seatId), gender });
+});
     });
 
     res.json({
@@ -2769,7 +2773,16 @@ app.get("/api/buses/:id/seat-status", async (req, res) => {
     const bookedMap = {};
     bookings.forEach(b => {
       const seats = b.seatNumbers?.length ? b.seatNumbers : [b.seatNo].filter(Boolean);
-      const gender = b.passengers?.[0]?.gender || b.gender || "Male";
+      seats.forEach(seatId => {
+  if (!seatId) return;
+  const perSeatPassenger = (b.passengers || []).find(
+    p => String(p.seatNo || p.seatNumber || p.seat || "") === String(seatId)
+  );
+  const gender =
+    perSeatPassenger?.gender || b.gender || "Male";
+  const name = b.passengerName || b.customerName || b.passengers?.[0]?.name || "";
+  bookedMap[String(seatId)] = { isBooked: true, gender, passengerName: name, bookingId: String(b._id) };
+});
       const name = b.passengerName || b.customerName || b.passengers?.[0]?.name || "";
       seats.forEach(seatId => {
         if (seatId) bookedMap[String(seatId)] = { isBooked: true, gender, passengerName: name, bookingId: String(b._id) };
