@@ -2309,25 +2309,7 @@ function getSeatDisplayLabel(seatNo) {
 
 // ===================== BOOKINGS PAGE =====================
 function BookingsPage(props) {
-   const bookedSeatMap = React.useMemo(() => {
-  const map = {};
-  bookings.forEach(b => {
-    if (b.bookingStatus === "Cancelled" || b.paymentStatus === "Cancelled") return;
-    const seats = Array.isArray(b.seatNumbers) && b.seatNumbers.length
-      ? b.seatNumbers
-      : b.seatNo ? [b.seatNo] : [];
-    seats.forEach((seat, idx) => {
-      const seatStr = String(seat);
-      // Per-seat passenger gender takes priority
-      const perSeat = (b.passengers || []).find(
-        p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
-      );
-      const gender = perSeat?.gender || b.passengers?.[idx]?.gender || b.gender || "Male";
-      map[seatStr] = gender;
-    });
-  });
-  return map;
-}, [bookings]);
+   
 const {
     buses, trips, bookings, manualBooking, setManualBooking,setBookings,
     selectedTripId, setSelectedTripId, selectedSeat, setSelectedSeat,
