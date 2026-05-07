@@ -3026,17 +3026,14 @@ function renderACSleeperLayout() {
       (Array.isArray(freshBus?.seats) ? freshBus.seats : [])
         .find(s => String(s.seatNo) === seatStr) || {}
     ) : {};
-const bookedGender =
-  bookedSeatMap?.[seatStr] ||
-  seatGenderMap[seatStr] ||
-  (() => {
-    if (!seatBooking) return "Male";
-    const p = seatBooking.passengers?.find(
-      p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
-    );
-    return p?.gender || seatBooking?.gender || "Male";
-  })();
-      const isFemaleBooked = isBooked && bookedGender === "Female";
+const bookedGender = (() => {
+  if (!seatBooking) return seatGenderMap[seatStr] || "Male";
+  const p = seatBooking.passengers?.find(
+    p => String(p.seatNo || p.seatNumber || p.seat || "") === seatStr
+  );
+  return p?.gender || seatGenderMap[seatStr] || seatBooking?.gender || "Male";
+})();
+    const isFemaleBooked = isBooked && bookedGender === "Female";
     const selectedGender = seatGenderMap[seatStr];
     if (!seat) return <div style={{ width:46, height:40 }} />;
 
