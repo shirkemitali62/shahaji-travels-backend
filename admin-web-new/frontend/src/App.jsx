@@ -2435,12 +2435,12 @@ function handleAdminGenderSelect(gender) {
     }, 0);
 
     return {
-      ...prev,
-      seatNo: newSeats[0],
-      seatNumbers: newSeats,
-      
-      amount: String(newAmount),
-    };
+  ...prev,
+  seatNo: newSeats[0],
+  seatNumbers: newSeats,
+  amount: String(newAmount),
+};
+
   });
 
   setSelectedSeat(seat);
@@ -2748,20 +2748,18 @@ function renderSeatBtnNew(seat, isSleeper) {
   const isFemaleBooked = isBooked && bookedGender === "Female";
   const selectedGender = seatGenderMap[seatStr];
   const isActive   = activeSeat === seatStr;
-
-  let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
-  if (isBlocked)         { bg = "rgba(239,68,68,0.22)"; border = "#ef4444"; color = "#ef4444"; }
+let bg = "var(--bg3)", border = "var(--border)", color = "var(--text2)";
+  if (isBlocked)          { bg = "rgba(239,68,68,0.22)";  border = "#ef4444"; color = "#ef4444"; }
   else if (isFemaleBooked){ bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
-  else if (isBooked)     { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
-  else if (isLadies)     { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
+  else if (isBooked)      { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
+  else if (isLadies)      { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
   else if (manualBooking.seatNumbers?.includes(seatStr) && seatGenderMap[seatStr] === "Female") {
-  bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white";
-}
-else if (manualBooking.seatNumbers?.includes(seatStr)) {
-  bg="var(--accent)"; border="var(--accent)"; color="white";
-}
-  else if (isActive)     { bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e"; }
-
+    bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white";
+  }
+  else if (manualBooking.seatNumbers?.includes(seatStr)) {
+    bg = "var(--accent)"; border = "var(--accent)"; color = "white";
+  }
+  else if (isActive)      { bg = "rgba(34,197,94,0.2)";   border = "#22c55e"; color = "#22c55e"; }
   return (
     <div key={seatStr} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
       {/* SEAT BUTTON */}
@@ -2961,10 +2959,9 @@ function renderSeatGrid(pairs, deckTitle) {
   );
 }
 function renderSeatBtn(seat) {
+  const seatStr = String(seat);    // ← हा line add करा
   const seatBooking = bookingBySeat(seat);
-  const isBooked = bookedSeatsForTrip.includes(String(seat));
-  const isSelected = String(selectedSeat) === String(seat);
-
+  const isBooked = bookedSeatsForTrip.includes(seatStr);
   const isBlocked =
     selectedTrip?.blockedSeats?.includes(String(seat)) ||
     selectedBus?.blockedSeats?.includes(String(seat));
