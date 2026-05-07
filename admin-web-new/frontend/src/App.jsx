@@ -2438,7 +2438,7 @@ function handleAdminGenderSelect(gender) {
       ...prev,
       seatNo: newSeats[0],
       seatNumbers: newSeats,
-      gender,
+      
       amount: String(newAmount),
     };
   });
@@ -2754,8 +2754,12 @@ function renderSeatBtnNew(seat, isSleeper) {
   else if (isFemaleBooked){ bg = "rgba(168,85,247,0.28)"; border = "#a855f7"; color = "#c4b5fd"; }
   else if (isBooked)     { bg = "rgba(245,158,11,0.28)"; border = "#f59e0b"; color = "#fcd34d"; }
   else if (isLadies)     { bg = "rgba(236,72,153,0.18)"; border = "#ec4899"; color = "#f9a8d4"; }
-  else if (isSelected && selectedGender === "Female") { bg = "rgba(168,85,247,0.5)"; border = "#a855f7"; color = "white"; }
-  else if (isSelected)   { bg = "var(--accent)"; border = "var(--accent)"; color = "white"; }
+  else if (manualBooking.seatNumbers?.includes(seatStr) && seatGenderMap[seatStr] === "Female") {
+  bg="rgba(168,85,247,0.5)"; border="#a855f7"; color="white";
+}
+else if (manualBooking.seatNumbers?.includes(seatStr)) {
+  bg="var(--accent)"; border="var(--accent)"; color="white";
+}
   else if (isActive)     { bg = "rgba(34,197,94,0.2)"; border = "#22c55e"; color = "#22c55e"; }
 
   return (
