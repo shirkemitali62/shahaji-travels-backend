@@ -2321,6 +2321,7 @@ function getSeatDisplayLabel(seatNo) {
 
 // ===================== BOOKINGS PAGE =====================
 function BookingsPage(props) {
+   const bookedSeatMap = {};
 const {
     buses, trips, bookings, manualBooking, setManualBooking,setBookings,
     selectedTripId, setSelectedTripId, selectedSeat, setSelectedSeat,
