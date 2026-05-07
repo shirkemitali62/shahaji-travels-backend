@@ -1550,13 +1550,14 @@ const bookedSeatsForTrip = bookings
       refundStatus:   manualBooking.refundStatus || "Not Applicable",
       bookingStatus:  "Confirmed",
       conductorNote:  manualBooking.conductorNote || "",
-passengers:     finalSeats.map((seat) => ({
-        name:        manualBooking.passengerName.trim(),
-        age:         Number(manualBooking.age) || 0,
-        gender:      manualBooking.gender || "Male",
-        seatNumber:  seat,
-        phone:       manualBooking.phone || "",
-      })),
+passengers: finalSeats.map((seat) => ({
+  name:        manualBooking.passengerName.trim(),
+  age:         Number(manualBooking.age) || 0,
+  gender:      seatGenderMap[String(seat)] || manualBooking.gender || "Male",
+  seatNo:      String(seat),
+  seatNumber:  String(seat),
+  phone:       manualBooking.phone || "",
+})),
     };
 
     try {

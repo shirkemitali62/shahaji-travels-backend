@@ -2844,13 +2844,15 @@ bookings.forEach(b => {
     ? b.seatNumbers
     : b.seatNo ? [b.seatNo] : [];
 
-  // ✅ Per-seat gender — passengers array मधून घ्या
   seats.forEach((s, idx) => {
     if (!s) return;
-    // passengers array मध्ये per-seat gender असेल तर ते वापरा
+    // per-seat gender: passengers array मधून seat match करा
+    const perSeatPassenger = (b.passengers || []).find(
+      p => String(p.seatNo || p.seatNumber || p.seat || "") === String(s)
+    );
     const perSeatGender =
+      perSeatPassenger?.gender ||
       b.passengers?.[idx]?.gender ||
-      b.passengers?.[0]?.gender ||
       b.gender ||
       "Male";
     bGenderMap[String(s)] = perSeatGender;
@@ -3421,13 +3423,14 @@ const API_BASE = Platform.OS === "web"
       date:          search.date,
       boardingPoint: selectedBoarding?.name || "",
       droppingPoint: selectedDropping?.name || "",
-      passengers: [{
-        name:        passengerName,
-        age:         Number(passengerInfo.age),
-        gender:      passengerInfo.gender,
-        seatNumber:  selectedSeats[0] || "",
-        phone:       passengerInfo.phone,
-      }],
+      passengers: selectedSeats.map((seat, idx) => ({
+  name:        passengerName,
+  age:         Number(passengerInfo.age),
+  gender:      seatGenderMap[String(seat)] || passengerInfo.gender || "Male",
+  seatNo:      String(seat),
+  seatNumber:  String(seat),
+  phone:       passengerInfo.phone,
+})),
       seatNumbers:   selectedSeats,
       selectedSeats,
       baseAmount:    baseAmount,
