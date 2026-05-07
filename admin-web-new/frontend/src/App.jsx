@@ -2716,7 +2716,7 @@ function renderSeatBtnNew(seat, isSleeper) {
     (Array.isArray(selectedBus?.blockedSeats) && selectedBus.blockedSeats.includes(seatStr)) ||
     (Array.isArray(currentBusObj?.blockedSeats) && currentBusObj.blockedSeats.includes(seatStr)) ||
     (Array.isArray(currentBusObj?.seats) && currentBusObj.seats.some(s => String(s.seatNo) === seatStr && s.isBlocked === true));
-const seatStr = String(seat);
+
 const bookedGender = bookedSeatMap?.[seatStr] || seatGenderMap?.[seatStr] || seatBooking?.gender || "Male";
   const isFemaleBooked = isBooked && bookedGender === "Female";
   const selectedGender = seatGenderMap[seatStr];
@@ -2942,7 +2942,7 @@ function renderSeatBtn(seat) {
     selectedTrip?.ladiesSeats?.includes(seat) ||
     selectedBus?.ladiesSeats?.includes(seat);
 
-const seatStr = String(seat);
+
 const bookedGender = bookedSeatMap?.[seatStr] || seatGenderMap?.[seatStr] || seatBooking?.gender || "Male";
 
   const isFemaleBooked = isBooked && bookedGender === "Female";
