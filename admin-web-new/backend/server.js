@@ -3899,6 +3899,19 @@ app.get("/api/refunds/pending", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+app.get("/api/refunds/completed", async (req, res) => {
+  try {
+    const refunds = await Booking.find({
+      bookingStatus: "Cancelled",
+      refundStatus:  "Refunded",
+      refundAmount:  { $gt: 0 },
+    }).sort({ updatedAt: -1 }).limit(50);
+
+    res.json({ success: true, refunds });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ── Refund Mark as Done ──────────────────────────────────────────
 app.patch("/api/refunds/:id/done", async (req, res) => {

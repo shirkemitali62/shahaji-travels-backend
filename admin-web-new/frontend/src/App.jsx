@@ -28,6 +28,7 @@ const menu = [
   { key: "reports",       icon: "📈", label: "Reports"   },
   { key: "busreport",     icon: "🚌", label: "Bus Report" },
   { key: "settings",      icon: "⚙️", label: "Settings"  },
+   { key: "refunds",       icon: "💰", label: "Refunds"   },
   { key: "offers",        icon: "🏷️", label: "Offers"    },
   { key: "popular",       icon: "🛣️", label: "Popular Routes" },
   { key: "notifications", icon: "🔔", label: "Notifications" },
@@ -2219,6 +2220,7 @@ if (rawDate) {
             {page === "customers" && <CustomersPage customers={customers} saveCustomer={saveCustomer} deleteCustomer={deleteCustomer} bookings={bookings} />}
             {page === "reports"   && <ReportsPage reportStats={reportStats} />}
             {page === "settings"  && <SettingsPage settings={settings} setSettings={persistSettings} showToast={showToast} />}
+            {page === "refunds" && <RefundPage showToast={showToast} />}
             {page === "offers"  && <OffersAdminPage showToast={showToast} />}
 {page === "popular" && <PopularRoutesPage showToast={showToast} />}
 {page === "notifications" && <NotificationsAdminPage showToast={showToast} />}
@@ -6337,30 +6339,6 @@ function DeviceManager({ showToast }) {
 }
 function SettingsPage({ settings, setSettings, showToast }) {
   const [form, setForm] = useState({ ...defaultSettings, ...settings });
-  const [refunds,        setRefunds]        = React.useState([]);
-const [refundsLoading, setRefundsLoading] = React.useState(false);
-
-React.useEffect(() => {
-  setRefundsLoading(true);
-  apiFetch("/api/refunds/pending")
-    .then(data => setRefunds(data.refunds || []))
-    .catch(() => {})
-    .finally(() => setRefundsLoading(false));
-}, []);
-
-async function markRefundDone(id, name, amount) {
-  if (!window.confirm(`${name} ला ₹${amount} refund दिला का?`)) return;
-  try {
-    await apiFetch(`/api/refunds/${id}/done`, {
-      method: "PATCH",
-      body: JSON.stringify({ note: "Refund paid by admin" }),
-    });
-    setRefunds(prev => prev.filter(r => r._id !== id));
-    showToast(`✅ ₹${amount} refund marked as done!`);
-  } catch(e) {
-    showToast("Failed: " + e.message, "error");
-  }
-}
 
   async function save() {
   setSettings(form);
@@ -6389,110 +6367,6 @@ showToast("Settings saved successfully!");
   return (
     <div className="page">
       <div className="page-header"><h1>Settings</h1><p>Configure your panel</p></div>
-      {/* ── REFUND PENDING SECTION ── */}
-<div className="section-card">
-  <div style={{
-    display: "flex", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 16,
-  }}>
-    <div>
-      <div className="section-title" style={{ margin: 0 }}>
-        💰 Refund Pending
-      </div>
-      <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>
-        Cancel केलेल्या bookings चे refund द्या
-      </div>
-    </div>
-    <span style={{
-      background: refunds.length > 0
-        ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.12)",
-      color: refunds.length > 0 ? "#f59e0b" : "#22c55e",
-      border: `1px solid ${refunds.length > 0
-        ? "rgba(245,158,11,0.3)" : "rgba(34,197,94,0.25)"}`,
-      padding: "4px 14px", borderRadius: 20,
-      fontSize: 12, fontWeight: 700,
-    }}>
-      {refunds.length} pending
-    </span>
-  </div>
-
-  {refundsLoading ? (
-    <div className="empty-state">
-      <div className="empty-text">Loading...</div>
-    </div>
-  ) : refunds.length === 0 ? (
-    <div className="empty-state">
-      <div className="empty-icon">✅</div>
-      <div className="empty-text">सगळे refunds complete! कोणताही pending नाही.</div>
-    </div>
-  ) : (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {refunds.map(r => (
-        <div key={r._id} style={{
-          background: "var(--bg3)",
-          borderRadius: 12,
-          borderLeft: "3px solid #f59e0b",
-          padding: "14px 16px",
-          display: "flex", justifyContent: "space-between",
-          alignItems: "flex-start", flexWrap: "wrap", gap: 12,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Name + Amount */}
-            <div style={{
-              display: "flex", alignItems: "center",
-              gap: 10, marginBottom: 6, flexWrap: "wrap",
-            }}>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>
-                {r.passengerName || "—"}
-              </span>
-              <span style={{
-                background: "rgba(245,158,11,0.15)",
-                color: "#f59e0b",
-                border: "1px solid rgba(245,158,11,0.3)",
-                padding: "2px 10px", borderRadius: 20,
-                fontSize: 13, fontWeight: 800,
-              }}>
-                ₹{r.refundAmount} ({r.refundPercent}%)
-              </span>
-            </div>
-
-            {/* Details */}
-            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
-              📱 {r.phone || r.mobile || "—"} &nbsp;|&nbsp;
-              🎫 {r.bookingCode || "—"}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
-              🛣️ {r.boardingPoint || "—"} → {r.droppingPoint || "—"}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
-              📅 Journey: {r.journeyDate || "—"} &nbsp;|&nbsp;
-              💳 {r.paymentMode || "Cash"}
-            </div>
-            <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
-              🕐 Cancelled: {r.cancelledAt
-                ? new Date(r.cancelledAt).toLocaleString("en-IN")
-                : "—"}
-            </div>
-          </div>
-
-          {/* Action Button */}
-          <button
-            onClick={() => markRefundDone(r._id, r.passengerName, r.refundAmount)}
-            style={{
-              background: "linear-gradient(135deg,#16a34a,#15803d)",
-              color: "white", border: "none", borderRadius: 9,
-              padding: "10px 18px", cursor: "pointer",
-              fontWeight: 700, fontSize: 13, flexShrink: 0,
-              boxShadow: "0 3px 10px rgba(22,163,74,0.3)",
-            }}
-          >
-            ✅ Refund दिला
-          </button>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
       <div className="form-card">
         <div className="form-title">⚙️ General Settings</div>
         <div className="form-grid">
@@ -7987,6 +7861,7 @@ const blockedRows = blockedSeats.length
     </div>
   );
 }
+
 // ===================== BACKUP PAGE =====================
 function BackupPage({ showToast }) {
   const [backupList, setBackupList] = React.useState([]);
@@ -8271,6 +8146,261 @@ function BackupPage({ showToast }) {
         <input type="file" accept=".json" onChange={restoreAll} disabled={restoring}
           style={{ marginBottom:12, display:"block", color:"var(--text)" }} />
         {restoring && <p style={{ color:"#60a5fa", fontWeight:600 }}>⏳ Restoring...</p>}
+      </div>
+    </div>
+  );
+}
+function RefundPage({ showToast }) {
+  const [refunds,        setRefunds]        = React.useState([]);
+  const [loading,        setLoading]        = React.useState(false);
+  const [activeTab,      setActiveTab]      = React.useState("pending");
+  const [completedList,  setCompletedList]  = React.useState([]);
+
+  React.useEffect(() => { loadRefunds(); }, []);
+
+  async function loadRefunds() {
+    setLoading(true);
+    try {
+      const res  = await apiFetch("/api/refunds/pending");
+      setRefunds(res.refunds || []);
+      const res2 = await apiFetch("/api/refunds/completed");
+      setCompletedList(res2.refunds || []);
+    } catch(e) {
+      showToast("Load failed: " + e.message, "error");
+    }
+    setLoading(false);
+  }
+
+  async function markDone(id, name, amount) {
+    if (!window.confirm(name + " ला ₹" + amount + " refund दिला का?")) return;
+    try {
+      await apiFetch("/api/refunds/" + id + "/done", {
+        method: "PATCH",
+        body: JSON.stringify({ note: "Refund paid by admin" }),
+      });
+      setRefunds(prev => prev.filter(r => r._id !== id));
+      showToast("✅ ₹" + amount + " refund marked done!");
+      loadRefunds();
+    } catch(e) {
+      showToast("Failed: " + e.message, "error");
+    }
+  }
+
+  const totalPending   = refunds.reduce((s, r) => s + Number(r.refundAmount || 0), 0);
+  const totalCompleted = completedList.reduce((s, r) => s + Number(r.refundAmount || 0), 0);
+
+  const RefundCard = ({ r, showBtn }) => (
+    <div style={{
+      background: "var(--bg3)",
+      borderRadius: 12,
+      borderLeft: "3px solid " + (showBtn ? "#f59e0b" : "#22c55e"),
+      padding: "16px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      flexWrap: "wrap",
+      gap: 12,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+
+        {/* Name + Amount */}
+        <div style={{
+          display: "flex", alignItems: "center",
+          gap: 10, marginBottom: 8, flexWrap: "wrap",
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>
+            {r.passengerName || "-"}
+          </span>
+          <span style={{
+            background: showBtn ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.15)",
+            color:  showBtn ? "#f59e0b" : "#22c55e",
+            border: "1px solid " + (showBtn ? "rgba(245,158,11,0.3)" : "rgba(34,197,94,0.3)"),
+            padding: "3px 12px", borderRadius: 20,
+            fontSize: 14, fontWeight: 800,
+          }}>
+            {"₹" + r.refundAmount}
+            <span style={{ fontSize: 11, marginLeft: 4 }}>
+              {"(" + r.refundPercent + "%)"}
+            </span>
+          </span>
+          <span style={{
+            background: "rgba(59,130,246,0.1)",
+            color: "#60a5fa",
+            border: "1px solid rgba(59,130,246,0.2)",
+            padding: "3px 10px", borderRadius: 20,
+            fontSize: 11, fontWeight: 700,
+          }}>
+            {r.paymentMode || "Cash"}
+          </span>
+        </div>
+
+        {/* Info rows */}
+        {[
+          ["Phone",     r.phone || r.mobile || "-"],
+          ["Booking",   r.bookingCode || "-"],
+          ["Route",     (r.boardingPoint || "-") + " to " + (r.droppingPoint || "-")],
+          ["Journey",   r.journeyDate || "-"],
+          ["Seats",     (r.seatNumbers && r.seatNumbers.length ? r.seatNumbers.join(", ") : r.seatNo || "-")],
+          ["Cancelled", r.cancelledAt
+            ? new Date(r.cancelledAt).toLocaleString("en-IN", {
+                day: "2-digit", month: "short",
+                hour: "2-digit", minute: "2-digit",
+              })
+            : "-"],
+        ].map(function(item) {
+          var label = item[0];
+          var val   = item[1];
+          return (
+            <div key={label} style={{
+              display: "flex", gap: 8,
+              fontSize: 13, marginBottom: 4,
+            }}>
+              <span style={{ color: "var(--text2)", minWidth: 90 }}>{label}</span>
+              <span style={{ fontWeight: 600, color: "var(--text)" }}>{val}</span>
+            </div>
+          );
+        })}
+
+        {!showBtn && r.conductorNote && (
+          <div style={{
+            marginTop: 8, padding: "6px 10px",
+            background: "rgba(34,197,94,0.1)",
+            borderRadius: 6, fontSize: 12, color: "#22c55e",
+          }}>
+            {"✅ " + r.conductorNote}
+          </div>
+        )}
+      </div>
+
+      {/* Buttons */}
+      {showBtn && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            onClick={() => markDone(r._id, r.passengerName, r.refundAmount)}
+            style={{
+              background: "linear-gradient(135deg,#16a34a,#15803d)",
+              color: "white", border: "none", borderRadius: 9,
+              padding: "12px 20px", cursor: "pointer",
+              fontWeight: 700, fontSize: 14,
+              boxShadow: "0 3px 10px rgba(22,163,74,0.3)",
+            }}
+          >
+            ✅ Refund दिला
+          </button>
+          <button
+            onClick={() => { window.location.href = "tel:" + (r.phone || r.mobile); }}
+            style={{
+              background: "rgba(59,130,246,0.15)",
+              color: "#60a5fa",
+              border: "1px solid rgba(59,130,246,0.3)",
+              borderRadius: 9, padding: "10px 20px",
+              cursor: "pointer", fontWeight: 700,
+              fontSize: 13, textAlign: "center",
+            }}
+          >
+            📞 Call
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>💰 Refund Management</h1>
+        <p>Cancel केलेल्या bookings चे refund track करा</p>
+      </div>
+
+      {/* Stats */}
+      <div className="stats-grid">
+        <div className="stat-card stat-card-yellow">
+          <div className="stat-icon">⏳</div>
+          <div className="stat-label">Pending Refunds</div>
+          <div className="stat-val">{refunds.length}</div>
+        </div>
+        <div className="stat-card stat-card-red">
+          <div className="stat-icon">💸</div>
+          <div className="stat-label">Pending Amount</div>
+          <div className="stat-val">{"₹" + totalPending.toLocaleString()}</div>
+        </div>
+        <div className="stat-card stat-card-green">
+          <div className="stat-icon">✅</div>
+          <div className="stat-label">Completed Refunds</div>
+          <div className="stat-val">{completedList.length}</div>
+        </div>
+        <div className="stat-card stat-card-emerald">
+          <div className="stat-icon">💰</div>
+          <div className="stat-label">Total Refunded</div>
+          <div className="stat-val">{"₹" + totalCompleted.toLocaleString()}</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+        {[
+          { key: "pending",   label: "Pending (" + refunds.length + ")" },
+          { key: "completed", label: "Completed (" + completedList.length + ")" },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: "9px 18px", borderRadius: 8,
+              fontSize: 13, fontWeight: 600,
+              border: activeTab === tab.key ? "none" : "1px solid rgba(255,255,255,0.1)",
+              background: activeTab === tab.key
+                ? "linear-gradient(135deg,#e63946,#c1121f)"
+                : "rgba(255,255,255,0.04)",
+              color: activeTab === tab.key ? "white" : "#8892a4",
+              cursor: "pointer",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <button
+          onClick={loadRefunds}
+          className="btn-secondary"
+          style={{ marginLeft: "auto", padding: "8px 14px", fontSize: 12 }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="section-card">
+        {loading ? (
+          <div className="empty-state">
+            <div className="empty-text">Loading...</div>
+          </div>
+        ) : activeTab === "pending" ? (
+          refunds.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">✅</div>
+              <div className="empty-text">कोणताही pending refund नाही!</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {refunds.map(r => (
+                <RefundCard key={r._id} r={r} showBtn={true} />
+              ))}
+            </div>
+          )
+        ) : (
+          completedList.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">💰</div>
+              <div className="empty-text">अजून कोणताही refund complete नाही.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {completedList.map(r => (
+                <RefundCard key={r._id} r={r} showBtn={false} />
+              ))}
+            </div>
+          )
+        )}
       </div>
     </div>
   );
