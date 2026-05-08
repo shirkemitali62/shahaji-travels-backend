@@ -56,9 +56,9 @@ const notificationSchema = new mongoose.Schema({
   title:   { type: String, required: true },
   message: { type: String, required: true },
   type:    { type: String, enum: ["info", "offer", "alert", "update"], default: "info" },
+  source:  { type: String, default: "system" }, // ✅ "admin_manual" | "system"
   sentAt:  { type: Date, default: Date.now },
 }, { timestamps: true });
- 
 const Notification = mongoose.models.Notification ||
   mongoose.model("Notification", notificationSchema);
 const adminSchema = new mongoose.Schema({
@@ -2646,17 +2646,10 @@ app.get("/api/notifications/all", async (req, res) => {
 // GET notifications after a specific ID (for polling new ones)
 app.get("/api/notifications", async (req, res) => {
   try {
-    // Mobile app साठी — फक्त admin ने manually पाठवलेल्या
-    // type: "info", "offer", "update" — NOT "alert" (alert = system notification)
+    // Mobile app — फक्त admin ने manually पाठवलेल्या notifications
+    // source: "admin_manual" field असलेल्याच दाखवा
     const notifications = await Notification.find({
-      type: { $in: ["info", "offer", "update"] },
-      // System generated notifications filter out करा
-      title: { 
-        $not: { 
-          $regex: "User Login|Booking Cancelled|Refund Pending|New Registration|User Login|FCM|Token|QR Payment",
-          $options: "i"
-        }
-      }
+      source: "admin_manual"
     })
       .sort({ createdAt: -1 })
       .limit(20);
@@ -2681,6 +2674,7 @@ app.post("/api/notifications/send", async (req, res) => {
       title: title.trim(),
       message: message.trim(),
       type: type || "info",
+      source:  "admin_manual",
     });
  
     // 2. Send FCM push to all devices
