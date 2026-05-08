@@ -773,39 +773,7 @@ React.useEffect(() => {
       clearInterval(interval);
     };
   }, []);
-  // Deep link handler - Razorpay payment callback
-useEffect(() => {
-  const handleDeepLink = async (event) => {
-    const url = event.url || event;
-    if (!url || !url.includes('shahajiravels://payment')) return;
-    
-    console.log('🔗 Deep link received:', url);
-    
-    const urlStr = typeof url === 'string' ? url : url.url;
-    const queryStr = urlStr.split('?')[1] || '';
-    const urlParams = new URLSearchParams(queryStr);
-    
-    const paymentId = urlParams.get('razorpay_payment_id');
-    const status    = urlParams.get('status');
-    
-    if (status === 'success' && paymentId) {
-      setLoading(true);
-      setLoadMsg("Booking confirm करत आहे...");
-      await doBooking(paymentId);
-    } else if (status === 'failed') {
-      showAlert("Payment Failed", "Payment नाही झाले. पुन्हा try करा.");
-    }
-  };
-
-  // Initial URL check (app बंद होते आणि deep link ने उघडले)
-  Linking.getInitialURL().then((url) => {
-    if (url) handleDeepLink(url);
-  });
-
-  // App open असताना deep link
-  const subscription = Linking.addEventListener('url', handleDeepLink);
-  return () => subscription?.remove();
-}, [selectedSeats, passengerInfo, selectedBus, selectedBoarding, selectedDropping, search, paymentMethod]);
+  
   // ── Booking display helpers ───────────────────────────────────────
   const getBookingRoute = (b) => {
     if (b?.route) return b.route;
@@ -2458,7 +2426,39 @@ useEffect(() => {
 }, []);
 const notificationListener = useRef();
 const responseListener = useRef();
+// Deep link handler - Razorpay payment callback
+useEffect(() => {
+  const handleDeepLink = async (event) => {
+    const url = event.url || event;
+    if (!url || !url.includes('shahajiravels://payment')) return;
+    
+    console.log('🔗 Deep link received:', url);
+    
+    const urlStr = typeof url === 'string' ? url : url.url;
+    const queryStr = urlStr.split('?')[1] || '';
+    const urlParams = new URLSearchParams(queryStr);
+    
+    const paymentId = urlParams.get('razorpay_payment_id');
+    const status    = urlParams.get('status');
+    
+    if (status === 'success' && paymentId) {
+      setLoading(true);
+      setLoadMsg("Booking confirm करत आहे...");
+      await doBooking(paymentId);
+    } else if (status === 'failed') {
+      showAlert("Payment Failed", "Payment नाही झाले. पुन्हा try करा.");
+    }
+  };
 
+  // Initial URL check (app बंद होते आणि deep link ने उघडले)
+  Linking.getInitialURL().then((url) => {
+    if (url) handleDeepLink(url);
+  });
+
+  // App open असताना deep link
+  const subscription = Linking.addEventListener('url', handleDeepLink);
+  return () => subscription?.remove();
+}, [selectedSeats, passengerInfo, selectedBus, selectedBoarding, selectedDropping, search, paymentMethod]);
 useEffect(() => {
   if (Platform.OS === "web") return;
 
