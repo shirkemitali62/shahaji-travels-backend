@@ -19,14 +19,27 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Ticket PDF save करण्यासाठी Photos access हवे.",
         "NSPhotoLibraryAddUsageDescription": "Ticket PDF Downloads मध्ये save करण्यासाठी.",
-        "LSApplicationQueriesSchemes": ["upi", "gpay", "phonepe", "paytmmp", "tez"]
+        "LSApplicationQueriesSchemes": [
+          "upi",
+          "gpay",
+          "phonepe",
+          "paytmmp",
+          "tez"
+        ]
       }
     },
     "android": {
-  "package": "com.anonymous.mobileapp",
-  "queries": {
-    "schemes": ["upi", "gpay", "phonepe", "paytmmp", "tez", "bhim"]
-  },
+      "package": "com.anonymous.mobileapp",
+      "queries": {
+        "schemes": [
+          "upi",
+          "gpay",
+          "phonepe",
+          "paytmmp",
+          "tez",
+          "bhim"
+        ]
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -45,8 +58,15 @@
       "intentFilters": [
         {
           "action": "VIEW",
-          "data": [{ "scheme": "upi" }],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "data": [
+            {
+              "scheme": "upi"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -61,7 +81,8 @@
           "savePhotosPermission": "Ticket PDF Downloads मध्ये save करण्यासाठी.",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

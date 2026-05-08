@@ -4251,7 +4251,7 @@ onVerify={async () => {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
-                {qrSettings?.upiId || "shmitali27@okhdfcbank"}
+                {qrSettings?.upiId || "digubarge123@okaxis"}
               </Text>
               <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
                 {qrSettings?.upiName || "KAVIRAJ KRISHNAT BARGE"}
@@ -4333,7 +4333,7 @@ onVerify={async () => {
                 getUrl: (base) => `upi://pay?${base}`,
               },
             ].map((app, i) => {
-              const upiBase = `pa=${qrSettings?.upiId || "shmitali27@okhdfcbank"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${getFinalAmount()}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+              const upiBase = `pa=${qrSettings?.upiId || "digubarge123@okaxis"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${getFinalAmount()}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
               const url = app.getUrl(upiBase);
               return (
                 <TouchableOpacity
@@ -4348,28 +4348,26 @@ onVerify={async () => {
                   activeOpacity={0.75}
 onPress={async () => {
   const amt = getFinalAmount();
-  const upiId = qrSettings?.upiId || "digubarge123@okaxis";
-  const upiName = qrSettings?.upiName || "Shahaji Travels";
+  const upiId = qrSettings?.upiId;
   
-  // ✅ CORRECT UPI link format
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels`;
-  
-  try {
-    const supported = await Linking.canOpenURL(upiLink);
-    if (supported) {
-      await Linking.openURL(upiLink);
-    } else {
-      // ✅ Fallback - intent format
-      const intentLink = `intent://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels#Intent;scheme=upi;end`;
-      await Linking.openURL(intentLink);
-    }
-  } catch (err) {
-    showAlert(
-      "UPI Error", 
-      `Manual payment करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
-    );
+  if (!upiId) {
+    showAlert("Error", "UPI ID set नाही. Admin panel मध्ये set करा.");
+    return;
   }
-}}           >
+
+  const upiName = qrSettings?.upiName || "Shahaji Travels";
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR&tn=ShahajiTravels`;
+
+  console.log("🔗 Opening UPI:", upiId, "Amount:", amt);
+
+  try {
+    await Linking.openURL(upiLink);
+  } catch (err) {
+    showAlert("UPI Error", `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`);
+  }
+}}
+  
+           >
                   {app.icon()}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>
@@ -5471,7 +5469,7 @@ onPress={async () => {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
-                {qrSettings?.upiId || "shmitali27@okhdfcbank"}
+                {qrSettings?.upiId || "digubarge123@okaxis"}
               </Text>
               <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
                 {qrSettings?.upiName || "KAVIRAJ KRISHNAT BARGE"}
@@ -5513,36 +5511,34 @@ onPress={async () => {
               },
             ].map((app, i) => {
               const amt = getFinalAmount();
-              const upiBase = `pa=${qrSettings?.upiId || "shmitali27@okhdfcbank"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
+              const upiBase = `pa=${qrSettings?.upiId || "digubarge123@okaxis"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
               const url = app.getUrl(upiBase);
               return (
                 <TouchableOpacity key={i}
                   style={{ flexDirection: "row", alignItems: "center", backgroundColor: app.bg, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: app.border, gap: 12, marginBottom: 4 }}
                   activeOpacity={0.75}
-           onPress={async () => {
+        onPress={async () => {
   const amt = getFinalAmount();
   const upiId = qrSettings?.upiId || "digubarge123@okaxis";
   const upiName = qrSettings?.upiName || "Shahaji Travels";
-  
-  // ✅ CORRECT UPI link format
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels`;
-  
-  try {
-    const supported = await Linking.canOpenURL(upiLink);
-    if (supported) {
-      await Linking.openURL(upiLink);
-    } else {
-      // ✅ Fallback - intent format
-      const intentLink = `intent://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amt}&cu=INR&tn=ShahajiTravels#Intent;scheme=upi;end`;
-      await Linking.openURL(intentLink);
-    }
-  } catch (err) {
+
+  // ✅ Web वर UPI link काम करत नाही - manual show करा
+  if (Platform.OS === "web") {
     showAlert(
-      "UPI Error", 
-      `Manual payment करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+      "UPI Payment",
+      `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPhone वर GPay/PhonePe open करा आणि manually pay करा.\n\nPay झाल्यावर UTR enter करा.`
     );
+    return;
   }
-}}  >
+
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR`;
+
+  try {
+    await Linking.openURL(upiLink);
+  } catch (err) {
+    showAlert("UPI Error", `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`);
+  }
+}}>
                   {app.icon()}
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>
