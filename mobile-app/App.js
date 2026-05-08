@@ -773,6 +773,39 @@ React.useEffect(() => {
       clearInterval(interval);
     };
   }, []);
+  // Deep link handler - Razorpay payment callback
+useEffect(() => {
+  const handleDeepLink = async (event) => {
+    const url = event.url || event;
+    if (!url || !url.includes('shahajiravels://payment')) return;
+    
+    console.log('🔗 Deep link received:', url);
+    
+    const urlStr = typeof url === 'string' ? url : url.url;
+    const queryStr = urlStr.split('?')[1] || '';
+    const urlParams = new URLSearchParams(queryStr);
+    
+    const paymentId = urlParams.get('razorpay_payment_id');
+    const status    = urlParams.get('status');
+    
+    if (status === 'success' && paymentId) {
+      setLoading(true);
+      setLoadMsg("Booking confirm करत आहे...");
+      await doBooking(paymentId);
+    } else if (status === 'failed') {
+      showAlert("Payment Failed", "Payment नाही झाले. पुन्हा try करा.");
+    }
+  };
+
+  // Initial URL check (app बंद होते आणि deep link ने उघडले)
+  Linking.getInitialURL().then((url) => {
+    if (url) handleDeepLink(url);
+  });
+
+  // App open असताना deep link
+  const subscription = Linking.addEventListener('url', handleDeepLink);
+  return () => subscription?.remove();
+}, [selectedSeats, passengerInfo, selectedBus, selectedBoarding, selectedDropping, search, paymentMethod]);
   // ── Booking display helpers ───────────────────────────────────────
   const getBookingRoute = (b) => {
     if (b?.route) return b.route;
@@ -3254,60 +3287,49 @@ const handleConfirmBooking = async () => {
     bookingStatus: paymentMethod === "QR_UPI" ? "Pending" : "Confirmed",
   });
 const handleRazorpayPayment = async () => {
-  if (!IS_WEB) {
-    // Mobile - WebBrowser वापरून Razorpay open करा
-    setLoading(true);
-    setLoadMsg("Payment initiate करत आहे...");
-    try {
-      const orderRes = await fetch(`${API_BASE}/api/payment/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: getFinalAmount() }),
-      });
-      if (!orderRes.ok) throw new Error('Order create failed');
-      const order = await orderRes.json();
-      setLoading(false);
+if (!IS_WEB) {
+  setLoading(true);
+  setLoadMsg("Payment initiate करत आहे...");
+  try {
+    // Step 1: Order create
+    const orderRes = await fetch(`${API_BASE}/api/payment/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: getFinalAmount() }),
+    });
+    if (!orderRes.ok) throw new Error('Order create failed');
+    const order = await orderRes.json();
+    setLoading(false);
 
-      const params = new URLSearchParams({
-        key:      'rzp_test_SiAe7LkcA4ax88',
-        order_id: order.id,
-        amount:   String(order.amount),
-        name:     passengerInfo.name || user?.name || 'Customer',
-        email:    passengerInfo.email || user?.email || '',
-        phone:    passengerInfo.phone || user?.phone || '',
-        desc:     `${search.from} to ${search.to} - ${search.date}`,
-      });
+    const params = new URLSearchParams({
+      key:      'rzp_test_SiAe7LkcA4ax88',
+      order_id:  order.id,
+      amount:    String(order.amount),
+      name:      passengerInfo.name  || user?.name  || 'Customer',
+      email:     passengerInfo.email || user?.email || '',
+      phone:     passengerInfo.phone || user?.phone || '',
+      desc:      `${search.from} to ${search.to} - ${search.date}`,
+    });
 
-      const result = await WebBrowser.openBrowserAsync(
-        `${API_BASE}/razorpay-checkout?${params.toString()}`
-      );
-      console.log('WebBrowser closed:', result);
+    const checkoutUrl = `${API_BASE}/razorpay-checkout?${params.toString()}`;
+    await Linking.openURL(checkoutUrl);
 
-      // Browser बंद झाल्यावर user ला विचारा
+    // ❌ "Yes Payment Done" button काढला
+    // ✅ आता फक्त info alert - booking auto होईल deep link ने
+    setTimeout(() => {
       showAlert(
-        "Payment Complete झाले का?",
-        "जर payment successful झाले असेल तर 'Yes' दाबा",
-        [
-          {
-            text: "✅ Yes, Payment Done",
-            onPress: async () => {
-              setLoading(true);
-              setLoadMsg("Booking confirm करत आहे...");
-              await doBooking(null);
-            },
-          },
-          {
-            text: "❌ No, Cancel",
-            style: "cancel",
-          },
-        ]
+        "Payment Page उघडले",
+        "Browser मध्ये payment complete करा.\n\nPayment successful झाल्यावर booking automatically confirm होईल.",
+        [{ text: "OK", style: "cancel" }]
       );
-    } catch (err) {
-      setLoading(false);
-      showAlert("Error", err?.message || "Payment start करता आले नाही.");
-    }
-    return;
+    }, 1000);
+
+  } catch (err) {
+    setLoading(false);
+    showAlert("Error", err?.message || "Payment start करता आले नाही.");
   }
+  return;
+}
 
   // ── WEB - existing Razorpay code तसाच ────────────────────
   if (["GPay","PhonePe","UPI"].includes(paymentMethod)) {

@@ -3,6 +3,7 @@
     "name": "mobile-app",
     "slug": "mobile-app",
     "version": "1.0.0",
+    "scheme": "shahajiravels",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -61,6 +62,18 @@
           "data": [
             {
               "scheme": "upi"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "shahajiravels"
             }
           ],
           "category": [

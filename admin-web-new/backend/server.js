@@ -3622,22 +3622,24 @@ app.get('/razorpay-checkout', (req, res) => {
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <title>Payment - Shahaji Travels</title>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:Arial,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh}
-    .box{background:#fff;padding:36px 28px;border-radius:20px;max-width:360px;width:92%;text-align:center}
+    body{font-family:Arial,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+    .box{background:#fff;padding:32px 24px;border-radius:20px;max-width:380px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.10)}
     .title{font-size:22px;font-weight:800;color:#C0392B;margin-bottom:4px}
-    .sub{color:#888;font-size:13px;margin-bottom:24px}
-    .amt{font-size:40px;font-weight:800;color:#1C1C1E;margin-bottom:6px}
-    .route{color:#555;font-size:13px;margin-bottom:28px}
-    .btn{background:#C0392B;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;width:100%;cursor:pointer}
+    .sub{color:#888;font-size:13px;margin-bottom:20px}
+    .amt{font-size:42px;font-weight:800;color:#1C1C1E;margin-bottom:6px}
+    .route{color:#555;font-size:13px;margin-bottom:28px;line-height:1.5}
+    .btn{background:#C0392B;color:#fff;border:none;border-radius:14px;padding:18px;font-size:16px;font-weight:700;width:100%;cursor:pointer;margin-top:8px}
+    .btn:active{background:#96281B}
     .spinner{width:36px;height:36px;border:4px solid #f0f0f0;border-top:4px solid #C0392B;border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}
-    .msg{font-size:13px;color:#666;margin-top:12px}
-    .success{color:#27AE60;font-weight:700;font-size:15px;margin-top:16px}
+    .msg{font-size:13px;color:#666;margin-top:8px;line-height:1.6}
+    .success{color:#27AE60;font-weight:700;font-size:16px;margin-top:16px;line-height:1.6}
     .fail{color:#C0392B;font-size:13px;margin-top:12px}
+    .note{font-size:12px;color:#aaa;margin-top:20px;line-height:1.5;padding:10px;background:#f9f9f9;border-radius:8px}
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
@@ -3649,11 +3651,19 @@ app.get('/razorpay-checkout', (req, res) => {
   <div class="route">${decodeURIComponent(desc || '')}</div>
   <button class="btn" id="payBtn" onclick="startPay()">Pay Now →</button>
   <div id="status"></div>
+  <div class="note" id="note">Payment complete झाल्यावर automatically app मध्ये redirect होईल</div>
 </div>
 <script>
+var paid = false;
+var paymentId = null;
+var orderId = null;
+var signature = null;
+
 function startPay() {
   document.getElementById('payBtn').style.display = 'none';
-  document.getElementById('status').innerHTML = '<div class="spinner"></div><div class="msg">Opening Razorpay...</div>';
+  document.getElementById('status').innerHTML = 
+    '<div class="spinner"></div><div class="msg">Razorpay उघडत आहे...</div>';
+  
   var options = {
     key: '${key}',
     amount: '${amount}',
@@ -3661,26 +3671,102 @@ function startPay() {
     name: 'Shahaji Travels',
     description: '${decodeURIComponent(desc || '')}',
     order_id: '${order_id}',
-    prefill: { name:'${decodeURIComponent(name||'')}', email:'${decodeURIComponent(email||'')}', contact:'${phone||''}' },
+    prefill: {
+      name: '${decodeURIComponent(name || '')}',
+      email: '${decodeURIComponent(email || '')}',
+      contact: '${phone || ''}'
+    },
     theme: { color: '#C0392B' },
-    handler: function(r) {
-      document.getElementById('status').innerHTML = '<div class="success">✅ Payment Successful!<br>App मध्ये परत जा आणि<br>"Yes, Payment Done" दाबा.</div>';
+    handler: function(response) {
+      paid = true;
+      paymentId = response.razorpay_payment_id;
+      orderId   = response.razorpay_order_id;
+      signature = response.razorpay_signature;
+      
+      document.getElementById('status').innerHTML =
+        '<div class="spinner"></div><div class="msg">Payment verify करत आहे...</div>';
+      document.getElementById('note').style.display = 'none';
+      
+      // Backend ला verify करायला पाठवा
+      fetch('/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          razorpay_payment_id: paymentId,
+          razorpay_order_id:   orderId,
+          razorpay_signature:  signature,
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          // ✅ Verified - App ला payment ID पाठवा
+          document.getElementById('status').innerHTML =
+            '<div class="success">✅ Payment Verified!<br><br>Booking confirm होत आहे...<br>App मध्ये परत जा.</div>';
+          
+          // Deep link वापरून app ला payment details पाठवा
+          var params = 'razorpay_payment_id=' + paymentId + 
+                       '&razorpay_order_id=' + orderId + 
+                       '&razorpay_signature=' + encodeURIComponent(signature) +
+                       '&status=success';
+          
+          // App deep link try करा
+          setTimeout(function() {
+            window.location.href = 'shahajiravels://payment?' + params;
+          }, 1000);
+          
+          // Fallback - 3 seconds नंतर
+          setTimeout(function() {
+            window.location.href = 'shahajitravels://payment?' + params;
+          }, 3000);
+          
+        } else {
+          document.getElementById('status').innerHTML =
+            '<div class="fail">❌ Payment verify नाही झाले.<br>Support: 9021694503</div>';
+          document.getElementById('payBtn').style.display = 'block';
+          document.getElementById('payBtn').textContent = 'Retry →';
+          paid = false;
+        }
+      })
+      .catch(function(err) {
+        // Network error - तरी payment ID save झाला
+        document.getElementById('status').innerHTML =
+          '<div class="success">✅ Payment Done!<br><br>App मध्ये परत जा.<br>Payment ID: ' + paymentId.slice(0,15) + '...</div>';
+        
+        setTimeout(function() {
+          var params = 'razorpay_payment_id=' + paymentId + 
+                       '&razorpay_order_id=' + orderId + 
+                       '&status=success';
+          window.location.href = 'shahajiravels://payment?' + params;
+        }, 1500);
+      });
     },
     modal: {
       ondismiss: function() {
-        document.getElementById('status').innerHTML = '';
-        document.getElementById('payBtn').style.display = 'block';
+        if (!paid) {
+          document.getElementById('status').innerHTML = '';
+          document.getElementById('payBtn').style.display = 'block';
+          document.getElementById('note').style.display = 'block';
+        }
       }
     }
   };
+  
   var rzp = new Razorpay(options);
-  rzp.on('payment.failed', function(r) {
-    document.getElementById('status').innerHTML = '<div class="fail">❌ Failed: ' + r.error.description + '</div>';
+  rzp.on('payment.failed', function(response) {
+    document.getElementById('status').innerHTML =
+      '<div class="fail">❌ Payment Failed!<br>' + 
+      response.error.description + '<br><br>पुन्हा try करा.</div>';
     document.getElementById('payBtn').style.display = 'block';
+    document.getElementById('payBtn').textContent = 'Retry →';
+    paid = false;
   });
   rzp.open();
 }
-window.onload = function() { setTimeout(startPay, 600); };
+
+window.onload = function() { 
+  setTimeout(startPay, 800); 
+};
 </script>
 </body>
 </html>`);
