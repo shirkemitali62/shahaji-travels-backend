@@ -607,7 +607,8 @@ const gts = StyleSheet.create({
 export const CancelTicketScreen = ({ visible, onClose, api, showAlert }) => {
   const [input, setCancelInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1=enter ID, 2=confirm, 3=success
+  const [step, setStep] = useState(1);
+  const [refundData, setRefundData] = useState(null); // ✅ ADD THIS
   const slideAnim = useRef(new Animated.Value(SH)).current;
 
   useEffect(() => {
@@ -619,16 +620,31 @@ export const CancelTicketScreen = ({ visible, onClose, api, showAlert }) => {
     }
   }, [visible]);
 
-  const handleCancel = async () => {
-    if (!input.trim()) return;
-    setLoading(true);
-    try {
-      await api.cancelBooking(input.trim());
-      setStep(3);
-    } catch (err) { showAlert("Cancellation Failed", err?.message || "Could not cancel. Try again."); }
-    finally { setLoading(false); }
-  };
-
+ const handleCancel = async () => {
+  if (!input.trim()) return;
+  setLoading(true);
+  try {
+    const res = await fetch(
+      "https://shahaji-travels-backend.onrender.com/api/bookings/" + input.trim() + "/cancel",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passengerName: "Customer" }),
+      }
+    );
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "Cancel failed");
+    setRefundData({
+      refundAmount:  data.refundAmount  || 0,
+      refundPercent: data.refundPercent || 0,
+    });
+    setStep(3);
+  } catch (err) {
+    showAlert("Cancellation Failed", err?.message || "Could not cancel.");
+  } finally {
+    setLoading(false);
+  }
+};
   if (!visible) return null;
 
   return (

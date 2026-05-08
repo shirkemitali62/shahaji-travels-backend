@@ -81,5 +81,15 @@ export const bookTripSeats = async (tripId, selectedSeats) => {
 
   return res.json();
 };
-
+// Cancel Booking
+export const cancelBooking = async (bookingId) => {
+  const res = await fetch(`${API}/api/bookings/${bookingId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ passengerName: "Customer" }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.message || "Cancel failed");
+  return data;
+};
 export default API;

@@ -1931,7 +1931,13 @@ app.post("/api/bookings/:id/cancel", async (req, res) => {
         refundAmount = 0;
       }
     }
-
+// ✅ passengerName fix — customerName fallback
+if (!booking.passengerName && booking.customerName) {
+  booking.passengerName = booking.customerName;
+}
+if (!booking.passengerName) {
+  booking.passengerName = "Passenger";
+}
     // ── Booking update ──
    booking.bookingStatus = "Cancelled";
 booking.refundStatus  = refundAmount > 0 ? "Processing" : "Not Applicable";
