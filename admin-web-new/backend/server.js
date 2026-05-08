@@ -220,6 +220,9 @@ const bookingSchema = new mongoose.Schema({
   pnr:            { type: String, default: null, sparse: true },
   conductorNote:  { type: String, default: "" },
   passengers:     { type: Array, default: [] },
+  refundAmount:   { type: Number, default: 0 },
+refundPercent:  { type: Number, default: 0 },
+cancelledAt:    { type: Date, default: null },
 }, { timestamps: true });
 
 bookingSchema.index({ pnr: 1 }, { unique: true });
@@ -1890,13 +1893,124 @@ app.post("/api/bookings/:id/cancel", async (req, res) => {
     const { id } = req.params;
     let booking = null;
     try { booking = await Booking.findById(id); } catch {}
-    if (!booking) booking = await Booking.findOne({ $or:[{ bookingCode:id },{ pnr:id }] });
-    if (!booking) return res.status(404).json({ success:false, message:"Booking not found" });
-    booking.bookingStatus = "Cancelled";
-    booking.refundStatus  = "Processing";
-    await booking.save();
-    res.json({ success:true, message:"Booking cancelled successfully.", booking });
-  } catch(err) { res.status(500).json({ success:false, message:err.message }); }
+    if (!booking) 
+      booking = await Booking.findOne({ $or:[{ bookingCode:id },{ pnr:id }] });
+    if (!booking) 
+      return res.status(404).json({ success:false, message:"Booking not found" });
+
+    if (booking.bookingStatus === "Cancelled")
+      return res.status(400).json({ success:false, message:"Already cancelled" });
+
+    // ── Time-based refund calculate ──
+    const now = new Date();
+    const journeyDateStr = booking.journeyDate || booking.date || "";
+    let refundPercent = 0;
+    let refundAmount = 0;
+
+    if (journeyDateStr) {
+      // DD/MM/YYYY → parse
+      let departure;
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(journeyDateStr)) {
+        const [dd, mm, yyyy] = journeyDateStr.split("/");
+        departure = new Date(`${yyyy}-${mm}-${dd}`);
+      } else {
+        departure = new Date(journeyDateStr);
+      }
+
+      const hoursLeft = (departure - now) / (1000 * 60 * 60);
+      const amount = Number(booking.amount || booking.totalAmount || 0);
+
+      if (hoursLeft >= 24) {
+        refundPercent = 100;
+        refundAmount = amount;
+      } else if (hoursLeft >= 6) {
+        refundPercent = 50;
+        refundAmount = Math.round(amount * 0.5);
+      } else {
+        refundPercent = 0;
+        refundAmount = 0;
+      }
+    }
+
+    // ── Booking update ──
+   booking.bookingStatus = "Cancelled";
+booking.refundStatus  = refundAmount > 0 ? "Processing" : "Not Applicable";
+booking.conductorNote = `Cancelled. Refund: ₹${refundAmount} (${refundPercent}%)`;
+booking.refundAmount  = refundAmount;
+booking.refundPercent = refundPercent;
+booking.cancelledAt   = new Date();
+await booking.save();
+// ✅ SEAT AVAILABLE करा — Bus च्या seatDetails मधून remove करा
+if (booking.bus && booking.seatNumbers?.length) {
+  try {
+    let busObjectId = new mongoose.Types.ObjectId(String(booking.bus));
+    
+    const bus = await mongoose.connection.db
+      .collection("buses")
+      .findOne({ _id: busObjectId });
+
+    if (bus) {
+      // seatDetails मधून isBooked = false करा
+      let seatDetails = Array.isArray(bus.seatDetails) ? [...bus.seatDetails] : [];
+      
+      booking.seatNumbers.forEach(seatNo => {
+        const idx = seatDetails.findIndex(
+          s => String(s.seatNo) === String(seatNo)
+        );
+        if (idx >= 0) {
+          seatDetails[idx].isBooked      = false;
+          seatDetails[idx].passengerName = "";
+          seatDetails[idx].gender        = "";
+          seatDetails[idx].bookingId     = "";
+        }
+      });
+
+      await mongoose.connection.db.collection("buses").updateOne(
+        { _id: busObjectId },
+        { $set: { seatDetails, updatedAt: new Date() } }
+      );
+    }
+  } catch(e) {
+    console.log("Seat release error:", e.message);
+  }
+}
+
+// ✅ Admin ला notification
+try {
+  await Notification.create({
+    title:   "❌ Booking Cancelled",
+    message: `${booking.passengerName} ने booking cancel केली. Seats: ${booking.seatNumbers?.join(", ")} released.`,
+    type:    "alert",
+  });
+} catch(_) {}
+    // ── Wallet मध्ये refund add करा ──
+    // ✅ Wallet नाही — Admin ला refund notification पाठवा
+if (refundAmount > 0) {
+  try {
+    await Notification.create({
+      title:   "💰 Refund Pending — Action Required",
+      message: `${booking.passengerName} (${booking.phone}) ला ₹${refundAmount} (${refundPercent}%) refund द्या. Booking: ${booking.bookingCode}. Payment Mode: ${booking.paymentMode || "Cash"}`,
+      type:    "alert",
+    });
+
+    await sendFCMToAll(
+      "💰 Refund Pending!",
+      `${booking.passengerName} ला ₹${refundAmount} refund द्या — ${booking.bookingCode}`
+    );
+  } catch(_) {}
+}
+
+    res.json({
+      success: true,
+      message: "Booking cancelled",
+      refundAmount,
+      refundPercent,
+      booking,
+    });
+
+  } catch(err) { 
+    res.status(500).json({ success:false, message:err.message }); 
+  }
 });
 
 app.delete("/api/bookings/:id", async (req, res) => {
@@ -3770,6 +3884,49 @@ window.onload = function() {
 </script>
 </body>
 </html>`);
+});
+// ── Refund Pending List ──────────────────────────────────────────
+app.get("/api/refunds/pending", async (req, res) => {
+  try {
+    const refunds = await Booking.find({
+      bookingStatus: "Cancelled",
+      refundStatus:  "Processing",
+      refundAmount:  { $gt: 0 },
+    }).sort({ cancelledAt: -1 });
+
+    res.json({ success: true, refunds });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── Refund Mark as Done ──────────────────────────────────────────
+app.patch("/api/refunds/:id/done", async (req, res) => {
+  try {
+    const { note } = req.body;
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { 
+        refundStatus:  "Refunded",
+        conductorNote: note || "Refund completed",
+      },
+      { new: true }
+    );
+    if (!booking) 
+      return res.status(404).json({ message: "Booking not found" });
+
+    try {
+      await Notification.create({
+        title:   "✅ Refund Completed",
+        message: `${booking.passengerName} ला ₹${booking.refundAmount} refund दिला गेला.`,
+        type:    "info",
+      });
+    } catch(_) {}
+
+    res.json({ success: true, booking });
+  } catch(err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {

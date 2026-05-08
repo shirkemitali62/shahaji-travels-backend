@@ -6337,6 +6337,30 @@ function DeviceManager({ showToast }) {
 }
 function SettingsPage({ settings, setSettings, showToast }) {
   const [form, setForm] = useState({ ...defaultSettings, ...settings });
+  const [refunds,        setRefunds]        = React.useState([]);
+const [refundsLoading, setRefundsLoading] = React.useState(false);
+
+React.useEffect(() => {
+  setRefundsLoading(true);
+  apiFetch("/api/refunds/pending")
+    .then(data => setRefunds(data.refunds || []))
+    .catch(() => {})
+    .finally(() => setRefundsLoading(false));
+}, []);
+
+async function markRefundDone(id, name, amount) {
+  if (!window.confirm(`${name} ला ₹${amount} refund दिला का?`)) return;
+  try {
+    await apiFetch(`/api/refunds/${id}/done`, {
+      method: "PATCH",
+      body: JSON.stringify({ note: "Refund paid by admin" }),
+    });
+    setRefunds(prev => prev.filter(r => r._id !== id));
+    showToast(`✅ ₹${amount} refund marked as done!`);
+  } catch(e) {
+    showToast("Failed: " + e.message, "error");
+  }
+}
 
   async function save() {
   setSettings(form);
@@ -6365,6 +6389,110 @@ showToast("Settings saved successfully!");
   return (
     <div className="page">
       <div className="page-header"><h1>Settings</h1><p>Configure your panel</p></div>
+      {/* ── REFUND PENDING SECTION ── */}
+<div className="section-card">
+  <div style={{
+    display: "flex", justifyContent: "space-between",
+    alignItems: "center", marginBottom: 16,
+  }}>
+    <div>
+      <div className="section-title" style={{ margin: 0 }}>
+        💰 Refund Pending
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>
+        Cancel केलेल्या bookings चे refund द्या
+      </div>
+    </div>
+    <span style={{
+      background: refunds.length > 0
+        ? "rgba(245,158,11,0.15)" : "rgba(34,197,94,0.12)",
+      color: refunds.length > 0 ? "#f59e0b" : "#22c55e",
+      border: `1px solid ${refunds.length > 0
+        ? "rgba(245,158,11,0.3)" : "rgba(34,197,94,0.25)"}`,
+      padding: "4px 14px", borderRadius: 20,
+      fontSize: 12, fontWeight: 700,
+    }}>
+      {refunds.length} pending
+    </span>
+  </div>
+
+  {refundsLoading ? (
+    <div className="empty-state">
+      <div className="empty-text">Loading...</div>
+    </div>
+  ) : refunds.length === 0 ? (
+    <div className="empty-state">
+      <div className="empty-icon">✅</div>
+      <div className="empty-text">सगळे refunds complete! कोणताही pending नाही.</div>
+    </div>
+  ) : (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {refunds.map(r => (
+        <div key={r._id} style={{
+          background: "var(--bg3)",
+          borderRadius: 12,
+          borderLeft: "3px solid #f59e0b",
+          padding: "14px 16px",
+          display: "flex", justifyContent: "space-between",
+          alignItems: "flex-start", flexWrap: "wrap", gap: 12,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Name + Amount */}
+            <div style={{
+              display: "flex", alignItems: "center",
+              gap: 10, marginBottom: 6, flexWrap: "wrap",
+            }}>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>
+                {r.passengerName || "—"}
+              </span>
+              <span style={{
+                background: "rgba(245,158,11,0.15)",
+                color: "#f59e0b",
+                border: "1px solid rgba(245,158,11,0.3)",
+                padding: "2px 10px", borderRadius: 20,
+                fontSize: 13, fontWeight: 800,
+              }}>
+                ₹{r.refundAmount} ({r.refundPercent}%)
+              </span>
+            </div>
+
+            {/* Details */}
+            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
+              📱 {r.phone || r.mobile || "—"} &nbsp;|&nbsp;
+              🎫 {r.bookingCode || "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
+              🛣️ {r.boardingPoint || "—"} → {r.droppingPoint || "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 3 }}>
+              📅 Journey: {r.journeyDate || "—"} &nbsp;|&nbsp;
+              💳 {r.paymentMode || "Cash"}
+            </div>
+            <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+              🕐 Cancelled: {r.cancelledAt
+                ? new Date(r.cancelledAt).toLocaleString("en-IN")
+                : "—"}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <button
+            onClick={() => markRefundDone(r._id, r.passengerName, r.refundAmount)}
+            style={{
+              background: "linear-gradient(135deg,#16a34a,#15803d)",
+              color: "white", border: "none", borderRadius: 9,
+              padding: "10px 18px", cursor: "pointer",
+              fontWeight: 700, fontSize: 13, flexShrink: 0,
+              boxShadow: "0 3px 10px rgba(22,163,74,0.3)",
+            }}
+          >
+            ✅ Refund दिला
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
       <div className="form-card">
         <div className="form-title">⚙️ General Settings</div>
         <div className="form-grid">

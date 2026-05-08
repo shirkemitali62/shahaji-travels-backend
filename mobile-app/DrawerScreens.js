@@ -644,7 +644,48 @@ export const CancelTicketScreen = ({ visible, onClose, api, showAlert }) => {
               <View style={cts.successCard}>
                 <Text style={cts.successIcon}>✅</Text>
                 <Text style={cts.successTitle}>Ticket Cancelled</Text>
-                <Text style={cts.successSub}>Your refund will be processed to your wallet within 24 hours</Text>
+               {refundData?.refundAmount > 0 ? (
+  <>
+    <View style={{
+      backgroundColor: "#E8F5E9", borderRadius: 12,
+      padding: 14, marginTop: 12, width: "100%",
+      borderWidth: 1, borderColor: "#A5D6A7",
+      alignItems: "center",
+    }}>
+      <Text style={{ fontSize: 13, color: "#2E7D32", fontWeight: "700" }}>
+        💰 Refund Amount
+      </Text>
+      <Text style={{ fontSize: 28, fontWeight: "900", color: "#1B5E20", marginTop: 4 }}>
+        ₹{refundData.refundAmount}
+      </Text>
+      <Text style={{ fontSize: 12, color: "#555", marginTop: 6, textAlign: "center" }}>
+        {refundData.refundPercent}% refund मिळेल
+      </Text>
+    </View>
+    <View style={{
+      backgroundColor: "#FFF8E1", borderRadius: 10,
+      padding: 12, marginTop: 10, width: "100%",
+      borderWidth: 1, borderColor: "#FFE082",
+    }}>
+      <Text style={{ fontSize: 12, color: "#E65100", textAlign: "center", lineHeight: 18 }}>
+        ⚠️ Refund cash/UPI ने दिला जाईल.{"\n"}
+        Admin तुम्हाला 24 तासात contact करेल.{"\n"}
+        Phone: 9766775660
+      </Text>
+    </View>
+  </>
+) : (
+  <View style={{
+    backgroundColor: "#FFEBEE", borderRadius: 10,
+    padding: 12, marginTop: 10, width: "100%",
+    borderWidth: 1, borderColor: "#FFCDD2",
+  }}>
+    <Text style={{ fontSize: 12, color: "#C62828", textAlign: "center", lineHeight: 18 }}>
+      ❌ No Refund{"\n"}
+      Departure च्या 6 तासांच्या आत cancel केले.
+    </Text>
+  </View>
+)}
                 <PrimaryBtn title="Back to Home" color={C.green} style={{ marginTop: 20 }} onPress={onClose} />
               </View>
             ) : (
