@@ -15,6 +15,7 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity,
   TouchableWithoutFeedback, View,
 } from "react-native";
+import * as WebBrowser from 'expo-web-browser';
 import Svg, { Rect, Path } from "react-native-svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
@@ -3252,137 +3253,148 @@ const handleConfirmBooking = async () => {
     paymentStatus: paymentMethod === "QR_UPI" ? "Pending" : "Paid",
     bookingStatus: paymentMethod === "QR_UPI" ? "Pending" : "Confirmed",
   });
- 
 const handleRazorpayPayment = async () => {
-  // Cash → direct confirm modal
- 
+  if (!IS_WEB) {
+    // Mobile - WebBrowser वापरून Razorpay open करा
+    setLoading(true);
+    setLoadMsg("Payment initiate करत आहे...");
+    try {
+      const orderRes = await fetch(`${API_BASE}/api/payment/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: getFinalAmount() }),
+      });
+      if (!orderRes.ok) throw new Error('Order create failed');
+      const order = await orderRes.json();
+      setLoading(false);
 
-  // Validations
+      const params = new URLSearchParams({
+        key:      'rzp_test_SiAe7LkcA4ax88',
+        order_id: order.id,
+        amount:   String(order.amount),
+        name:     passengerInfo.name || user?.name || 'Customer',
+        email:    passengerInfo.email || user?.email || '',
+        phone:    passengerInfo.phone || user?.phone || '',
+        desc:     `${search.from} to ${search.to} - ${search.date}`,
+      });
+
+      const result = await WebBrowser.openBrowserAsync(
+        `${API_BASE}/razorpay-checkout?${params.toString()}`
+      );
+      console.log('WebBrowser closed:', result);
+
+      // Browser बंद झाल्यावर user ला विचारा
+      showAlert(
+        "Payment Complete झाले का?",
+        "जर payment successful झाले असेल तर 'Yes' दाबा",
+        [
+          {
+            text: "✅ Yes, Payment Done",
+            onPress: async () => {
+              setLoading(true);
+              setLoadMsg("Booking confirm करत आहे...");
+              await doBooking(null);
+            },
+          },
+          {
+            text: "❌ No, Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+    } catch (err) {
+      setLoading(false);
+      showAlert("Error", err?.message || "Payment start करता आले नाही.");
+    }
+    return;
+  }
+
+  // ── WEB - existing Razorpay code तसाच ────────────────────
   if (["GPay","PhonePe","UPI"].includes(paymentMethod)) {
     if (!passengerInfo.upiId?.trim())
       return showAlert(t.upiError, t.enterUpi);
-
     if (!passengerInfo.upiId.includes("@"))
       return showAlert(t.upiError, t.validUpi);
   }
-
   if (paymentMethod === "Card") {
     if (!passengerInfo.cardNumber || passengerInfo.cardNumber.replace(/\s/g,"").length < 16)
       return showAlert(t.cardError, t.enterCardNumber);
-
     if (!passengerInfo.cardExpiry || passengerInfo.cardExpiry.length < 5)
       return showAlert(t.cardError, t.enterExpiry);
-
     if (!passengerInfo.cardCvv || passengerInfo.cardCvv.length < 3)
       return showAlert(t.cardError, t.enterCvv);
-
     if (!passengerInfo.cardName?.trim())
       return showAlert(t.cardError, t.enterCardName);
   }
-
   if (paymentMethod === "NetBanking") {
     if (!passengerInfo.selectedBank)
       return showAlert(t.netBankingError, t.selectBank);
   }
-
   setLoading(true);
   setLoadMsg(t.paymentInitiating);
-
   try {
-    // ── Step 1: Order create ──────────────────────────────
     const orderRes = await fetch(`${API_BASE}/api/payment/create-order`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ amount: getFinalAmount() }),
+      body: JSON.stringify({ amount: getFinalAmount() }),
     });
-
     if (!orderRes.ok) {
       const errData = await orderRes.json();
       throw new Error(errData.error || 'Order create failed');
     }
-
     const order = await orderRes.json();
-    console.log('✅ Razorpay order:', order.id);
-
-    // ── Step 2: Web - Razorpay Checkout ─────────────────
-    if (IS_WEB) {
-
-      if (!window.Razorpay) {
-        setLoading(false);
-        return showAlert(t.setupError, t.razorpayLoadError);
-      }
-
+    if (!window.Razorpay) {
       setLoading(false);
-
-      const options = {
-        key:         'rzp_test_SiAe7LkcA4ax88',
-        amount:      order.amount,
-        currency:    'INR',
-        name:        'Shahaji Travels',
-        description: `${search.from} → ${search.to} · ${search.date}`,
-        order_id:    order.id,
-
-        prefill: {
-          name:    passengerInfo.name    || user?.name  || '',
-          email:   passengerInfo.email   || user?.email || '',
-          contact: passengerInfo.phone   || user?.phone || '',
-        },
-
-        theme: { color: '#C0392B' },
-
-        // ✅ Payment Success
-        handler: async (response) => {
-          setLoading(true);
-          setLoadMsg(t.paymentVerify);
-
-          try {
-            const verifyRes = await fetch(`${API_BASE}/api/payment/verify`, {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body:    JSON.stringify(response),
-            });
-
-            const verify = await verifyRes.json();
-
-            if (verify.success) {
-              doBooking(response.razorpay_payment_id);
-            } else {
-              setLoading(false);
-              showAlert(t.paymentFailed, t.paymentNotVerified);
-            }
-
-          } catch (err) {
-            setLoading(false);
-            showAlert(t.paymentError, err.message);
-          }
-        },
-
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-            showAlert(t.paymentCancelled, t.paymentCancelledMsg);
-          },
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-
-      rzp.on('payment.failed', (response) => {
-        setLoading(false);
-        showAlert(
-          t.paymentFailed,
-          `${response.error.description}\nReason: ${response.error.reason}`
-        );
-      });
-
-      rzp.open();
-      return;
+      return showAlert(t.setupError, t.razorpayLoadError);
     }
-
-    // ── Mobile ────────────────────────────
     setLoading(false);
-    showAlert(t.payment, t.mobilePaymentInfo);
-
+    const options = {
+      key:         'rzp_test_SiAe7LkcA4ax88',
+      amount:      order.amount,
+      currency:    'INR',
+      name:        'Shahaji Travels',
+      description: `${search.from} → ${search.to} · ${search.date}`,
+      order_id:    order.id,
+      prefill: {
+        name:    passengerInfo.name    || user?.name  || '',
+        email:   passengerInfo.email   || user?.email || '',
+        contact: passengerInfo.phone   || user?.phone || '',
+      },
+      theme: { color: '#C0392B' },
+      handler: async (response) => {
+        setLoading(true);
+        setLoadMsg(t.paymentVerify);
+        try {
+          const verifyRes = await fetch(`${API_BASE}/api/payment/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(response),
+          });
+          const verify = await verifyRes.json();
+          if (verify.success) {
+            doBooking(response.razorpay_payment_id);
+          } else {
+            setLoading(false);
+            showAlert(t.paymentFailed, t.paymentNotVerified);
+          }
+        } catch (err) {
+          setLoading(false);
+          showAlert(t.paymentError, err.message);
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setLoading(false);
+          showAlert(t.paymentCancelled, t.paymentCancelledMsg);
+        },
+      },
+    };
+    const rzp = new window.Razorpay(options);
+    rzp.on('payment.failed', (response) => {
+      setLoading(false);
+      showAlert(t.paymentFailed, `${response.error.description}\nReason: ${response.error.reason}`);
+    });
+    rzp.open();
   } catch (err) {
     setLoading(false);
     showAlert(t.paymentError, err?.message || t.paymentStartFail);

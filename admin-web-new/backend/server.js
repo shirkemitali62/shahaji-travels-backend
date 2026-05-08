@@ -3616,6 +3616,75 @@ app.post("/api/admin/restore-by-id/:id", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+app.get('/razorpay-checkout', (req, res) => {
+  const { key, order_id, amount, name, email, phone, desc } = req.query;
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment - Shahaji Travels</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh}
+    .box{background:#fff;padding:36px 28px;border-radius:20px;max-width:360px;width:92%;text-align:center}
+    .title{font-size:22px;font-weight:800;color:#C0392B;margin-bottom:4px}
+    .sub{color:#888;font-size:13px;margin-bottom:24px}
+    .amt{font-size:40px;font-weight:800;color:#1C1C1E;margin-bottom:6px}
+    .route{color:#555;font-size:13px;margin-bottom:28px}
+    .btn{background:#C0392B;color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;width:100%;cursor:pointer}
+    .spinner{width:36px;height:36px;border:4px solid #f0f0f0;border-top:4px solid #C0392B;border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}
+    .msg{font-size:13px;color:#666;margin-top:12px}
+    .success{color:#27AE60;font-weight:700;font-size:15px;margin-top:16px}
+    .fail{color:#C0392B;font-size:13px;margin-top:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div class="box">
+  <div class="title">🚌 Shahaji Travels</div>
+  <div class="sub">Secure Payment · Razorpay</div>
+  <div class="amt">₹${Math.round(parseInt(amount || 0) / 100)}</div>
+  <div class="route">${decodeURIComponent(desc || '')}</div>
+  <button class="btn" id="payBtn" onclick="startPay()">Pay Now →</button>
+  <div id="status"></div>
+</div>
+<script>
+function startPay() {
+  document.getElementById('payBtn').style.display = 'none';
+  document.getElementById('status').innerHTML = '<div class="spinner"></div><div class="msg">Opening Razorpay...</div>';
+  var options = {
+    key: '${key}',
+    amount: '${amount}',
+    currency: 'INR',
+    name: 'Shahaji Travels',
+    description: '${decodeURIComponent(desc || '')}',
+    order_id: '${order_id}',
+    prefill: { name:'${decodeURIComponent(name||'')}', email:'${decodeURIComponent(email||'')}', contact:'${phone||''}' },
+    theme: { color: '#C0392B' },
+    handler: function(r) {
+      document.getElementById('status').innerHTML = '<div class="success">✅ Payment Successful!<br>App मध्ये परत जा आणि<br>"Yes, Payment Done" दाबा.</div>';
+    },
+    modal: {
+      ondismiss: function() {
+        document.getElementById('status').innerHTML = '';
+        document.getElementById('payBtn').style.display = 'block';
+      }
+    }
+  };
+  var rzp = new Razorpay(options);
+  rzp.on('payment.failed', function(r) {
+    document.getElementById('status').innerHTML = '<div class="fail">❌ Failed: ' + r.error.description + '</div>';
+    document.getElementById('payBtn').style.display = 'block';
+  });
+  rzp.open();
+}
+window.onload = function() { setTimeout(startPay, 600); };
+</script>
+</body>
+</html>`);
+});
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message:`Route ${req.method} ${req.path} not found` });
