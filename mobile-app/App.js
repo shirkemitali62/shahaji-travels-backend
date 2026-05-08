@@ -986,9 +986,20 @@ React.useEffect(() => {
   <TouchableOpacity onPress={openDrawer} style={s.navMenuBtn}>
     <Text style={s.navMenuIcon}>☰</Text>
   </TouchableOpacity>
-  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 8 }}>
-    <LogoImage width={28} height={28} borderRadius={5} />
-    <Text style={[s.navTitle, { fontSize: 14 }]}>Shahaji Travels</Text>
+
+  {/* Gap between menu and logo */}
+  <View style={{ width: 10 }} />
+
+  <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+    <LogoImage width={34} height={34} borderRadius={6} />
+    <Text style={{
+      color: "#FFFFFF",
+      fontSize: 20,
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    }}>
+      Shahaji Travels
+    </Text>
   </View>
   {/* 🔔 NOTIFICATION BELL */}
   <TouchableOpacity
@@ -1097,7 +1108,7 @@ React.useEffect(() => {
                 style={[s.dateBtn, search.date === getDateOffset(offset) && s.dateBtnActive]}
                 onPress={() => setSearch(p => ({ ...p, date: getDateOffset(offset) }))}>
                 <Text style={[s.dateBtnTop, search.date === getDateOffset(offset) && s.dateBtnTextActive]}>
-                  {offset === 0 ? (t.today || "Today") : offset === 1 ? (t.tomorrow || "Tmrw") : getDayName(2)}
+                  {offset === 0 ? (t.today || "Today") : offset === 1 ? (t.tomorrow || "Tomorrow") : getDayName(2)}
                 </Text>
                 <Text style={[s.dateBtnBot, search.date === getDateOffset(offset) && s.dateBtnTextActive]}>
                   {getDayName(offset)}
@@ -6282,7 +6293,15 @@ const s = StyleSheet.create({
   authInput:{borderWidth:1.5,borderColor:C.border,borderRadius:12,paddingHorizontal:14,paddingVertical:13,fontSize:F.sm,color:C.text,backgroundColor:C.white,marginBottom:2},
   passRow:{flexDirection:"row",marginBottom:2},
   eyeBtn:{borderWidth:1.5,borderColor:C.border,borderLeftWidth:0,borderTopRightRadius:12,borderBottomRightRadius:12,paddingHorizontal:14,justifyContent:"center",backgroundColor:C.white},
- navbar:{backgroundColor:C.red,flexDirection:"row",alignItems:"center",paddingHorizontal:16,paddingVertical:8,paddingTop:Platform.OS==="android"?40:10},
+navbar:{
+  backgroundColor:C.red,
+  flexDirection:"row",
+  alignItems:"center",
+  paddingHorizontal:16,
+  paddingVertical:10,
+  paddingTop:Platform.OS==="android"?42:12,
+  gap: 4,
+},
   navMenuIcon:{color:C.white,fontSize:24,fontWeight:"700"},
   navTitle:{color:C.white,fontSize:F.lg,fontWeight:"800",letterSpacing:0.3},
   navWallet:{backgroundColor:"rgba(255,255,255,0.18)",borderRadius:20,paddingHorizontal:12,paddingVertical:5},

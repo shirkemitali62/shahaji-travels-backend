@@ -607,11 +607,11 @@ app.post("/api/login", async (req, res) => {
         try {
           await sendFCMToAll(
             "🔐 New Device Login Request!",
-            `कोणीतरी admin panel access करायचा प्रयत्न केला! Admin panel मध्ये जाऊन approve करा.`
+            "Someone tried to access admin panel! Go to Settings → Devices to approve."
           );
           await Notification.create({
             title: "🔐 New Device Request",
-            message: `नवीन device login करायचा प्रयत्न केला. Settings → Devices मध्ये approve करा.`,
+            message: `New device tried to login. Go to Settings → Devices to approve.`,
             type: "alert",
           });
         } catch(e) {}
@@ -726,10 +726,10 @@ try {
     `${name} (${phone}) ने account create केला`
   );
   await Notification.create({
-    title:   "🎉 New Registration",
-    message: `${name} (${phone}) ने नवीन account create केला`,
-    type:    "info",
-  });
+  title:   "🎉 New Registration",
+  message: `...`,
+  type:    "alert",  // ✅ alert = admin only
+});
 } catch (e) {}
     res.status(200).json({ success:true, message:"OTP sent. Check server console for OTP." });
   } catch(err) { res.status(500).json({ success:false, message:err.message }); }
@@ -781,11 +781,11 @@ try {
     "👤 User Login",
     `${customer.name} (${customer.phone}) logged in`
   );
-  await Notification.create({
-    title:   "👤 User Login",
-    message: `${customer.name} (${customer.phone}) ने login केला`,
-    type:    "info",
-  });
+ await Notification.create({
+  title:   "👤 User Login",
+  message: `...`,
+  type:    "alert",  // ✅ alert = admin only
+});
 } catch (e) {}
   } catch(err) { res.status(500).json({ success:false, message:err.message }); }
 });
@@ -1848,7 +1848,7 @@ if (busId && seatNumbers.length) {
 
       await Notification.create({
         title:   "🎫 Booking Confirmed",
-        message: `${passengerName} ने booking confirm केली. Seats: ${seats}, Amount: ₹${amount}`,
+        message: `${passengerName} confirmed booking. Seats: ${seats}, Amount: ₹${amount}`,
         type:    "info",
       });
     } catch (notifErr) {
@@ -1985,7 +1985,7 @@ if (booking.bus && booking.seatNumbers?.length) {
 try {
   await Notification.create({
     title:   "❌ Booking Cancelled",
-    message: `${booking.passengerName} ने booking cancel केली. Seats: ${booking.seatNumbers?.join(", ")} released.`,
+message: `${booking.passengerName} cancelled booking. Seats: ${booking.seatNumbers?.join(", ")} released.`,
     type:    "alert",
   });
 } catch(_) {}
@@ -1995,7 +1995,7 @@ if (refundAmount > 0) {
   try {
     await Notification.create({
       title:   "💰 Refund Pending — Action Required",
-      message: `${booking.passengerName} (${booking.phone}) ला ₹${refundAmount} (${refundPercent}%) refund द्या. Booking: ${booking.bookingCode}. Payment Mode: ${booking.paymentMode || "Cash"}`,
+     message: `Pay ₹${refundAmount} (${refundPercent}%) refund to ${booking.passengerName} (${booking.phone}). Booking: ${booking.bookingCode}. Payment Mode: ${booking.paymentMode || "Cash"}`,
       type:    "alert",
     });
 
@@ -2646,15 +2646,22 @@ app.get("/api/notifications/all", async (req, res) => {
 // GET notifications after a specific ID (for polling new ones)
 app.get("/api/notifications", async (req, res) => {
   try {
-    // ✅ Simply सगळ्या recent notifications पाठव
-    const notifications = await Notification.find()
+    // Mobile app साठी — फक्त admin ने manually पाठवलेल्या
+    // type: "info", "offer", "update" — NOT "alert" (alert = system notification)
+    const notifications = await Notification.find({
+      type: { $in: ["info", "offer", "update"] },
+      // System generated notifications filter out करा
+      title: { 
+        $not: { 
+          $regex: "User Login|Booking Cancelled|Refund Pending|New Registration|User Login|FCM|Token|QR Payment",
+          $options: "i"
+        }
+      }
+    })
       .sort({ createdAt: -1 })
       .limit(20);
     
-    res.json({ 
-      success: true, 
-      notifications 
-    });
+    res.json({ success: true, notifications });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -3049,7 +3056,7 @@ app.post("/api/bookings/qr-pending", async (req, res) => {
       );
       await Notification.create({
         title:   "💰 QR Payment — Verify",
-        message: `${passengerName} ने QR scan करून pay केले. UTR: ${body.utrNumber || "—"}. Admin verify करा.`,
+        message: `${passengerName} paid via QR. UTR: ${body.utrNumber || "-"}. Please verify.`,
         type:    "alert",
       });
     } catch {}
@@ -3082,7 +3089,7 @@ app.post("/api/bookings/:id/qr-approve", async (req, res) => {
       );
       await Notification.create({
         title:   "✅ QR Booking Confirmed",
-        message: `${booking.passengerName} ची booking confirm झाली. Seats: ${booking.seatNumbers?.join(", ")}`,
+      message: `Booking confirmed for ${booking.passengerName}. Seats: ${booking.seatNumbers?.join(", ")}`,
         type:    "info",
       });
     } catch {}
@@ -3217,7 +3224,7 @@ app.patch("/api/admin/devices/:id/approve", async (req, res) => {
     try {
       await Notification.create({
         title: "✅ Device Approved",
-        message: `${device.deviceName} ला access दिला गेला.`,
+message: `Access granted to ${device.deviceName}.`,
         type: "info",
       });
     } catch(e) {}
@@ -3937,7 +3944,7 @@ app.patch("/api/refunds/:id/done", async (req, res) => {
     try {
       await Notification.create({
         title:   "✅ Refund Completed",
-        message: `${booking.passengerName} ला ₹${booking.refundAmount} refund दिला गेला.`,
+       message: `₹${booking.refundAmount} refund paid to ${booking.passengerName}.`,
         type:    "info",
       });
     } catch(_) {}

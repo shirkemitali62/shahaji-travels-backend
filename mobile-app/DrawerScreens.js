@@ -77,94 +77,374 @@ const EmptyState = ({ icon, title, sub }) => (
 // ============================================================
 export const ProfileScreen = ({ visible, onClose, user, wallet, api, showAlert }) => {
   const [profile, setProfile] = useState(null);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("info");
+  const [imageUri, setImageUri] = useState(null);
   const slideAnim = useRef(new Animated.Value(SH)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
-      loadProfile();
+      loadData();
     } else {
       Animated.timing(slideAnim, { toValue: SH, duration: 260, useNativeDriver: true }).start();
     }
   }, [visible]);
 
-  const loadProfile = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
       const r = await api.getUserProfile(user?._id || user?.id);
       setProfile(r?.user || r);
-    } catch { setProfile(user); }
-    finally { setLoading(false); }
+
+      // Load bookings
+      const phone = user?.phone || user?.mobile;
+      const res = await fetch(
+        `https://shahaji-travels-backend.onrender.com/api/bookings?phone=${phone}`
+      );
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.bookings || []);
+      setBookings(list);
+    } catch {
+      setProfile(user);
+    }
+    setLoading(false);
   };
 
+  const pickImage = async () => {
+  try {
+    // Web वर ImagePicker काम करत नाही — simple file input वापरा
+    if (Platform.OS === "web") {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const url = URL.createObjectURL(file);
+          setImageUri(url);
+        }
+      };
+      input.click();
+      return;
+    }
+
+    // Mobile साठी — expo-image-picker
+    const ImagePicker = require("expo-image-picker");
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      showAlert("Permission needed", "Please allow photo access.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  } catch (e) {
+    showAlert("Error", e.message || "Could not open gallery.");
+  }
+};
+
   if (!visible) return null;
+
   const p = profile || user || {};
   const initials = (p.name || "U").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  // Total paid amount
+const totalPaid = bookings
+  .filter(b => b.paymentStatus === "Paid" || b.bookingStatus === "Confirmed")
+  .reduce((s, b) => s + Number(b.amount || 0), 0);
+
+// Cancelled bookings चे refund amount वजा करा
+const totalRefunded = bookings
+  .filter(b => 
+    b.bookingStatus === "Cancelled" && 
+    (b.refundStatus === "Refunded" || b.refundStatus === "Processing") &&
+    Number(b.refundAmount || 0) > 0
+  )
+  .reduce((s, b) => s + Number(b.refundAmount || 0), 0);
+
+// Final actual spent = paid - refunded
+const totalSpent = Math.max(0, totalPaid - totalRefunded);
+  const confirmedBookings = bookings.filter(b =>
+    b.bookingStatus === "Confirmed" || b.paymentStatus === "Paid"
+  ).length;
+  const cancelledBookings = bookings.filter(b =>
+    b.bookingStatus === "Cancelled"
+  ).length;
 
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[ds.fullScreen, { transform: [{ translateY: slideAnim }] }]}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.red} />
-          <ScreenHeader title="My Profile" icon="👤" onBack={onClose} />
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
+          <StatusBar barStyle="light-content" backgroundColor="#C0392B" />
+
+          {/* Header */}
+          <View style={{
+            backgroundColor: "#C0392B",
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 14, paddingVertical: 14,
+            paddingTop: Platform.OS === "android" ? 38 : 14,
+          }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                width: 38, height: 38, borderRadius: 19,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                justifyContent: "center", alignItems: "center", marginRight: 10,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 30 }}>‹</Text>
+            </TouchableOpacity>
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 17 }}>👤 My Profile</Text>
+          </View>
 
           <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-            {/* Avatar Card */}
-            <View style={ps.avatarCard}>
-              <View style={ps.avatarCircle}>
-                <Text style={ps.avatarText}>{initials}</Text>
-              </View>
-              <Text style={ps.userName}>{p.name || "—"}</Text>
-              <Text style={ps.userEmail}>{p.email || "—"}</Text>
-              <View style={ps.verifiedBadge}>
-                <Text style={ps.verifiedText}>✓ Verified Account</Text>
+
+            {/* Avatar Section */}
+            <View style={{
+              backgroundColor: "#C0392B",
+              paddingTop: 20, paddingBottom: 36,
+              alignItems: "center",
+            }}>
+              <TouchableOpacity onPress={pickImage} activeOpacity={0.85}>
+                <View style={{
+                  width: 90, height: 90, borderRadius: 45,
+                  backgroundColor: "rgba(255,255,255,0.25)",
+                  justifyContent: "center", alignItems: "center",
+                  borderWidth: 3, borderColor: "rgba(255,255,255,0.5)",
+                  marginBottom: 12, overflow: "hidden",
+                }}>
+                  {imageUri ? (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={{ width: 90, height: 90, borderRadius: 45 }}
+                    />
+                  ) : (
+                    <Text style={{ color: "#fff", fontSize: 32, fontWeight: "900" }}>
+                      {initials}
+                    </Text>
+                  )}
+                </View>
+                {/* Camera icon */}
+                <View style={{
+                  position: "absolute", bottom: 12, right: 0,
+                  backgroundColor: "#fff", borderRadius: 12,
+                  width: 24, height: 24,
+                  justifyContent: "center", alignItems: "center",
+                  elevation: 3,
+                }}>
+                  <Text style={{ fontSize: 13 }}>📷</Text>
+                </View>
+              </TouchableOpacity>
+
+              <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>
+                {p.name || p.fullName || "—"}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 4 }}>
+                {p.email || "—"}
+              </Text>
+              <View style={{
+                marginTop: 10, backgroundColor: "rgba(255,255,255,0.2)",
+                borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5,
+                borderWidth: 1, borderColor: "rgba(255,255,255,0.4)",
+              }}>
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                  ✓ Verified Account
+                </Text>
               </View>
             </View>
 
             {/* Stats Row */}
-            <View style={ps.statsRow}>
+            <View style={{
+              flexDirection: "row", gap: 10,
+              paddingHorizontal: 16, marginTop: -18,
+            }}>
               {[
-                { label: "Wallet", value: `₹${p.wallet || wallet || 0}`, icon: "💰", color: C.green },
-                { label: "Bookings", value: p.totalBookings || "0", icon: "🎫", color: C.blue },
-                { label: "Points", value: p.rewardPoints || "0", icon: "⭐", color: C.gold },
+                { icon: "🎫", label: "Bookings",  value: confirmedBookings, color: "#0A84FF" },
+                { icon: "💸", label: "Spent",     value: `₹${totalSpent.toLocaleString()}`, color: "#C0392B" },
+                { icon: "❌", label: "Cancelled", value: cancelledBookings, color: "#FF3B30" },
               ].map((stat, i) => (
-                <View key={i} style={[ps.statCard, { borderColor: stat.color + "33" }]}>
-                  <Text style={ps.statIcon}>{stat.icon}</Text>
-                  <Text style={[ps.statValue, { color: stat.color }]}>{stat.value}</Text>
-                  <Text style={ps.statLabel}>{stat.label}</Text>
+                <View key={i} style={{
+                  flex: 1, backgroundColor: "#fff",
+                  borderRadius: 14, padding: 14,
+                  alignItems: "center", elevation: 3,
+                  borderWidth: 1, borderColor: "#E5E5EA",
+                }}>
+                  <Text style={{ fontSize: 22, marginBottom: 6 }}>{stat.icon}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: "900", color: stat.color }}>
+                    {stat.value}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: "#8E8E93", marginTop: 2 }}>
+                    {stat.label}
+                  </Text>
                 </View>
               ))}
             </View>
 
-            {/* Details Card */}
-            <View style={ds.card}>
-              <Text style={ds.cardTitle}>Personal Information</Text>
-              {loading
-                ? <ActivityIndicator color={C.red} style={{ marginVertical: 20 }} />
-                : <>
-                  <InfoRow icon="👤" label="Full Name" value={p.name || p.fullName} bold />
-                  <InfoRow icon="📱" label="Mobile Number" value={p.phone || p.mobile} />
-                  <InfoRow icon="📧" label="Email Address" value={p.email} />
-                  <InfoRow icon="🎂" label="Member Since" value={p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-IN", { year: "numeric", month: "long" }) : "—"} />
-                  
-                </>
-              }
+            {/* Tabs */}
+            <View style={{
+              flexDirection: "row", gap: 8,
+              paddingHorizontal: 16, marginTop: 16, marginBottom: 4,
+            }}>
+              {[
+                { key: "info",     label: "👤 Info" },
+                { key: "bookings", label: "🎫 Bookings" },
+              ].map(tab => (
+                <TouchableOpacity
+                  key={tab.key}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 10,
+                    backgroundColor: activeTab === tab.key ? "#C0392B" : "#fff",
+                    borderWidth: 1,
+                    borderColor: activeTab === tab.key ? "#C0392B" : "#E5E5EA",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 13, fontWeight: "700",
+                    color: activeTab === tab.key ? "#fff" : "#555",
+                  }}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {/* Membership Card */}
-            <View style={ps.membershipCard}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 32 }}>🏆</Text>
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={ps.membershipTitle}>Kohinoor Member</Text>
-                  <Text style={ps.membershipSub}>Enjoy exclusive benefits & early access</Text>
-                </View>
+            {/* INFO TAB */}
+            {activeTab === "info" && (
+              <View style={{
+                backgroundColor: "#fff", margin: 16, marginTop: 10,
+                borderRadius: 16, padding: 16,
+                borderWidth: 1, borderColor: "#E5E5EA",
+              }}>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: "#1C1C1E", marginBottom: 14 }}>
+                  Personal Information
+                </Text>
+                {loading ? (
+                  <Text style={{ color: "#888", textAlign: "center", paddingVertical: 20 }}>
+                    Loading...
+                  </Text>
+                ) : (
+                  [
+                    { icon: "👤", label: "Full Name",    value: p.name || p.fullName },
+                    { icon: "📱", label: "Mobile Number",value: p.phone || p.mobile },
+                    { icon: "📧", label: "Email Address",value: p.email },
+                    { icon: "📅", label: "Member Since", value: p.createdAt
+                        ? new Date(p.createdAt).toLocaleDateString("en-IN", { year: "numeric", month: "long" })
+                        : "—" },
+                  ].map((row, i) => (
+                    <View key={i} style={{
+                      flexDirection: "row", alignItems: "center",
+                      paddingVertical: 12,
+                      borderBottomWidth: i < 3 ? 1 : 0,
+                      borderBottomColor: "#F2F2F7",
+                    }}>
+                      <Text style={{ fontSize: 20, marginRight: 14 }}>{row.icon}</Text>
+                      <View>
+                        <Text style={{ fontSize: 11, color: "#8E8E93", fontWeight: "600" }}>
+                          {row.label}
+                        </Text>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: "#1C1C1E", marginTop: 2 }}>
+                          {row.value || "—"}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                )}
               </View>
-              <View style={ps.membershipBadge}>
-                <Text style={ps.membershipBadgeText}>GOLD</Text>
+            )}
+
+            {/* BOOKINGS TAB */}
+            {activeTab === "bookings" && (
+              <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
+                {loading ? (
+                  <Text style={{ color: "#888", textAlign: "center", paddingVertical: 20 }}>
+                    Loading bookings...
+                  </Text>
+                ) : bookings.length === 0 ? (
+                  <View style={{
+                    backgroundColor: "#fff", borderRadius: 16, padding: 40,
+                    alignItems: "center", borderWidth: 1, borderColor: "#E5E5EA",
+                  }}>
+                    <Text style={{ fontSize: 48, marginBottom: 12 }}>🎫</Text>
+                    <Text style={{ fontSize: 15, fontWeight: "700", color: "#555" }}>
+                      No bookings yet
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#888", marginTop: 6 }}>
+                      Your travel history will appear here
+                    </Text>
+                  </View>
+                ) : (
+                  bookings.slice(0, 10).map((b, i) => {
+                    const isPaid = b.paymentStatus === "Paid" || b.bookingStatus === "Confirmed";
+                    const isCancelled = b.bookingStatus === "Cancelled";
+                    return (
+                      <View key={b._id || i} style={{
+                        backgroundColor: "#fff", borderRadius: 14,
+                        padding: 14, marginBottom: 10,
+                        borderWidth: 1, borderColor: "#E5E5EA",
+                        borderLeftWidth: 3,
+                        borderLeftColor: isCancelled ? "#FF3B30" : isPaid ? "#27AE60" : "#FF9500",
+                        elevation: 1,
+                      }}>
+                        {/* Route */}
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                          <Text style={{ fontSize: 13, fontWeight: "700", color: "#1C1C1E", flex: 1 }}>
+                            {b.boardingPoint || "—"} → {b.droppingPoint || "—"}
+                          </Text>
+                          <View style={{
+                            backgroundColor: isCancelled ? "#FFEBEE" : isPaid ? "#EAFAF1" : "#FFF8E1",
+                            borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+                          }}>
+                            <Text style={{
+                              fontSize: 10, fontWeight: "700",
+                              color: isCancelled ? "#C62828" : isPaid ? "#2E7D32" : "#F57F17",
+                            }}>
+                              {isCancelled ? "Cancelled" : isPaid ? "Confirmed" : "Pending"}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Details */}
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                          <Text style={{ fontSize: 11, color: "#8E8E93" }}>
+                            📅 {b.journeyDate || b.date || "—"}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: "#8E8E93" }}>
+                            💺 {b.seatNumbers?.join(", ") || b.seatNo || "—"}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: "#8E8E93" }}>
+                            🚌 {b.busName || b.busNo || "—"}
+                          </Text>
+                        </View>
+
+                        {/* Amount */}
+                        <View style={{
+                          flexDirection: "row", justifyContent: "space-between",
+                          alignItems: "center", marginTop: 8,
+                          paddingTop: 8, borderTopWidth: 1, borderTopColor: "#F2F2F7",
+                        }}>
+                          <Text style={{ fontSize: 11, color: "#8E8E93" }}>
+                            #{b.bookingCode || "—"}
+                          </Text>
+                          <Text style={{ fontSize: 15, fontWeight: "700", color: "#C0392B" }}>
+                            ₹{Number(b.amount || 0).toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
               </View>
-            </View>
+            )}
+
           </ScrollView>
         </SafeAreaView>
       </Animated.View>
@@ -392,10 +672,10 @@ export const OffersScreen = ({ visible, onClose, api }) => {
   };
 
   const mockOffers = offers.length > 0 ? offers : [
-    { code: "FIRST50", discount: 50, description: "50% off on your first booking!", minAmount: 200, expiry: "31 Dec 2025", color: C.red, icon: "🎉" },
-    { code: "KOHINOOR20", discount: 20, description: "20% off for Kohinoor members", minAmount: 300, expiry: "15 Jan 2026", color: C.blue, icon: "👑" },
-    { code: "MONSOON100", discount: 100, description: "Flat ₹100 off this monsoon season", minAmount: 500, expiry: "30 Sep 2025", color: C.green, icon: "🌧️" },
-    { code: "REFER50", discount: 50, description: "Referral bonus — share & earn", minAmount: 0, expiry: "No expiry", color: C.purple, icon: "👥" },
+    { code: "FIRST50", discount: 50, description: "50% off on your first booking!", minAmount: 200, expiry: "31 Dec 2025" },
+    { code: "KOHINOOR20", discount: 20, description: "20% off for Kohinoor members", minAmount: 300, expiry: "15 Jan 2026" },
+    { code: "MONSOON100", discount: 100, description: "Flat ₹100 off this monsoon season", minAmount: 500, expiry: "30 Sep 2025" },
+    { code: "REFER50", discount: 50, description: "Referral bonus — share & earn", minAmount: 0, expiry: "No expiry" },
   ];
 
   if (!visible) return null;
@@ -403,61 +683,161 @@ export const OffersScreen = ({ visible, onClose, api }) => {
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[ds.fullScreen, { transform: [{ translateY: slideAnim }] }]}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.orange} />
-          <ScreenHeader title="Offers & Deals" icon="🏷️" onBack={onClose} color={C.orange} subtitle="Exclusive savings for you" />
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
+          <StatusBar barStyle="light-content" backgroundColor="#C0392B" />
+
+          {/* Header */}
+          <View style={{
+            backgroundColor: "#C0392B",
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 14, paddingVertical: 14,
+            paddingTop: Platform.OS === "android" ? 38 : 14,
+          }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                width: 38, height: 38, borderRadius: 19,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                justifyContent: "center", alignItems: "center", marginRight: 10,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 30 }}>‹</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 17 }}>🏷️ Offers & Deals</Text>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 1 }}>
+                Exclusive savings for you
+              </Text>
+            </View>
+          </View>
 
           {/* Banner */}
-          <View style={os.banner}>
-            <Text style={os.bannerTitle}>Save More, Travel More 🚌</Text>
-            <Text style={os.bannerSub}>Apply codes at checkout for instant discounts</Text>
+          <View style={{
+            backgroundColor: "#FDECEA",
+            padding: 16,
+            borderBottomWidth: 1, borderBottomColor: "#F5C6C2",
+          }}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#C0392B" }}>
+              Save More, Travel More 🚌
+            </Text>
+            <Text style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+              Apply codes at checkout for instant discounts
+            </Text>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }}>
-            {loading
-              ? <ActivityIndicator color={C.orange} size="large" style={{ marginTop: 40 }} />
-              : mockOffers.map((offer, i) => (
-                <View key={i} style={[os.offerCard, { borderColor: offer.color + "44" }]}>
-                  <View style={[os.offerLeft, { backgroundColor: offer.color }]}>
-                    <Text style={{ fontSize: 28 }}>{offer.icon}</Text>
-                    <Text style={os.offerDiscount}>₹{offer.discount}</Text>
-                    <Text style={os.offerDiscountSub}>OFF</Text>
+            {loading ? (
+              <View style={{ alignItems: "center", marginTop: 40 }}>
+                <Text style={{ color: "#888" }}>Loading offers...</Text>
+              </View>
+            ) : (
+              mockOffers.map((offer, i) => (
+                <View key={i} style={{
+                  flexDirection: "row",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 16, marginBottom: 14,
+                  borderWidth: 1.5, borderColor: "#F5C6C2",
+                  overflow: "hidden", elevation: 2,
+                }}>
+                  {/* Left Red Strip */}
+                  <View style={{
+                    width: 80, backgroundColor: "#C0392B",
+                    alignItems: "center", justifyContent: "center",
+                    paddingVertical: 16,
+                  }}>
+                    <Text style={{ fontSize: 24 }}>🏷️</Text>
+                    <Text style={{
+                      color: "#fff", fontSize: 20,
+                      fontWeight: "900", marginTop: 4,
+                    }}>
+                      ₹{offer.discount}
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "700" }}>
+                      OFF
+                    </Text>
                   </View>
+
+                  {/* Right Content */}
                   <View style={{ flex: 1, padding: 14 }}>
-                    <Text style={os.offerDesc}>{offer.description}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: "#1C1C1E", marginBottom: 4 }}>
+                      {offer.description || offer.title || "Special Offer"}
+                    </Text>
                     {offer.minAmount > 0 && (
-                      <Text style={os.offerMin}>Min booking ₹{offer.minAmount}</Text>
+                      <Text style={{ fontSize: 11, color: "#8E8E93", marginBottom: 3 }}>
+                        Min booking ₹{offer.minAmount}
+                      </Text>
                     )}
-                    <Text style={os.offerExpiry}>📅 Valid till: {offer.expiry}</Text>
-                    <View style={os.codeRow}>
-                      <View style={[os.codeBox, { borderColor: offer.color }]}>
-                        <Text style={[os.codeText, { color: offer.color }]}>{offer.code}</Text>
+                    <Text style={{ fontSize: 11, color: "#8E8E93", marginBottom: 10 }}>
+                      📅 Valid till: {offer.expiry || "—"}
+                    </Text>
+
+                    {/* Code Row */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{
+                        flex: 1, borderWidth: 1.5,
+                        borderColor: "#C0392B", borderRadius: 8,
+                        borderStyle: "dashed",
+                        paddingHorizontal: 10, paddingVertical: 7,
+                      }}>
+                        <Text style={{
+                          fontWeight: "800", fontSize: 13,
+                          color: "#C0392B", letterSpacing: 1,
+                        }}>
+                          {offer.code || offer.couponCode || "—"}
+                        </Text>
                       </View>
                       <TouchableOpacity
-                        style={[os.copyBtn, { backgroundColor: offer.color }]}
-                        onPress={() => { setCopied(offer.code); setTimeout(() => setCopied(null), 2000); }}
+                        style={{
+                          backgroundColor: copied === offer.code ? "#27AE60" : "#C0392B",
+                          borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8,
+                        }}
+                        onPress={() => {
+                          setCopied(offer.code);
+                          setTimeout(() => setCopied(null), 2000);
+                        }}
                       >
-                        <Text style={os.copyBtnText}>{copied === offer.code ? "✓ Copied!" : "Copy"}</Text>
+                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+                          {copied === offer.code ? "✓ Copied!" : "Copy"}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 </View>
               ))
-            }
+            )}
 
-            {/* Refer Banner */}
-            <View style={os.referCard}>
-              <Text style={os.referTitle}>🎁 Refer & Earn</Text>
-              <Text style={os.referSub}>Invite friends to Shahaji Travels and earn ₹50 wallet credits for each successful booking!</Text>
-              <PrimaryBtn title="Share Referral Link" color={C.orange} style={{ marginTop: 14 }} onPress={() => { }} />
+            {/* Refer Card */}
+            <View style={{
+              backgroundColor: "#FDECEA",
+              borderRadius: 16, padding: 18,
+              borderWidth: 1.5, borderColor: "#F5C6C2",
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: "700", color: "#C0392B" }}>
+                🎁 Refer & Earn
+              </Text>
+              <Text style={{ fontSize: 13, color: "#555", marginTop: 6, lineHeight: 20 }}>
+                Invite friends to Shahaji Travels and earn ₹50 wallet credits for each successful booking!
+              </Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#C0392B",
+                  borderRadius: 12, paddingVertical: 14,
+                  alignItems: "center", marginTop: 14,
+                }}
+                onPress={() => {}}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
+                  Share Referral Link
+                </Text>
+              </TouchableOpacity>
             </View>
+
           </ScrollView>
         </SafeAreaView>
       </Animated.View>
     </Modal>
   );
 };
-
 const os = StyleSheet.create({
   banner: { backgroundColor: C.orangeLight, padding: 16, borderBottomWidth: 1, borderBottomColor: C.orangeBorder },
   bannerTitle: { fontSize: F.md, fontWeight: "900", color: C.orange },
@@ -799,130 +1179,221 @@ const cts = StyleSheet.create({
 // ============================================================
 export const CustomerCareScreen = ({ visible, onClose }) => {
   const slideAnim = useRef(new Animated.Value(SH)).current;
-
   const [openFaq, setOpenFaq] = useState(null);
   const [settings, setSettings] = useState(null);
 
-  // ✅ Animation
- useEffect(() => {
-  if (visible) {
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
-  } else {
-    Animated.timing(slideAnim, { toValue: SH, duration: 260, useNativeDriver: true }).start();
-  }
-}, [visible]);
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
+    } else {
+      Animated.timing(slideAnim, { toValue: SH, duration: 260, useNativeDriver: true }).start();
+    }
+  }, [visible]);
 
-  // ✅ Settings fetch (MOVE HERE)
- useEffect(() => {
-  fetch("https://shahaji-travels-backend.onrender.com/api/settings")
-    .then(res => res.json())
-    .then(data => setSettings(data))
-    .catch(err => console.log(err));
-}, []);
+  useEffect(() => {
+    fetch("https://shahaji-travels-backend.onrender.com/api/settings")
+      .then(res => res.json())
+      .then(data => { if (data) setSettings(data); })
+      .catch(err => console.log(err));
+  }, []);
 
-  // ✅ AFTER hooks
   if (!visible) return null;
- const contacts = [
-  {
-    icon: "📞",
-    label: "Support",
-    value: settings?.phone || "Loading...",
-    action: () => Linking.openURL(`tel:${settings?.phone}`),
-    color: C.green,
-    btnText: "Call Now",
-  },
-  {
-    icon: "📱",
-    label: "Contact 1",
-    value: settings?.contactPhone1 || "Loading...",
-    action: () => Linking.openURL(`tel:${settings?.contactPhone1}`),
-    color: "#25D366",
-    btnText: "Call",
-  },
-  {
-    icon: "📱",
-    label: "Contact 2",
-    value: settings?.contactPhone2 || "Loading...",
-    action: () => Linking.openURL(`tel:${settings?.contactPhone2}`),
-    color: "#25D366",
-    btnText: "Call",
-  },
-  {
-    icon: "📧",
-    label: "Email",
-    value: settings?.email || "Loading...",
-    action: () => Linking.openURL(`mailto:${settings?.email}`),
-    color: C.blue,
-    btnText: "Email",
-  },
-];
+
+  const contacts = [
+    {
+      icon: "📞", label: "Support",
+      value: settings?.contactPhone1 || "9766775660",
+      action: () => Linking.openURL(`tel:${settings?.contactPhone1 || "9766775660"}`),
+      btnText: "Call Now", btnColor: "#C0392B",
+    },
+    {
+      icon: "📱", label: "Contact 1",
+      value: settings?.contactPhone1 || "9766775660",
+      action: () => Linking.openURL(`tel:${settings?.contactPhone1 || "9766775660"}`),
+      btnText: "Call", btnColor: "#27AE60",
+    },
+    {
+      icon: "📱", label: "Contact 2",
+      value: settings?.contactPhone2 || "7350725223",
+      action: () => Linking.openURL(`tel:${settings?.contactPhone2 || "7350725223"}`),
+      btnText: "Call", btnColor: "#27AE60",
+    },
+    {
+      icon: "📧", label: "Email",
+      value: settings?.supportEmail || "support@shahajitravels.com",
+      action: () => Linking.openURL(`mailto:${settings?.supportEmail || "support@shahajitravels.com"}`),
+      btnText: "Email", btnColor: "#0A84FF",
+    },
+  ];
 
   const faqs = [
     { q: "How do I cancel my booking?", a: "Go to Cancel Ticket in the menu and enter your booking ID." },
-    { q: "When will I get my refund?", a: "Refunds are processed within 24–48 hours to your wallet." },
+    { q: "When will I get my refund?", a: "Refunds are processed within 24 hours by admin via cash/UPI." },
     { q: "Can I change my seat?", a: "Seat changes are not allowed after booking confirmation." },
-    { q: "What if the bus is late?", a: "Contact our 24/7 helpline for real-time bus tracking." },
+    { q: "What if the bus is late?", a: "Contact our helpline for real-time bus tracking." },
   ];
-
- 
 
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[ds.fullScreen, { transform: [{ translateY: slideAnim }] }]}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.green} />
-          <ScreenHeader title="Customer Care" icon="📞" onBack={onClose} color={C.green} subtitle="We're here to help, 24/7" />
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
+          <StatusBar barStyle="light-content" backgroundColor="#C0392B" />
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-            {/* Hero */}
-            <View style={ccs.heroCard}>
-              <Text style={ccs.heroEmoji}>🙏</Text>
-              <Text style={ccs.heroTitle}>How can we help you?</Text>
-              <Text style={ccs.heroSub}>Our support team is available round the clock</Text>
+          {/* Header */}
+          <View style={{
+            backgroundColor: "#C0392B",
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 14, paddingVertical: 14,
+            paddingTop: Platform.OS === "android" ? 38 : 14,
+          }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                width: 38, height: 38, borderRadius: 19,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                justifyContent: "center", alignItems: "center", marginRight: 10,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 30 }}>‹</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 17 }}>📞 Customer Care</Text>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 1 }}>
+                We're here to help, 24/7
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+
+            {/* Hero Card */}
+            <View style={{
+              backgroundColor: "#FDECEA",
+              margin: 16, borderRadius: 16, padding: 24,
+              alignItems: "center",
+              borderWidth: 1, borderColor: "#F5C6C2",
+            }}>
+              <Text style={{ fontSize: 48, marginBottom: 10 }}>🙏</Text>
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#C0392B" }}>
+                How can we help you?
+              </Text>
+              <Text style={{ fontSize: 13, color: "#555", marginTop: 6 }}>
+                Our support team is available round the clock
+              </Text>
             </View>
 
-            {/* Contact Options */}
-            <Text style={ds.sectionTitle}>📲 Contact Us</Text>
+            {/* Contact Us */}
+            <Text style={{
+              fontSize: 15, fontWeight: "700", color: "#1C1C1E",
+              marginHorizontal: 16, marginBottom: 10,
+            }}>
+              📲 Contact Us
+            </Text>
+
             {contacts.map((c, i) => (
-              <View key={i} style={ccs.contactCard}>
-                <View style={[ccs.contactIcon, { backgroundColor: c.color + "22" }]}>
-                  <Text style={{ fontSize: 28 }}>{c.icon}</Text>
+              <View key={i} style={{
+                flexDirection: "row", alignItems: "center",
+                backgroundColor: "#FFFFFF",
+                marginHorizontal: 16, marginBottom: 10,
+                borderRadius: 14, padding: 14,
+                borderWidth: 1, borderColor: "#E5E5EA",
+                elevation: 1,
+              }}>
+                <View style={{
+                  width: 46, height: 46, borderRadius: 23,
+                  backgroundColor: "#FDECEA",
+                  justifyContent: "center", alignItems: "center", marginRight: 14,
+                }}>
+                  <Text style={{ fontSize: 22 }}>{c.icon}</Text>
                 </View>
-                <View style={{ flex: 1, marginLeft: 14 }}>
-                  <Text style={ccs.contactLabel}>{c.label}</Text>
-                  <Text style={ccs.contactValue}>{c.value}</Text>
-                  <Text style={ccs.contactSub}>{c.sub}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, color: "#8E8E93", fontWeight: "600" }}>
+                    {c.label}
+                  </Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "#1C1C1E", marginTop: 2 }}>
+                    {c.value}
+                  </Text>
                 </View>
-                <TouchableOpacity style={[ccs.contactBtn, { backgroundColor: c.color }]} onPress={c.action}>
-                  <Text style={ccs.contactBtnText}>{c.btnText}</Text>
+                <TouchableOpacity
+                  onPress={c.action}
+                  style={{
+                    backgroundColor: c.btnColor,
+                    borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                    {c.btnText}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ))}
 
             {/* Office Hours */}
-            <View style={ccs.hoursCard}>
-              <Text style={ccs.hoursTitle}>🕐 Office Hours</Text>
-              <View style={ccs.hoursGrid}>
-                {[["Mon–Fri", "6:00 AM – 11:00 PM"], ["Saturday", "7:00 AM – 10:00 PM"], ["Sunday", "8:00 AM – 8:00 PM"], ["Helpline", "24/7 Available"]].map(([day, time], i) => (
-                  <View key={i} style={ccs.hoursRow}>
-                    <Text style={ccs.hoursDay}>{day}</Text>
-                    <Text style={ccs.hoursTime}>{time}</Text>
-                  </View>
-                ))}
-              </View>
+            <View style={{
+              backgroundColor: "#FFFFFF",
+              margin: 16, marginTop: 6,
+              borderRadius: 14, padding: 16,
+              borderWidth: 1, borderColor: "#E5E5EA",
+            }}>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: "#1C1C1E", marginBottom: 12 }}>
+                🕐 Office Hours
+              </Text>
+              {[
+                ["Mon–Fri",  "6:00 AM – 11:00 PM"],
+                ["Saturday", "7:00 AM – 10:00 PM"],
+                ["Sunday",   "8:00 AM – 8:00 PM"],
+                ["Helpline", "24/7 Available"],
+              ].map(([day, time]) => (
+                <View key={day} style={{
+                  flexDirection: "row", justifyContent: "space-between",
+                  paddingVertical: 9,
+                  borderBottomWidth: 1, borderBottomColor: "#F2F2F7",
+                }}>
+                  <Text style={{ fontSize: 13, color: "#555" }}>{day}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#1C1C1E" }}>{time}</Text>
+                </View>
+              ))}
             </View>
 
             {/* FAQs */}
-            <Text style={ds.sectionTitle}>❓ Frequently Asked Questions</Text>
+            <Text style={{
+              fontSize: 15, fontWeight: "700", color: "#1C1C1E",
+              marginHorizontal: 16, marginBottom: 10, marginTop: 4,
+            }}>
+              ❓ Frequently Asked Questions
+            </Text>
+
             {faqs.map((faq, i) => (
-              <TouchableOpacity key={i} style={ccs.faqCard} onPress={() => setOpenFaq(openFaq === i ? null : i)}>
-                <View style={ccs.faqHead}>
-                  <Text style={ccs.faqQ}>{faq.q}</Text>
-                  <Text style={ccs.faqArrow}>{openFaq === i ? "▲" : "▼"}</Text>
+              <TouchableOpacity
+                key={i}
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  marginHorizontal: 16, marginBottom: 10,
+                  borderRadius: 12, padding: 14,
+                  borderWidth: 1, borderColor: "#E5E5EA",
+                }}
+                onPress={() => setOpenFaq(openFaq === i ? null : i)}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#1C1C1E", flex: 1, marginRight: 8 }}>
+                    {faq.q}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: "#C0392B", fontWeight: "700" }}>
+                    {openFaq === i ? "▲" : "▼"}
+                  </Text>
                 </View>
-                {openFaq === i && <Text style={ccs.faqA}>{faq.a}</Text>}
+                {openFaq === i && (
+                  <Text style={{
+                    fontSize: 13, color: "#555", marginTop: 10,
+                    lineHeight: 20, paddingTop: 10,
+                    borderTopWidth: 1, borderTopColor: "#F2F2F7",
+                  }}>
+                    {faq.a}
+                  </Text>
+                )}
               </TouchableOpacity>
             ))}
+
           </ScrollView>
         </SafeAreaView>
       </Animated.View>
@@ -957,7 +1428,7 @@ const ccs = StyleSheet.create({
 
 // ============================================================
 // 8. LANGUAGE SCREEN
-// ============================================================
+
 export const LanguageScreen = ({ visible, onClose, currentLanguage, onChangeLanguage, SUPPORTED_LANGUAGES }) => {
   const slideAnim = useRef(new Animated.Value(SH)).current;
 
@@ -973,45 +1444,122 @@ export const LanguageScreen = ({ visible, onClose, currentLanguage, onChangeLang
 
   const langs = [
     { key: "English", flag: "🇬🇧", native: "English", sub: "English", desc: "All text in English" },
-    { key: "मराठी", flag: "🟠", native: "मराठी", sub: "Marathi", desc: "सर्व मजकूर मराठीत" },
-    { key: "हिंदी", flag: "🇮🇳", native: "हिंदी", sub: "Hindi", desc: "सभी पाठ हिंदी में" },
+    { key: "मराठी",   flag: "🟠",   native: "मराठी",   sub: "Marathi", desc: "सर्व मजकूर मराठीत" },
+    { key: "हिंदी",   flag: "🇮🇳",   native: "हिंदी",   sub: "Hindi",   desc: "सभी पाठ हिंदी में" },
   ];
 
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[ds.fullScreen, { transform: [{ translateY: slideAnim }] }]}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.purple} />
-          <ScreenHeader title="Language / भाषा" icon="🌐" onBack={onClose} color={C.purple} subtitle="Choose your preferred language" />
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
+          <StatusBar barStyle="light-content" backgroundColor="#C0392B" />
+
+          {/* Header */}
+          <View style={{
+            backgroundColor: "#C0392B",
+            flexDirection: "row", alignItems: "center",
+            paddingHorizontal: 14, paddingVertical: 14,
+            paddingTop: Platform.OS === "android" ? 38 : 14,
+          }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                width: 38, height: 38, borderRadius: 19,
+                backgroundColor: "rgba(255,255,255,0.2)",
+                justifyContent: "center", alignItems: "center", marginRight: 10,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 26, fontWeight: "700", lineHeight: 30 }}>‹</Text>
+            </TouchableOpacity>
+            <View>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 17 }}>🌐 Language / भाषा</Text>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, marginTop: 1 }}>
+                Choose your preferred language
+              </Text>
+            </View>
+          </View>
 
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-            <View style={ls.infoCard}>
-              <Text style={ls.infoTitle}>🌍 Select App Language</Text>
-              <Text style={ls.infoSub}>The app will display all content in your chosen language</Text>
+
+            {/* Info Card */}
+            <View style={{
+              backgroundColor: "#FDECEA",
+              borderRadius: 14, padding: 18, marginBottom: 20,
+              borderWidth: 1, borderColor: "#F5C6C2",
+            }}>
+              <Text style={{ fontSize: 14, fontWeight: "700", color: "#C0392B" }}>
+                🌍 Select App Language
+              </Text>
+              <Text style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
+                The app will display all content in your chosen language
+              </Text>
             </View>
 
+            {/* Language Options */}
             {langs.map(lang => {
               const isSelected = currentLanguage === lang.key;
               return (
                 <TouchableOpacity
                   key={lang.key}
-                  style={[ls.langCard, isSelected && ls.langCardSelected]}
-                  onPress={() => { onChangeLanguage(lang.key); }}
+                  style={{
+                    flexDirection: "row", alignItems: "center",
+                    backgroundColor: isSelected ? "#FDECEA" : "#FFFFFF",
+                    borderRadius: 16, padding: 18, marginBottom: 14,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? "#C0392B" : "#E5E5EA",
+                    elevation: isSelected ? 3 : 1,
+                  }}
+                  onPress={() => onChangeLanguage(lang.key)}
                   activeOpacity={0.85}
                 >
-                  <Text style={ls.langFlag}>{lang.flag}</Text>
-                  <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={[ls.langNative, isSelected && { color: C.purple }]}>{lang.native}</Text>
-                    <Text style={ls.langSub}>{lang.sub} · {lang.desc}</Text>
+                  <Text style={{ fontSize: 36, marginRight: 16 }}>{lang.flag}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 18, fontWeight: "700",
+                      color: isSelected ? "#C0392B" : "#1C1C1E",
+                    }}>
+                      {lang.native}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: "#8E8E93", marginTop: 3 }}>
+                      {lang.sub} · {lang.desc}
+                    </Text>
                   </View>
-                  <View style={[ls.radioOuter, isSelected && { borderColor: C.purple }]}>
-                    {isSelected && <View style={ls.radioInner} />}
+
+                  {/* Radio */}
+                  <View style={{
+                    width: 26, height: 26, borderRadius: 13,
+                    borderWidth: 2,
+                    borderColor: isSelected ? "#C0392B" : "#D0D0D0",
+                    justifyContent: "center", alignItems: "center",
+                    backgroundColor: "#fff",
+                  }}>
+                    {isSelected && (
+                      <View style={{
+                        width: 13, height: 13, borderRadius: 6.5,
+                        backgroundColor: "#C0392B",
+                      }} />
+                    )}
                   </View>
                 </TouchableOpacity>
               );
             })}
 
-            <PrimaryBtn title="Save & Continue" color={C.purple} style={{ marginTop: 24 }} onPress={onClose} />
+            {/* Save Button */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#C0392B",
+                borderRadius: 16, paddingVertical: 17,
+                alignItems: "center", marginTop: 8,
+                elevation: 3,
+              }}
+              activeOpacity={0.85}
+              onPress={onClose}
+            >
+              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700", letterSpacing: 0.3 }}>
+                Save &amp; Continue
+              </Text>
+            </TouchableOpacity>
+
           </ScrollView>
         </SafeAreaView>
       </Animated.View>
