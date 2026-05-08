@@ -745,7 +745,11 @@ React.useEffect(() => {
     const fetchNotifications = async () => {
   try {
     // ✅ after= parameter काढ, सगळ्या notifications fetch कर
-    const res = await fetch(`${API_BASE}/api/notifications`);
+   const phone = user?.phone || user?.mobile || "";
+const userId = user?._id || user?.id || "";
+const res = await fetch(
+  `${API_BASE}/api/notifications?phone=${phone}&userId=${userId}`
+);
     if (!res.ok) return;
     
     const data = await res.json();

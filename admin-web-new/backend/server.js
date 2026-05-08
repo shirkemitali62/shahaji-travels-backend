@@ -56,7 +56,9 @@ const notificationSchema = new mongoose.Schema({
   title:   { type: String, required: true },
   message: { type: String, required: true },
   type:    { type: String, enum: ["info", "offer", "alert", "update"], default: "info" },
-  source:  { type: String, default: "system" }, // ✅ "admin_manual" | "system"
+  source:  { type: String, default: "system" },
+  userId:  { type: String, default: "" }, // ✅ specific user
+  phone:   { type: String, default: "" }, // ✅ phone ने match
   sentAt:  { type: Date, default: Date.now },
 }, { timestamps: true });
 const Notification = mongoose.models.Notification ||
@@ -1847,10 +1849,13 @@ if (busId && seatNumbers.length) {
       );
 
       await Notification.create({
-        title:   "🎫 Booking Confirmed",
-        message: `${passengerName} confirmed booking. Seats: ${seats}, Amount: ₹${amount}`,
-        type:    "info",
-      });
+  title:   "🎫 Booking Confirmed",
+  message: `Your booking is confirmed! Seats: ${seats}, Amount: ₹${amount}, Date: ${date}`,
+  type:    "info",
+  source:  "user_booking", // ✅ user specific
+  userId:  body.userId || "",
+  phone:   body.phone || body.mobile || "",
+});
     } catch (notifErr) {
       console.log("Notification send error:", notifErr.message);
     }
@@ -2646,14 +2651,27 @@ app.get("/api/notifications/all", async (req, res) => {
 // GET notifications after a specific ID (for polling new ones)
 app.get("/api/notifications", async (req, res) => {
   try {
-    // Mobile app — फक्त admin ने manually पाठवलेल्या notifications
-    // source: "admin_manual" field असलेल्याच दाखवा
+    const { phone, userId } = req.query;
+
+    // Conditions build करा
+    const orConditions = [
+      { source: "admin_manual" }, // Admin ने manually पाठवलेल्या
+    ];
+
+    // User specific notifications
+    if (phone) {
+      orConditions.push({ phone: phone, source: "user_booking" });
+    }
+    if (userId) {
+      orConditions.push({ userId: userId, source: "user_booking" });
+    }
+
     const notifications = await Notification.find({
-      source: "admin_manual"
+      $or: orConditions,
     })
       .sort({ createdAt: -1 })
-      .limit(20);
-    
+      .limit(30);
+
     res.json({ success: true, notifications });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
