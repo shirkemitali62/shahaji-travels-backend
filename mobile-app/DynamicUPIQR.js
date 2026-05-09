@@ -93,59 +93,43 @@ export default function DynamicUPIQR({
   }, [upiId]);
  
   // ── Open UPI app directly ─────────────────────────────────────────
- const handleOpenUPIApp = useCallback(async (appName) => {
-    console.log("=== UPI DEBUG START ===");
-    console.log("App Name:", appName);
-    console.log("UPI ID:", upiId);
-    console.log("Amount:", amount);
-    console.log("Payee:", payeeName);
+  const handleOpenUPIApp = useCallback(async (appName) => {
+  const amt = String(Math.round(parseFloat(amount)));
+  const pa = upiId.trim();
+  const pn = encodeURIComponent(payeeName || "Merchant");
 
-    if (!upiId || !upiId.includes("@")) {
-      console.log("ERROR: Invalid UPI ID");
-      Alert.alert("UPI Error", "UPI ID configured नाही.");
-      return;
-    }
-const amt = parseFloat(amount).toFixed(2);
-    console.log("Formatted Amount:", amt);
+  // Android Intent format — GPay limit issue bypass होतो
+  const intentUrl = `intent://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
+  
+  const phonepeIntent = `intent://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR#Intent;scheme=upi;package=com.phonepe.app;end`;
+  
+  const paytmIntent = `intent://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR#Intent;scheme=upi;package=net.one97.paytm;end`;
 
-    const encodedName = encodeURIComponent(payeeName || "Merchant");
-    const encodedNote = encodeURIComponent(note || "Payment");
+  const appIntents = {
+    "Google Pay":  intentUrl,
+    "PhonePe":     phonepeIntent,
+    "Paytm":       paytmIntent,
+    "Any UPI App": `upi://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR`,
+  };
 
-    const upiLink = `upi://pay?pa=${upiId}&pn=${encodedName}&am=${amt}&cu=INR`;
-    console.log("UPI Link:", upiLink);
+  const url = appIntents[appName] || appIntents["Any UPI App"];
 
+  try {
+    await Linking.openURL(url);
+    setTimeout(() => setStep("utr"), 2000);
+  } catch (err) {
+    // Fallback — direct upi://
     try {
-      console.log("Checking canOpenURL...");
-      const canOpen = await Linking.canOpenURL(upiLink).catch((e) => {
-        console.log("canOpenURL error:", e.message);
-        return false;
-      });
-      console.log("canOpen result:", canOpen);
-
-      if (canOpen) {
-        console.log("Opening UPI link...");
-        await Linking.openURL(upiLink);
-        console.log("UPI app opened successfully");
-        setTimeout(() => setStep("utr"), 2000);
-      } else {
-        console.log("Cannot open UPI link — showing manual alert");
-        Alert.alert(
-          "App उघडता आलं नाही",
-          `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`,
-          [{ text: "OK" }]
-        );
-      }
-    } catch (err) {
-      console.log("ERROR in openURL:", err.message);
-      console.log("ERROR stack:", err.stack);
+      await Linking.openURL(`upi://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR`);
+      setTimeout(() => setStep("utr"), 2000);
+    } catch (e) {
       Alert.alert(
-        "Error",
-        `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+        "Manual Pay करा",
+        `UPI ID: ${pa}\nAmount: ₹${amt}\n\nGPay/PhonePe उघडून manually pay करा.`
       );
     }
-
-    console.log("=== UPI DEBUG END ===");
-  }, [upiId, payeeName, amount, note]);
+  }
+}, [upiId, payeeName, amount, note]);
   // ── Submit UTR ────────────────────────────────────────────────────
   const handleSubmitUTR = useCallback(() => {
     const clean = utrValue.trim().toUpperCase().replace(/\s+/g, "");
