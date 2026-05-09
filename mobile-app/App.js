@@ -24,6 +24,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as MediaLibrary from "expo-media-library";
 import * as IntentLauncher from "expo-intent-launcher";
 import { sendOtp, verifyOtp, resetOtpState } from "./src/firebase/phoneAuth";
+import DynamicUPIQR from "./DynamicUPIQR";
 import { api }                                               from "./src/api/api";
 import { translations, SUPPORTED_LANGUAGES, POINT_NAMES }   from "./src/i18n/translations";
 import {
@@ -3084,13 +3085,14 @@ if (allBlocked.includes(String(id))) {
     finally { setLoading(false); }
   };
   // ── QR Payment: Submit UTR and create pending booking ─────────────
-const handleQRBooking = async () => {
-  if (!qrUtrNumber.trim() || qrUtrNumber.trim().length < 6) {
+const handleQRBooking = async (utrFromComponent) => {
+  const utrToUse = utrFromComponent || qrUtrNumber;
+  if (!utrToUse.trim() || utrToUse.trim().length < 6) {
     return showAlert("UTR Error", "Valid UTR number enter करा (minimum 6 digits).");
   }
 
   // ── Validate UTR format ──────────────────────────────────────────
-  const cleanUTR = qrUtrNumber.trim().toUpperCase().replace(/\s+/g, "");
+  const cleanUTR = utrToUse.trim().toUpperCase().replace(/\s+/g, "");
   if (!/^[A-Z0-9]{6,35}$/.test(cleanUTR)) {
     return showAlert("UTR Error", "UTR मध्ये फक्त letters आणि numbers असावेत.");
   }
@@ -4132,450 +4134,39 @@ onVerify={async () => {
 {/* ─── QR PAYMENT MODAL ─────────────────────────────────── */}
 {/* ─── QR PAYMENT MODAL ─────────────────────────────────── */}
 {/* ─── QR PAYMENT MODAL — Modern 2025 ── */}
+{/* ─── QR PAYMENT MODAL ─────────────────────────────────── */}
 <Modal visible={showQRModal} transparent animationType="slide">
-  <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
+  <View style={{
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  }}>
     <View style={{
       backgroundColor: "#F5F6FA",
-      borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
       maxHeight: "96%",
-      overflow: "hidden",
     }}>
-
-      {/* ── TOP HANDLE ── */}
-      <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 2 }}>
+      {/* Handle bar */}
+      <View style={{ alignItems: "center", paddingTop: 10 }}>
         <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: "#DDD" }} />
       </View>
 
-      {/* ── HEADER ── */}
-      <View style={{
-        flexDirection: "row", alignItems: "center",
-        paddingHorizontal: 20, paddingVertical: 14,
-        backgroundColor: "#F5F6FA",
-        borderBottomWidth: 1, borderBottomColor: "#EBEBEB",
-      }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: "800", color: "#1A1A2E", letterSpacing: -0.4 }}>
-            UPI Payment
-          </Text>
-          <Text style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-            Scan · Pay · Confirm
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => setShowQRModal(false)}
-          style={{
-            width: 34, height: 34, borderRadius: 17,
-            backgroundColor: "#EBEBEB",
-            justifyContent: "center", alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 16, color: "#555", fontWeight: "700" }}>✕</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── AMOUNT HERO CARD ── */}
-        <View style={{
-          backgroundColor: "#1A1A2E",
-          borderRadius: 20, padding: 20,
-          marginBottom: 14,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          overflow: "hidden",
-          position: "relative",
-        }}>
-          {/* Background decoration */}
-          <View style={{
-            position: "absolute", top: -30, right: -30,
-            width: 120, height: 120, borderRadius: 60,
-            backgroundColor: "rgba(255,255,255,0.04)",
-          }} />
-          <View style={{
-            position: "absolute", bottom: -20, left: 60,
-            width: 80, height: 80, borderRadius: 40,
-            backgroundColor: "rgba(255,255,255,0.03)",
-          }} />
-
-          <View>
-            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>
-              Total to Pay
-            </Text>
-            <Text style={{ fontSize: 38, fontWeight: "900", color: "#FFFFFF", letterSpacing: -1 }}>
-              ₹{getFinalAmount()}
-            </Text>
-            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-              {selectedSeats.length} seat{selectedSeats.length > 1 ? "s" : ""} · {search.date}
-            </Text>
-          </View>
-
-          {/* Route pill */}
-          <View style={{
-            backgroundColor: "rgba(255,255,255,0.08)",
-            borderRadius: 14, padding: 14,
-            alignItems: "center",
-            borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
-          }}>
-            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "700", letterSpacing: 1 }}>ROUTE</Text>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff", marginTop: 4 }}>{search.from}</Text>
-            <Text style={{ fontSize: 16, color: "#C0392B", marginVertical: 1 }}>↓</Text>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff" }}>{search.to}</Text>
-          </View>
-        </View>
-
-        {/* ── QR CODE CARD ── */}
-        <View style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: 20, padding: 20,
-          marginBottom: 14,
-          alignItems: "center",
-          borderWidth: 1, borderColor: "#EBEBEB",
-          elevation: 2,
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#1A1A2E", marginBottom: 16, letterSpacing: -0.2 }}>
-            Scan with any UPI app
-          </Text>
-
-          {qrSettings?.qrImageBase64 ? (
-            <View style={{
-              padding: 12,
-              borderRadius: 16,
-              backgroundColor: "#FFFFFF",
-              borderWidth: 3,
-              borderColor: "#1A1A2E",
-              elevation: 4,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.12,
-              shadowRadius: 12,
-            }}>
-              <Image
-                source={{ uri: `data:image/jpeg;base64,${qrSettings.qrImageBase64}` }}
-                style={{ width: 190, height: 190, borderRadius: 8 }}
-                resizeMode="contain"
-              />
-            </View>
-          ) : (
-            <View style={{
-              width: 190, height: 190,
-              backgroundColor: "#F8F9FA",
-              borderRadius: 16,
-              justifyContent: "center", alignItems: "center",
-              borderWidth: 2, borderColor: "#E5E5E5", borderStyle: "dashed",
-            }}>
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>📱</Text>
-              <Text style={{ fontSize: 12, color: "#999", textAlign: "center" }}>QR not available</Text>
-            </View>
-          )}
-
-          {/* Amount below QR */}
-          <View style={{
-            marginTop: 14, backgroundColor: "#F5F6FA",
-            borderRadius: 10, paddingHorizontal: 20, paddingVertical: 8,
-          }}>
-            <Text style={{ fontSize: 15, fontWeight: "800", color: "#C0392B", textAlign: "center" }}>
-              ₹{getFinalAmount()}
-            </Text>
-          </View>
-
-          {/* UPI ID row */}
-          <View style={{
-            marginTop: 14, width: "100%",
-            backgroundColor: "#F5F6FA",
-            borderRadius: 12, padding: 14,
-            flexDirection: "row", alignItems: "center", gap: 12,
-            borderWidth: 1, borderColor: "#EBEBEB",
-          }}>
-            <View style={{
-              width: 38, height: 38, borderRadius: 19,
-              backgroundColor: "#1A1A2E",
-              justifyContent: "center", alignItems: "center",
-            }}>
-              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>@</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
-                {qrSettings?.upiId || "digubarge123@okaxis"}
-              </Text>
-              <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
-                {qrSettings?.upiName || "KAVIRAJ KRISHNAT BARGE"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        
-{/* ── OPEN DIRECTLY IN APP ── */}
-        <View style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: 20, padding: 16,
-          marginBottom: 14,
-          borderWidth: 1, borderColor: "#EBEBEB",
-          elevation: 1,
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 4, letterSpacing: -0.2 }}>
-            Open Directly in App
-          </Text>
-          <Text style={{ fontSize: 11, color: "#999", marginBottom: 14 }}>
-            ₹{getFinalAmount()} auto-filled · Pay करा · UTR enter करा
-          </Text>
-          <View style={{ gap: 8 }}>
-            {[
-              {
-                name: "Google Pay",
-                bg: "#FFFFFF", border: "#E8E8E8", btnBg: "#4285F4",
-                icon: () => (
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#E8E8E8", justifyContent: "center", alignItems: "center" }}>
-                    <Text style={{ fontSize: 22, fontWeight: "900", color: "#4285F4" }}>G</Text>
-                  </View>
-                ),
-                getUrl: (base) => {
-                  if (IS_WEB) return `tez://upi/pay?${base}`;
-                  if (Platform.OS === "ios") return `gpay://upi/pay?${base}`;
-                  return `intent://upi/pay?${base}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
-                },
-              },
-              {
-                name: "PhonePe",
-                bg: "#F8F0FF", border: "#E8D5FF", btnBg: "#5F259F",
-                icon: () => (
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#5F259F", justifyContent: "center", alignItems: "center" }}>
-                    <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: "#fff", justifyContent: "center", alignItems: "center" }}>
-                      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#fff" }} />
-                    </View>
-                  </View>
-                ),
-                getUrl: (base) => {
-                  if (IS_WEB) return `phonepe://pay?${base}`;
-                  if (Platform.OS === "ios") return `phonepe://pay?${base}`;
-                  return `intent://upi/pay?${base}#Intent;scheme=upi;package=com.phonepe.app;end`;
-                },
-              },
-              {
-                name: "Paytm",
-                bg: "#F0FBFF", border: "#BAE6FD", btnBg: "#00BAF2",
-                icon: () => (
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#00BAF2", justifyContent: "center", alignItems: "center" }}>
-                    <Text style={{ fontSize: 12, fontWeight: "900", color: "#fff" }}>Pay</Text>
-                    <Text style={{ fontSize: 8, fontWeight: "800", color: "#002970", marginTop: -2 }}>tm</Text>
-                  </View>
-                ),
-                getUrl: (base) => {
-                  if (IS_WEB) return `paytmmp://pay?${base}`;
-                  if (Platform.OS === "ios") return `paytmmp://pay?${base}`;
-                  return `intent://upi/pay?${base}#Intent;scheme=upi;package=net.one97.paytm;end`;
-                },
-              },
-              {
-                name: "Any UPI App",
-                bg: "#FFF5F5", border: "#FFD0D0", btnBg: "#C0392B",
-                icon: () => (
-                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#C0392B", justifyContent: "center", alignItems: "center" }}>
-                    <Text style={{ fontSize: 20 }}>📲</Text>
-                  </View>
-                ),
-                getUrl: (base) => `upi://pay?${base}`,
-              },
-            ].map((app, i) => {
-              const upiBase = `pa=${qrSettings?.upiId || "digubarge123@okaxis"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${getFinalAmount()}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
-              const url = app.getUrl(upiBase);
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={{
-                    flexDirection: "row", alignItems: "center",
-                    backgroundColor: app.bg, borderRadius: 14,
-                    padding: 12, borderWidth: 1.5, borderColor: app.border,
-                    gap: 12, marginBottom: 4,
-                  }}
-
-                  activeOpacity={0.75}
-onPress={async () => {
-  const amt = getFinalAmount();
-  const upiId = qrSettings?.upiId;
-  
-  if (!upiId) {
-    showAlert("Error", "UPI ID set नाही.");
-    return;
-  }
-
-  const upiName = qrSettings?.upiName || "Shahaji Travels";
-  // ✅ Phone number UPI format (9766775660@ybl)
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR&mode=00&purpose=00`;
-
-  console.log("🔗 Opening UPI:", upiId, "Amount:", amt);
-
-  try {
-    await Linking.openURL(upiLink);
-  } catch (err) {
-    showAlert("UPI Error", `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`);
-  }
-}}
-  
-           >
-                  {app.icon()}
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>
-                    <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>
-                      ₹{getFinalAmount()} · auto-filled
-                    </Text>
-                  </View>
-                  <View style={{ backgroundColor: app.btnBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}>
-                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>Open →</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <View style={{ marginTop: 8, backgroundColor: "#F5F6FA", borderRadius: 10, padding: 10, flexDirection: "row", gap: 6 }}>
-            <Text style={{ fontSize: 12 }}>💡</Text>
-            <Text style={{ fontSize: 12, color: "#666", flex: 1, lineHeight: 18 }}>
-              Pay केल्यावर UTR / Transaction ID खाली enter करा — booking confirm होईल.
-            </Text>
-          </View>
-        </View>
-
-        {/* ── HOW TO PAY — Steps ── */}
-        <View style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: 20, padding: 16,
-          marginBottom: 14,
-          borderWidth: 1, borderColor: "#EBEBEB",
-          elevation: 1,
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 14, letterSpacing: -0.2 }}>
-            How to Pay
-          </Text>
-        
-
-        
-          {[
-            { n: "1", text: "Open GPay / PhonePe / Paytm" },
-            { n: "2", text: "Scan QR code or enter UPI ID" },
-            { n: "3", text: `Enter amount ₹${getFinalAmount()}` },
-            { n: "4", text: "Complete payment & note UTR number" },
-            { n: "5", text: "Enter UTR below to confirm booking" },
-          ].map((step, i) => (
-            <View key={i} style={{
-              flexDirection: "row", gap: 12,
-              marginBottom: i < 4 ? 12 : 0,
-              alignItems: "flex-start",
-            }}>
-              <View style={{
-                width: 26, height: 26, borderRadius: 13,
-                backgroundColor: "#1A1A2E",
-                justifyContent: "center", alignItems: "center", flexShrink: 0,
-              }}>
-                <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>{step.n}</Text>
-              </View>
-              <Text style={{ fontSize: 13, color: "#444", lineHeight: 22, flex: 1, marginTop: 3 }}>
-                {step.text}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ── UTR INPUT ── */}
-        <View style={{
-          backgroundColor: "#FFFFFF",
-          borderRadius: 20, padding: 16,
-          marginBottom: 14,
-          borderWidth: 1, borderColor: "#EBEBEB",
-          elevation: 1,
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 2, letterSpacing: -0.2 }}>
-            Enter UTR / Transaction ID
-          </Text>
-          <Text style={{ fontSize: 11, color: "#999", marginBottom: 14 }}>
-            Found in your UPI app's payment history
-          </Text>
-
-          <View style={{
-            flexDirection: "row",
-            borderWidth: 2,
-            borderColor: qrUtrNumber.length >= 6 ? "#1A1A2E" : "#EBEBEB",
-            borderRadius: 14, overflow: "hidden",
-            backgroundColor: "#F5F6FA",
-            transition: "border-color 0.2s",
-          }}>
-            <View style={{
-              paddingHorizontal: 14, justifyContent: "center",
-              backgroundColor: qrUtrNumber.length >= 6 ? "#1A1A2E" : "#EBEBEB",
-            }}>
-              <Text style={{ fontSize: 14, color: qrUtrNumber.length >= 6 ? "#fff" : "#999" }}>🔢</Text>
-            </View>
-            <TextInput
-              style={{
-                flex: 1, paddingHorizontal: 14, paddingVertical: 15,
-                fontSize: 16, color: "#1A1A2E",
-                fontWeight: "700", letterSpacing: 1.5,
-                backgroundColor: "#FFFFFF",
-              }}
-              placeholder="e.g. 407311234567"
-              placeholderTextColor="#C7C7CC"
-              value={qrUtrNumber}
-              onChangeText={setQrUtrNumber}
-              keyboardType="default"
-              maxLength={30}
-              autoCapitalize="characters"
-            />
-            {qrUtrNumber.length >= 6 && (
-              <View style={{
-                paddingHorizontal: 14, justifyContent: "center",
-                backgroundColor: "#EAFAF1",
-              }}>
-                <Text style={{ color: "#27AE60", fontWeight: "800", fontSize: 16 }}>✓</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* ── CONFIRM BUTTON ── */}
-        <TouchableOpacity
-          style={{
-            backgroundColor: qrUtrNumber.trim().length >= 6 ? "#1A1A2E" : "#EBEBEB",
-            borderRadius: 16, paddingVertical: 18,
-            alignItems: "center", marginBottom: 10,
-            elevation: qrUtrNumber.trim().length >= 6 ? 3 : 0,
-          }}
-          onPress={handleQRBooking}
-          disabled={qrUtrNumber.trim().length < 6}
-          activeOpacity={0.85}
-        >
-          <Text style={{
-            color: qrUtrNumber.trim().length >= 6 ? "#fff" : "#aaa",
-            fontSize: 15, fontWeight: "800", letterSpacing: 0.3,
-          }}>
-            {qrUtrNumber.trim().length >= 6 ? "✓  Confirm & Submit Booking" : "Enter UTR to Continue"}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: "center", paddingVertical: 12 }}
-          onPress={() => setShowQRModal(false)}
-        >
-          <Text style={{ color: "#999", fontWeight: "600", fontSize: 13 }}>Cancel</Text>
-        </TouchableOpacity>
-
-        {/* ── WARNING ── */}
-        <View style={{
-          backgroundColor: "#FFF8E1",
-          borderRadius: 14, padding: 14,
-          borderWidth: 1, borderColor: "#FFE082",
-          flexDirection: "row", gap: 10, alignItems: "flex-start",
-        }}>
-          <Text style={{ fontSize: 16 }}>⚠️</Text>
-          <Text style={{ fontSize: 12, color: "#795548", lineHeight: 19, flex: 1 }}>
-            Admin will verify your payment within 15–30 minutes. Incorrect UTR will result in cancellation.
-          </Text>
-        </View>
-
-      </ScrollView>
+      <DynamicUPIQR
+        amount={getFinalAmount()}
+        upiId={qrSettings?.upiId || "kumarbarge14@okhdfcbank"}
+        payeeName={qrSettings?.upiName || "KUMAR BARGE"}
+        note="Shahaji Travels Booking"
+        bookingId={ticket?.bookingId || ""}
+        route={`${search.from} → ${search.to}`}
+        date={search.date}
+        onUTRSubmit={(utr) => {
+          setQrUtrNumber(utr);
+          setShowQRModal(false);
+          handleQRBooking(utr);
+        }}
+        onCancel={() => setShowQRModal(false)}
+      />
     </View>
   </View>
 </Modal>
@@ -5530,78 +5121,292 @@ onPress={async () => {
 
       
 
-       {/* ── OPEN DIRECTLY IN APP ── */}
-        <View style={{
-          backgroundColor: "#FFFFFF", borderRadius: 20, padding: 16,
-          marginBottom: 14, borderWidth: 1, borderColor: "#EBEBEB", elevation: 1,
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 4 }}>
-            Open Directly in App
-          </Text>
-          <Text style={{ fontSize: 11, color: "#999", marginBottom: 14 }}>
-            ₹{getFinalAmount()} auto-filled · Pay करा · UTR enter करा
-          </Text>
-          <View style={{ gap: 8 }}>
-            {[
-              { name: "Google Pay", bg: "#FFFFFF", border: "#E8E8E8", btnBg: "#4285F4",
-                icon: () => <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#E8E8E8", justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 22, fontWeight: "900", color: "#4285F4" }}>G</Text></View>,
-                getUrl: (b) => IS_WEB ? `tez://upi/pay?${b}` : Platform.OS === "ios" ? `gpay://upi/pay?${b}` : `intent://upi/pay?${b}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`,
-              },
-              { name: "PhonePe", bg: "#F8F0FF", border: "#E8D5FF", btnBg: "#5F259F",
-                icon: () => <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#5F259F", justifyContent: "center", alignItems: "center" }}><View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: "#fff", justifyContent: "center", alignItems: "center" }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#fff" }} /></View></View>,
-                getUrl: (b) => IS_WEB ? `phonepe://pay?${b}` : Platform.OS === "ios" ? `phonepe://pay?${b}` : `intent://upi/pay?${b}#Intent;scheme=upi;package=com.phonepe.app;end`,
-              },
-              { name: "Paytm", bg: "#F0FBFF", border: "#BAE6FD", btnBg: "#00BAF2",
-                icon: () => <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#00BAF2", justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 12, fontWeight: "900", color: "#fff" }}>Pay</Text><Text style={{ fontSize: 8, fontWeight: "800", color: "#002970", marginTop: -2 }}>tm</Text></View>,
-                getUrl: (b) => IS_WEB ? `paytmmp://pay?${b}` : Platform.OS === "ios" ? `paytmmp://pay?${b}` : `intent://upi/pay?${b}#Intent;scheme=upi;package=net.one97.paytm;end`,
-              },
-              { name: "Any UPI App", bg: "#FFF5F5", border: "#FFD0D0", btnBg: "#C0392B",
-                icon: () => <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#C0392B", justifyContent: "center", alignItems: "center" }}><Text style={{ fontSize: 20 }}>📲</Text></View>,
-                getUrl: (b) => `upi://pay?${b}`,
-              },
-            ].map((app, i) => {
-              const amt = getFinalAmount();
-              const upiBase = `pa=${qrSettings?.upiId || "digubarge123@okaxis"}&pn=${encodeURIComponent(qrSettings?.upiName || "Shahaji Travels")}&am=${amt}&cu=INR&tn=${encodeURIComponent("Shahaji Travels Booking")}`;
-              const url = app.getUrl(upiBase);
-              return (
-                <TouchableOpacity key={i}
-                  style={{ flexDirection: "row", alignItems: "center", backgroundColor: app.bg, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: app.border, gap: 12, marginBottom: 4 }}
-                  activeOpacity={0.75}
-        onPress={async () => {
-  const amt = getFinalAmount();
-  const upiId = qrSettings?.upiId || "digubarge123@okaxis";
-  const upiName = qrSettings?.upiName || "Shahaji Travels";
+      {/* ── OPEN DIRECTLY IN APP ── */}
+<View
+  style={{
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    elevation: 1,
+  }}
+>
+  <Text
+    style={{
+      fontSize: 13,
+      fontWeight: "800",
+      color: "#1A1A2E",
+      marginBottom: 4,
+    }}
+  >
+    Open Directly in App
+  </Text>
 
-  // ✅ Web वर UPI link काम करत नाही - manual show करा
-  if (Platform.OS === "web") {
-    showAlert(
-      "UPI Payment",
-      `UPI ID: ${upiId}\nAmount: ₹${amt}\n\nPhone वर GPay/PhonePe open करा आणि manually pay करा.\n\nPay झाल्यावर UTR enter करा.`
-    );
-    return;
-  }
+  <Text
+    style={{
+      fontSize: 11,
+      color: "#999",
+      marginBottom: 14,
+    }}
+  >
+    ₹{getFinalAmount()} auto-filled · Pay करा · UTR enter करा
+  </Text>
 
-  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR`;
+  <View style={{ gap: 8 }}>
+    {[
+      {
+        name: "Google Pay",
+        bg: "#FFFFFF",
+        border: "#E8E8E8",
+        btnBg: "#4285F4",
 
-  try {
-    await Linking.openURL(upiLink);
-  } catch (err) {
-    showAlert("UPI Error", `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`);
-  }
-}}>
-                  {app.icon()}
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{app.name}</Text>
-                    <Text style={{ fontSize: 11, color: "#888", marginTop: 1 }}>₹{amt} · auto-filled</Text>
-                  </View>
-                  <View style={{ backgroundColor: app.btnBg, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}>
-                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>Open →</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+        icon: () => (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1.5,
+              borderColor: "#E8E8E8",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "900",
+                color: "#4285F4",
+              }}
+            >
+              G
+            </Text>
           </View>
-        </View>
+        ),
+      },
+
+      {
+        name: "PhonePe",
+        bg: "#F8F0FF",
+        border: "#E8D5FF",
+        btnBg: "#5F259F",
+
+        icon: () => (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: "#5F259F",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                borderWidth: 2.5,
+                borderColor: "#fff",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: "#fff",
+                }}
+              />
+            </View>
+          </View>
+        ),
+      },
+
+      {
+        name: "Paytm",
+        bg: "#F0FBFF",
+        border: "#BAE6FD",
+        btnBg: "#00BAF2",
+
+        icon: () => (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: "#00BAF2",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "900",
+                color: "#fff",
+              }}
+            >
+              Pay
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 8,
+                fontWeight: "800",
+                color: "#002970",
+                marginTop: -2,
+              }}
+            >
+              tm
+            </Text>
+          </View>
+        ),
+      },
+
+      {
+        name: "Any UPI App",
+        bg: "#FFF5F5",
+        border: "#FFD0D0",
+        btnBg: "#C0392B",
+
+        icon: () => (
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: "#C0392B",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>📲</Text>
+          </View>
+        ),
+      },
+    ].map((app, i) => {
+      const amt = Number(getFinalAmount()).toFixed(2);
+
+      return (
+        <TouchableOpacity
+          key={i}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: app.bg,
+            borderRadius: 14,
+            padding: 12,
+            borderWidth: 1.5,
+            borderColor: app.border,
+            gap: 12,
+            marginBottom: 4,
+          }}
+          activeOpacity={0.75}
+          onPress={async () => {
+            const upiId =
+              qrSettings?.upiId || "digubarge123@okaxis";
+
+            const upiName =
+              qrSettings?.upiName || "Shahaji Travels";
+
+            // ✅ FINAL CLEAN UPI LINK
+            const upiLink =
+              `upi://pay?pa=${upiId}` +
+              `&pn=${encodeURIComponent(upiName)}` +
+              `&tn=${encodeURIComponent(
+                "Shahaji Travels Booking"
+              )}` +
+              `&am=${amt}` +
+              `&cu=INR`;
+
+            console.log("UPI LINK =>", upiLink);
+
+            try {
+              // ✅ WEB
+              if (Platform.OS === "web") {
+                window.location.href = upiLink;
+                return;
+              }
+
+              // ✅ CHECK SUPPORT
+              const supported =
+                await Linking.canOpenURL(upiLink);
+
+              if (!supported) {
+                showAlert(
+                  "UPI App Not Found",
+                  "Google Pay / PhonePe install करा."
+                );
+                return;
+              }
+
+              // ✅ OPEN UPI
+              await Linking.openURL(upiLink);
+
+            } catch (err) {
+              console.log("UPI ERROR:", err);
+
+              showAlert(
+                "Payment Error",
+                `Manual Pay करा\n\nUPI ID: ${upiId}\nAmount: ₹${amt}`
+              );
+            }
+          }}
+        >
+          {app.icon()}
+
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "700",
+                color: "#1A1A2E",
+              }}
+            >
+              {app.name}
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 11,
+                color: "#888",
+                marginTop: 1,
+              }}
+            >
+              ₹{amt} · auto-filled
+            </Text>
+          </View>
+
+          <View
+            style={{
+              backgroundColor: app.btnBg,
+              borderRadius: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+            }}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: "800",
+              }}
+            >
+              Open →
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+</View>
 
         {/* ── HOW TO PAY — Steps ── */}
         <View style={{

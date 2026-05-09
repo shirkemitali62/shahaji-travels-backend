@@ -36,22 +36,31 @@ function safeEncode(str) {
 // ─── UPI LINK BUILDER ────────────────────────────────────────────────────────
 // Returns null if upiId is missing/invalid (caller must handle null)
 export function buildUPILink({ upiId, payeeName, amount, note }) {
-  // Validate required fields
   if (!upiId || typeof upiId !== "string" || !upiId.includes("@")) {
     return null;
   }
+
   const safeAmount = parseFloat(amount);
+
   if (!safeAmount || safeAmount <= 0 || isNaN(safeAmount)) {
     return null;
   }
 
-  const pa = safeEncode(upiId.trim());
-  const pn = safeEncode((payeeName || "Shahaji Travels").trim());
-  const am = safeAmount.toFixed(2);
-  const cu = "INR";
-  const tn = safeEncode((note || "Shahaji Travels Booking").trim());
+  // ❌ DO NOT ENCODE UPI ID
+  const pa = upiId.trim();
 
- return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}&tr=${Date.now()}`;
+  // ✅ encode only text fields
+  const pn = safeEncode((payeeName || "Shahaji Travels").trim());
+
+  const am = safeAmount.toFixed(2);
+
+  const cu = "INR";
+
+  const tn = safeEncode(
+    (note || "Shahaji Travels Booking").trim()
+  );
+
+  return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=${cu}&tn=${tn}`;
 }
 
 // ─── SAFE URL OPENER ─────────────────────────────────────────────────────────
