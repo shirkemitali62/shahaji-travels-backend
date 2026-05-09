@@ -20,20 +20,21 @@ const defaultSettings = {
 
 const menu = [
   { key: "dashboard",     icon: "📊", label: "Dashboard" },
-  { key: "bookings",      icon: "🎫", label: "Bookings"  },
-  { key: "trips",         icon: "🗺️", label: "Trips"     },
-  { key: "buses",         icon: "🚍", label: "Buses"     },
-  { key: "routes",        icon: "📍", label: "Routes"    },
-  { key: "customers",     icon: "👥", label: "Customers" },
-  { key: "reports",       icon: "📈", label: "Reports"   },
-  { key: "busreport",     icon: "🚌", label: "Bus Report" },
-  { key: "settings",      icon: "⚙️", label: "Settings"  },
-   { key: "refunds",       icon: "💰", label: "Refunds"   },
-  { key: "offers",        icon: "🏷️", label: "Offers"    },
-  { key: "popular",       icon: "🛣️", label: "Popular Routes" },
-  { key: "notifications", icon: "🔔", label: "Notifications" },
-  { key: "qr",            icon: "📱", label: "QR Payment" },
-  { key: "backup",        icon: "🗄️", label: "Backup" },
+  { key: "bookings",      icon: "🎫", label: "Bookings",       perm: "bookings"      },
+  { key: "trips",         icon: "🗺️", label: "Trips",          perm: "trips"         },
+  { key: "buses",         icon: "🚍", label: "Buses",          perm: "buses"         },
+  { key: "routes",        icon: "📍", label: "Routes",         perm: "routes"        },
+  { key: "customers",     icon: "👥", label: "Customers",      perm: "customers"     },
+  { key: "reports",       icon: "📈", label: "Reports",        perm: "reports"       },
+  { key: "busreport",     icon: "🚌", label: "Bus Report",     perm: "busreport"     },
+  { key: "settings",      icon: "⚙️", label: "Settings",       perm: "settings"      },
+  { key: "refunds",       icon: "💰", label: "Refunds",        perm: "refunds"       },
+  { key: "offers",        icon: "🏷️", label: "Offers",         perm: "offers"        },
+  { key: "popular",       icon: "🛣️", label: "Popular Routes", perm: "popular"       },
+  { key: "notifications", icon: "🔔", label: "Notifications",  perm: "notifications" },
+  { key: "qr",            icon: "📱", label: "QR Payment",     perm: "qr"            },
+  { key: "backup",        icon: "🗄️", label: "Backup",         perm: "backup"        },
+  { key: "admins",        icon: "👤", label: "Sub Admins",     perm: "superonly"     },
 ];
 
 // ── SEATER-SLEEPER BUS: Lower deck (seater) + Upper deck (sleeper) ──
@@ -1328,6 +1329,9 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
     localStorage.getItem("shahaji_admin_logged_in") === "true"
   );
+  const adminRole = localStorage.getItem("shahaji_admin_role") || "superadmin";
+const adminPermissions = JSON.parse(localStorage.getItem("shahaji_admin_permissions") || "[]");
+const can = (module) => adminRole === "superadmin" || adminPermissions.includes(module);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [page,    setPage]    = useState("dashboard");
@@ -1493,11 +1497,14 @@ const bookedSeatsForTrip = bookings
   body: { email, password, fingerprint, deviceInfo },
 });
       if (data.success) {
-        localStorage.setItem("shahaji_admin_logged_in", "true");
-        setIsLoggedIn(true);
+  localStorage.setItem("shahaji_admin_logged_in", "true");
+  localStorage.setItem("shahaji_admin_role", data.admin?.role || "superadmin");
+  localStorage.setItem("shahaji_admin_permissions", JSON.stringify(data.admin?.permissions || []));
+  setIsLoggedIn(true);
         showToast("Login successful!");
         return { success: true };
       }
+      
       return { success: false, message: data.message || "Invalid credentials", pending: data.pending };
     } catch (e) {
       return { success: false, message: "Backend not connected: " + e.message };
@@ -2137,12 +2144,16 @@ if (rawDate) {
             </div>
             <nav className="sidebar-nav">
               <div className="nav-section">MAIN MENU</div>
-              {menu.map(item => (
-                <button
-                  key={item.key}
-                  className={"nav-item" + (page === item.key ? " active" : "")}
-                  onClick={() => navigateTo(item.key)}
-                >
+             {menu.filter(item => {
+  if (!item.perm) return true;
+  if (item.perm === "superonly") return adminRole === "superadmin";
+  return can(item.perm);
+}).map(item => (
+  <button
+    key={item.key}
+    className={"nav-item" + (page === item.key ? " active" : "")}
+    onClick={() => navigateTo(item.key)}
+  >
                   <span className="nav-icon">{item.icon}</span>
                   {item.label}
                   {item.key === "bookings" && bookings.length > 0 && (
@@ -2227,6 +2238,7 @@ if (rawDate) {
 {page === "qr" && <AdminQRSettings showToast={showToast} />}
 {page === "busreport" && <BusReportPage buses={buses} showToast={showToast} />}
 {page === "backup" && <BackupPage showToast={showToast} />}
+{page === "admins" && adminRole === "superadmin" && <SubAdminPage showToast={showToast} />}
 
           </div>
         </main>
@@ -8401,6 +8413,118 @@ function RefundPage({ showToast }) {
             </div>
           )
         )}
+      </div>
+    </div>
+  );
+}
+function SubAdminPage({ showToast }) {
+  const ALL_PERMS = ["buses","routes","trips","customers","bookings","offers",
+    "reports","settings","notifications","qr","backup","popular","busreport","refunds"];
+  const [admins, setAdmins] = React.useState([]);
+  const [form, setForm] = React.useState({ email:"", password:"", permissions:[] });
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    apiFetch("/api/admin/list").then(d => setAdmins(d.admins || [])).catch(()=>{});
+  }, []);
+
+  const toggle = (perm) => setForm(f => ({
+    ...f,
+    permissions: f.permissions.includes(perm)
+      ? f.permissions.filter(p => p !== perm)
+      : [...f.permissions, perm]
+  }));
+
+  async function create() {
+    if (!form.email || !form.password) { showToast("Email and password required!", "error"); return; }
+    setLoading(true);
+    try {
+      const res = await apiFetch("/api/admin/create-subadmin", {
+        method: "POST", body: JSON.stringify(form)
+      });
+      setAdmins(prev => [...prev, res.admin]);
+      setForm({ email:"", password:"", permissions:[] });
+      showToast("✅ Sub-admin created!");
+    } catch(e) { showToast(e.message, "error"); }
+    setLoading(false);
+  }
+
+  async function deleteAdmin(id) {
+    if (!window.confirm("Delete this admin?")) return;
+    try {
+      await apiFetch("/api/admin/" + id, { method: "DELETE" });
+      setAdmins(prev => prev.filter(a => a._id !== id));
+      showToast("Deleted.");
+    } catch(e) { showToast(e.message, "error"); }
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header"><h1>👤 Sub-Admin Management</h1><p>Staff ला limited access द्या</p></div>
+      <div className="form-card">
+        <div className="form-title">➕ New Sub-Admin Create करा</div>
+        <div className="form-grid">
+          <Input label="Email *" value={form.email} onChange={v => setForm(f=>({...f,email:v}))} placeholder="staff@shahaji.com" />
+          <Input label="Password *" value={form.password} onChange={v => setForm(f=>({...f,password:v}))} placeholder="Password" />
+        </div>
+        <div style={{ marginTop:16 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"var(--text2)", textTransform:"uppercase", marginBottom:10 }}>
+            Permissions Select करा ({form.permissions.length} selected):
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+            {ALL_PERMS.map(perm => (
+              <button key={perm} onClick={() => toggle(perm)} style={{
+                padding:"7px 14px", borderRadius:20, cursor:"pointer", fontSize:13, fontWeight:600,
+                background: form.permissions.includes(perm) ? "rgba(34,197,94,0.2)" : "var(--bg3)",
+                border: `1px solid ${form.permissions.includes(perm) ? "rgba(34,197,94,0.5)" : "var(--border)"}`,
+                color: form.permissions.includes(perm) ? "#22c55e" : "var(--text2)",
+              }}>
+                {form.permissions.includes(perm) ? "✅ " : ""}{perm}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="form-actions">
+          <button className="btn-primary" onClick={create} disabled={loading}>
+            {loading ? "Creating..." : "➕ Create Sub-Admin"}
+          </button>
+        </div>
+      </div>
+
+      <div className="section-card">
+        <div className="section-title">All Admins ({admins.length})</div>
+        {admins.map(a => (
+          <div key={a._id} style={{ display:"flex", justifyContent:"space-between",
+            alignItems:"center", padding:"14px 0", borderBottom:"1px solid var(--border)", flexWrap:"wrap", gap:8 }}>
+            <div>
+              <div style={{ fontWeight:700, fontSize:15 }}>{a.email}</div>
+              <div style={{ marginTop:5 }}>
+                <span style={{
+                  background: a.role==="superadmin" ? "rgba(34,197,94,0.15)" : "rgba(59,130,246,0.15)",
+                  color: a.role==="superadmin" ? "#22c55e" : "#60a5fa",
+                  border: `1px solid ${a.role==="superadmin" ? "rgba(34,197,94,0.3)" : "rgba(59,130,246,0.3)"}`,
+                  padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:700,
+                }}>
+                  {a.role === "superadmin" ? "👑 Superadmin" : "👤 Sub-admin"}
+                </span>
+              </div>
+              {a.permissions?.length > 0 && (
+                <div style={{ marginTop:6, display:"flex", flexWrap:"wrap", gap:4 }}>
+                  {a.permissions.map(p => (
+                    <span key={p} style={{
+                      background:"rgba(99,102,241,0.1)", color:"#818cf8",
+                      border:"1px solid rgba(99,102,241,0.25)",
+                      padding:"2px 8px", borderRadius:20, fontSize:11, fontWeight:600,
+                    }}>{p}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {a.role !== "superadmin" && (
+              <button className="btn-sm btn-del" onClick={() => deleteAdmin(a._id)}>🗑️ Delete</button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

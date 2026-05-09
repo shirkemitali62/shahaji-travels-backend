@@ -67,6 +67,11 @@ const adminSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
   type:     { type: String, default: "admin" },
+  role:     { type: String, enum: ["superadmin", "subadmin"], default: "superadmin" },
+  permissions: [{
+    type: String,
+    enum: ["buses", "routes", "trips", "customers", "bookings", "offers", "reports", "settings", "notifications", "qr", "backup", "popular", "busreport", "refunds"]
+  }]
 }, { timestamps: true });
 const Admin = mongoose.models.Admin || mongoose.model("Admin", adminSchema);
 const offerSchema = new mongoose.Schema({
@@ -562,7 +567,15 @@ app.post("/api/login", async (req, res) => {
 
     // Fingerprint नाही → old login, allow कर
     if (!fingerprint) {
-      return res.json({ success:true, message:"Login successful", admin:{ email:admin.email } });
+     return res.json({ 
+  success: true, 
+  message: "Login successful", 
+  admin: { 
+    email: admin.email,
+    role: admin.role || "superadmin",
+    permissions: admin.permissions || []
+  } 
+});
     }
 
     const devices = await AllowedDevice.find({ 
@@ -578,11 +591,7 @@ app.post("/api/login", async (req, res) => {
         deviceName: deviceInfo || "Primary Device",
         status: "approved",
       });
-      return res.json({ 
-        success: true, 
-        message: "Login successful", 
-        admin: { email: admin.email } 
-      });
+     res.json({ success:true, message:"Login successful", admin:{ email:admin.email, role:admin.role||"superadmin", permissions:admin.permissions||[] } });
     }
 
     // Device allowed आहे का check कर
@@ -3965,6 +3974,35 @@ app.patch("/api/refunds/:id/done", async (req, res) => {
   } catch(err) {
     res.status(500).json({ success: false, message: err.message });
   }
+});
+app.post("/api/admin/create-subadmin", async (req, res) => {
+  try {
+    const { email, password, permissions } = req.body;
+    const exists = await Admin.findOne({ email: email.toLowerCase() });
+    if (exists) return res.status(400).json({ message: "Admin already exists" });
+    
+    const newAdmin = await Admin.create({
+      email: email.toLowerCase(),
+      password,
+      role: "subadmin",
+      permissions: permissions || []
+    });
+    res.json({ success: true, admin: newAdmin });
+  } catch(err) { res.status(500).json({ message: err.message }); }
+});
+
+app.get("/api/admin/list", async (req, res) => {
+  try {
+    const admins = await Admin.find({}, { password: 0 });
+    res.json({ success: true, admins });
+  } catch(err) { res.status(500).json({ message: err.message }); }
+});
+
+app.delete("/api/admin/:id", async (req, res) => {
+  try {
+    await Admin.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ message: err.message }); }
 });
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
