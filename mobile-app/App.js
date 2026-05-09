@@ -2375,7 +2375,7 @@ const [cashSettings, setCashSettings] = useState({
   const [selectedDropping, setSelectedDropping] = useState(null);
   const [passengerInfo, setPassengerInfo] = useState({ name:"", age:"", gender:"Male", phone:"", email:"" });
   const [whatsappUpdates, setWhatsappUpdates] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [paymentMethod, setPaymentMethod] = useState("Razorpay");
   const phone = settings?.contactPhone1 || "9021694503";
 
 // clean digits (remove +91, spaces, etc.)
@@ -4108,6 +4108,7 @@ ListEmptyComponent={
       doBooking();
     }
         
+
     } catch (err) {
       setOtpVerifying(false);
       showAlert("❌ OTP चुकीचा", err?.message || "Invalid OTP.");

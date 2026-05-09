@@ -244,42 +244,38 @@ export default function DynamicUPIQR({
             </View>
           </View>
  
-          {/* ── UPI APP BUTTONS ──────────────────────────────────── */}
-          <View style={styles.appsCard}>
-            <Text style={styles.appsHeading}>Open directly in app</Text>
-            <Text style={styles.appsSub}>₹{displayAmount} auto-filled · Pay · Enter UTR</Text>
- 
-            {[
-              { name: "Google Pay",   bg: "#FFFFFF", border: "#E8E8E8", btnBg: "#4285F4",  iconText: "G",   iconColor: "#4285F4", iconBg: "#FFFFFF" },
-              { name: "PhonePe",      bg: "#F8F0FF", border: "#E8D5FF", btnBg: "#5F259F",  iconText: "P",   iconColor: "#FFFFFF", iconBg: "#5F259F" },
-              { name: "Paytm",        bg: "#F0FBFF", border: "#BAE6FD", btnBg: "#00BAF2",  iconText: "Pay", iconColor: "#FFFFFF", iconBg: "#00BAF2" },
-              { name: "Any UPI App",  bg: "#FFF5F5", border: "#FFD0D0", btnBg: "#C0392B",  iconText: "📲",  iconColor: "#FFFFFF", iconBg: "#C0392B" },
-            ].map((app) => (
-              <TouchableOpacity
-                key={app.name}
-                style={[styles.appRow, { backgroundColor: app.bg, borderColor: app.border }]}
-                activeOpacity={0.78}
-              onPress={() => handleOpenUPIApp(app.name)}
-              >
-                <View style={[styles.appIconBox, { backgroundColor: app.iconBg, borderColor: app.border }]}>
-                  <Text style={{
-                    color: app.iconColor,
-                    fontWeight: "900",
-                    fontSize: app.iconText.length > 2 ? 10 : 18,
-                  }}>
-                    {app.iconText}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.appName}>{app.name}</Text>
-                  <Text style={styles.appSub}>₹{displayAmount} · auto-filled</Text>
-                </View>
-                <View style={[styles.openBtn, { backgroundColor: app.btnBg }]}>
-                  <Text style={styles.openBtnText}>Open →</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* ── MANUAL PAYMENT INSTRUCTIONS ── */}
+<View style={{
+  backgroundColor: "#FFF8E1",
+  borderRadius: 16,
+  padding: 16,
+  marginBottom: 12,
+  borderWidth: 1,
+  borderColor: "#FFE082",
+}}>
+  <Text style={{
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#E65100",
+    marginBottom: 8,
+  }}>
+    Payment कसं करायचं:
+  </Text>
+  <Text style={{
+    fontSize: 13,
+    color: "#555",
+    lineHeight: 22,
+  }}>
+    {"1. GPay / PhonePe उघडा\n2. New Payment → UPI ID टाका:\n"}
+    <Text style={{ fontWeight: "800", color: "#C0392B" }}>
+      {upiId}
+    </Text>
+    {"\n3. Amount: ₹"}{displayAmount}{" टाका\n4. Pay करा → UTR copy करा\n5. खाली UTR paste करा"}
+  </Text>
+</View>
+
+{/* ── UPI APP BUTTONS ──────────────────────────────────── */}
+          <View style={styles.appsCard}></View>
  
           {/* ── HOW TO PAY ───────────────────────────────────────── */}
           <View style={styles.stepsCard}>
