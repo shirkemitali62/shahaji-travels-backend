@@ -93,31 +93,60 @@ export default function DynamicUPIQR({
   }, [upiId]);
  
   // ── Open UPI app directly ─────────────────────────────────────────
-  const handleOpenUPIApp = useCallback(async () => {
-    if (!upiString) {
-      Alert.alert("UPI Error", "UPI ID is not configured.");
+ const handleOpenUPIApp = useCallback(async (appName) => {
+    console.log("=== UPI DEBUG START ===");
+    console.log("App Name:", appName);
+    console.log("UPI ID:", upiId);
+    console.log("Amount:", amount);
+    console.log("Payee:", payeeName);
+
+    if (!upiId || !upiId.includes("@")) {
+      console.log("ERROR: Invalid UPI ID");
+      Alert.alert("UPI Error", "UPI ID configured नाही.");
       return;
     }
+
+    const amt = parseFloat(amount).toFixed(2);
+    console.log("Formatted Amount:", amt);
+
+    const encodedName = encodeURIComponent(payeeName || "Merchant");
+    const encodedNote = encodeURIComponent(note || "Payment");
+
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodedName}&am=${amt}&cu=INR&tn=${encodedNote}`;
+    console.log("UPI Link:", upiLink);
+
     try {
-      const canOpen = await Linking.canOpenURL(upiString).catch(() => true);
-      if (!canOpen) {
+      console.log("Checking canOpenURL...");
+      const canOpen = await Linking.canOpenURL(upiLink).catch((e) => {
+        console.log("canOpenURL error:", e.message);
+        return false;
+      });
+      console.log("canOpen result:", canOpen);
+
+      if (canOpen) {
+        console.log("Opening UPI link...");
+        await Linking.openURL(upiLink);
+        console.log("UPI app opened successfully");
+        setTimeout(() => setStep("utr"), 2000);
+      } else {
+        console.log("Cannot open UPI link — showing manual alert");
         Alert.alert(
-          "No UPI App Found",
-          `Please install Google Pay, PhonePe, or Paytm.\n\nOr pay manually:\nUPI ID: ${upiId}\nAmount: ₹${amount}`
+          "App उघडता आलं नाही",
+          `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`,
+          [{ text: "OK" }]
         );
-        return;
       }
-      await Linking.openURL(upiString);
-      // After opening app, move to UTR step
-      setTimeout(() => setStep("utr"), 1500);
-    } catch {
+    } catch (err) {
+      console.log("ERROR in openURL:", err.message);
+      console.log("ERROR stack:", err.stack);
       Alert.alert(
-        "Cannot Open UPI App",
-        `Pay manually:\nUPI ID: ${upiId}\nAmount: ₹${amount}`
+        "Error",
+        `Manual pay करा:\nUPI ID: ${upiId}\nAmount: ₹${amt}`
       );
     }
-  }, [upiString, upiId, amount]);
- 
+
+    console.log("=== UPI DEBUG END ===");
+  }, [upiId, payeeName, amount, note]);
   // ── Submit UTR ────────────────────────────────────────────────────
   const handleSubmitUTR = useCallback(() => {
     const clean = utrValue.trim().toUpperCase().replace(/\s+/g, "");
@@ -247,7 +276,7 @@ export default function DynamicUPIQR({
                 key={app.name}
                 style={[styles.appRow, { backgroundColor: app.bg, borderColor: app.border }]}
                 activeOpacity={0.78}
-                onPress={handleOpenUPIApp}
+              onPress={() => handleOpenUPIApp(app.name)}
               >
                 <View style={[styles.appIconBox, { backgroundColor: app.iconBg, borderColor: app.border }]}>
                   <Text style={{

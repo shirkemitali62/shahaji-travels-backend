@@ -511,8 +511,9 @@ const OTP_LENGTH = 6;
 const OtpVerifyModal = ({
   visible, phone, otpValue, setOtpValue,
   otpVerifying, otpSending, otpResendTimer,
-  onVerify, onResend, onCancel,
+  onVerify, onResend, onCancel, t,
 }) => {
+
   const inputRefs = useRef([]);
   const [boxes, setBoxes] = useState(Array(OTP_LENGTH).fill(""));
 
@@ -551,9 +552,10 @@ const OtpVerifyModal = ({
         <View style={otpSt.sheet}>
           <View style={otpSt.handle} />
           <View style={otpSt.iconWrap}><Text style={{fontSize:36}}>🔐</Text></View>
-          <Text style={otpSt.title}>OTP Verification</Text>
+        <Text style={otpSt.title}>{t?.otpVerification||"OTP Verification"}</Text>
           <Text style={otpSt.sub}>
-            {`${masked} वर OTP पाठवला आहे.\nBooking confirm करण्यासाठी OTP enter करा.`}
+           {t?.otpSentTo||`${masked} वर OTP पाठवला आहे.\nBooking confirm करण्यासाठी OTP enter करा.`}
+
           </Text>
           <View style={otpSt.boxRow}>
             {boxes.map((val, idx) => (
@@ -580,20 +582,21 @@ const OtpVerifyModal = ({
           >
             {otpVerifying
               ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={otpSt.verifyBtnTxt}>✓ OTP Verify करा</Text>}
+              : <Text style={otpSt.verifyBtnTxt}>{t?.verifyOtpBtn||"✓ OTP Verify करा"}</Text>
+}
           </TouchableOpacity>
           <View style={otpSt.resendRow}>
             {otpSending ? <ActivityIndicator size="small" color="#C0392B" /> :
              otpResendTimer > 0
-              ? <Text style={otpSt.timerTxt}>Resend OTP {otpResendTimer}s मध्ये</Text>
+              ?<Text style={otpSt.timerTxt}>{t?.resendIn||"Resend OTP"} {otpResendTimer}s</Text>
               : <TouchableOpacity onPress={onResend}>
-                  <Text style={otpSt.resendTxt}>OTP मिळाला नाही? Resend करा</Text>
+                  <Text style={otpSt.resendTxt}>{t?.resendNotReceived||"OTP मिळाला नाही? Resend करा"}</Text>
                 </TouchableOpacity>}
           </View>
           <TouchableOpacity style={otpSt.cancelBtn} onPress={onCancel}>
-            <Text style={otpSt.cancelTxt}>रद्द करा</Text>
+            <Text style={otpSt.cancelTxt}>{t?.cancelOtp||"रद्द करा"}</Text>
           </TouchableOpacity>
-          <Text style={otpSt.note}>🔒 Firebase द्वारे सुरक्षित OTP</Text>
+          
         </View>
       </View>
     </Modal>
@@ -864,8 +867,8 @@ const res = await fetch(
         padding: 20, borderBottomWidth: 0.5, borderBottomColor: "#F0F0F0",
       }}>
         <Text style={{ fontSize: 18, fontWeight: "700", color: "#1C1C1E" }}>
-          🔔 Notifications
-        </Text>
+  🔔 {t.notifications||"Notifications"}
+</Text>
         <TouchableOpacity
           onPress={() => setShowNotifModal(false)}
           style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: "#F2F2F7", justifyContent: "center", alignItems: "center" }}
@@ -879,10 +882,10 @@ const res = await fetch(
         {appNotifications.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 40 }}>
             <Text style={{ fontSize: 40, marginBottom: 12 }}>🔔</Text>
-            <Text style={{ fontSize: 14, color: "#888", fontWeight: "600" }}>No notifications yet</Text>
-            <Text style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
-              We'll notify you about offers and updates
-            </Text>
+           <Text style={{ fontSize: 14, color: "#888", fontWeight: "600" }}>{t.noNotificationsYet||"No notifications yet"}</Text>
+<Text style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
+  {t.notificationsSubtext||"We'll notify you about offers and updates"}
+</Text>
           </View>
         ) : (
           appNotifications.map((notif, i) => {
@@ -1605,7 +1608,7 @@ const GenderPickerModal = ({ visible, seatId, onSelect, onCancel, t }) => {
 };
 
 // ── ConfirmBookingModal — replace the whole component function ──
-const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getFinalAmount, paymentMethod, selectedBus, passengerInfo, selectedBoarding, selectedDropping, search, seatGenderMap }) => {
+const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getFinalAmount, paymentMethod, selectedBus, passengerInfo, selectedBoarding, selectedDropping, search, seatGenderMap, t }) => {
   if (!visible) return null;
   const payIcon = paymentMethod === "Cash" ? "💵" : paymentMethod === "UPI" ? "📱" : "💳";
   const totalAmt = getFinalAmount();
@@ -1627,19 +1630,19 @@ const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getF
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 16 }}>
         <View style={{ backgroundColor: "#fff", borderRadius: 24, width: "100%", maxWidth: 420, overflow: "hidden", maxHeight: "92%" }}>
 
-          {/* ── Header ── */}
+         {/* ── Header ── */}
           <View style={{ backgroundColor: C.red, paddingTop: 28, paddingBottom: 24, paddingHorizontal: 24, alignItems: "center" }}>
             <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center", marginBottom: 12 }}>
               <Text style={{ fontSize: 26 }}>🎫</Text>
             </View>
-            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700", letterSpacing: 0.3 }}>Confirm Booking</Text>
-            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 4 }}>Review your details before confirming</Text>
+            <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700", letterSpacing: 0.3 }}>{t?.confirmBooking||"Confirm Booking"}</Text>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 4 }}>{t?.confirmBookingSubtitle||"Review your details before confirming"}</Text>
           </View>
-
+ 
           {/* ── Route strip ── */}
           <View style={{ backgroundColor: "#FFF5F5", paddingHorizontal: 24, paddingVertical: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#FFE8E8" }}>
             <View>
-              <Text style={{ fontSize: 10, color: C.red, fontWeight: "700", letterSpacing: 1, marginBottom: 3 }}>FROM</Text>
+              <Text style={{ fontSize: 10, color: C.red, fontWeight: "700", letterSpacing: 1, marginBottom: 3 }}>{t?.fromLabel||"FROM"}</Text>
               <Text style={{ fontSize: 22, fontWeight: "700", color: "#1C1C1E" }}>{search?.from}</Text>
             </View>
             <View style={{ alignItems: "center" }}>
@@ -1651,68 +1654,67 @@ const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getF
               </View>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={{ fontSize: 10, color: C.red, fontWeight: "700", letterSpacing: 1, marginBottom: 3 }}>TO</Text>
+              <Text style={{ fontSize: 10, color: C.red, fontWeight: "700", letterSpacing: 1, marginBottom: 3 }}>{t?.toLabel||"TO"}</Text>
               <Text style={{ fontSize: 22, fontWeight: "700", color: "#1C1C1E" }}>{search?.to}</Text>
             </View>
           </View>
-
+ 
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
-
+ 
             {/* ── Info tiles grid ── */}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
-              <InfoTile icon="📅" label="Date"       value={search?.date} />
-              <InfoTile icon="💺" label="Seats"      value={selectedSeats?.join(", ")} />
-              <InfoTile icon="👤" label="Passenger"  value={passengerInfo?.name} />
-              <InfoTile icon="📞" label="Phone"      value={passengerInfo?.phone} />
-              <InfoTile icon="🟢" label="Boarding"   value={selectedBoarding?.name} />
-              <InfoTile icon="🔴" label="Dropping"   value={selectedDropping?.name} />
-              <InfoTile icon="🚌" label="Bus"        value={selectedBus?.name} />
-              <InfoTile icon="🕐" label="Departure"  value={selectedBus?.departure || "--:--"} />
+              <InfoTile icon="📅" label={t?.date||"Date"}              value={search?.date} />
+              <InfoTile icon="💺" label={t?.seatLabel||"Seats"}        value={selectedSeats?.join(", ")} />
+              <InfoTile icon="👤" label={t?.passenger||"Passenger"}    value={passengerInfo?.name} />
+              <InfoTile icon="📞" label={t?.phoneLabel||"Phone"}       value={passengerInfo?.phone} />
+              <InfoTile icon="🟢" label={t?.boardingLabel||"Boarding"} value={selectedBoarding?.name} />
+              <InfoTile icon="🔴" label={t?.droppingLabel||"Dropping"} value={selectedDropping?.name} />
+              <InfoTile icon="🚌" label={t?.busLabel||"Bus"}           value={selectedBus?.name} />
+              <InfoTile icon="🕐" label={t?.departure||"Departure"}    value={selectedBus?.departure || "--:--"} />
             </View>
-
+ 
             {/* ── Payment method pill ── */}
             <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F8F8F8", borderRadius: 12, borderWidth: 1, borderColor: "#EFEFEF", padding: 14, marginTop: 4, gap: 10 }}>
               <Text style={{ fontSize: 20 }}>{payIcon}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, color: "#999", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }}>Payment</Text>
+                <Text style={{ fontSize: 10, color: "#999", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }}>{t?.payment||"Payment"}</Text>
                 <Text style={{ fontSize: 13, fontWeight: "700", color: "#1C1C1E", marginTop: 2 }}>{paymentMethod}</Text>
               </View>
               <View style={{ backgroundColor: "#E8F5E9", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: "700", color: "#2E7D32" }}>● Confirmed</Text>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: "#2E7D32" }}>● {t?.confirm||"Confirmed"}</Text>
               </View>
             </View>
-
+ 
             {/* ── Amount box ── */}
             <View style={{ marginTop: 12, backgroundColor: "#FFF5F5", borderRadius: 14, borderWidth: 1.5, borderColor: "#FFD0D0", padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <View>
-                <Text style={{ fontSize: 11, color: "#999", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }}>Total Amount</Text>
+                <Text style={{ fontSize: 11, color: "#999", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 }}>{t?.totalAmount||"Total Amount"}</Text>
                 <Text style={{ fontSize: 12, color: "#888", marginTop: 3 }}>{selectedSeats?.length} seat{selectedSeats?.length > 1 ? "s" : ""} · {paymentMethod}</Text>
               </View>
               <Text style={{ fontSize: 32, fontWeight: "700", color: C.red }}>₹{totalAmt}</Text>
             </View>
-
+ 
           </ScrollView>
-
+ 
           {/* ── Buttons ── */}
           <View style={{ flexDirection: "row", gap: 10, padding: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F5F5F5" }}>
             <TouchableOpacity
               style={{ flex: 1, borderWidth: 1.5, borderColor: "#E0E0E0", borderRadius: 14, paddingVertical: 15, alignItems: "center", backgroundColor: "#fff" }}
               onPress={onCancel} activeOpacity={0.8}>
-              <Text style={{ color: "#555", fontWeight: "600", fontSize: 14 }}>Cancel</Text>
+              <Text style={{ color: "#555", fontWeight: "600", fontSize: 14 }}>{t?.cancel||"Cancel"}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{ flex: 2, backgroundColor: C.red, borderRadius: 14, paddingVertical: 15, alignItems: "center" }}
               onPress={onConfirm} activeOpacity={0.85}>
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 }}>Confirm Booking ✓</Text>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 }}>{t?.confirmBtn||"Confirm Booking ✓"}</Text>
             </TouchableOpacity>
           </View>
-
+ 
         </View>
       </View>
     </Modal>
   );
 };
-
 
 
 const gp = StyleSheet.create({
@@ -1858,7 +1860,7 @@ const Seat = ({ id, booked, selected, blocked, female, onPress, price, isSleeper
 const { height } = Dimensions.get("window");
 const DESIGN_HEIGHT = 820; // thoda adjust karu shakto
 const scale = 1;
-const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onToggle, seatPrice, sleeperPrice, isSleeper, seatGenderMap, blockedSeats = [] }) => (
+const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onToggle, seatPrice, sleeperPrice, isSleeper, seatGenderMap, blockedSeats = [], t }) => (
   <View style={{ flex: 1, overflow: "visible" }}>
     <View style={{ transform: [{ scale: 1 }], alignSelf: "center" }}>
       <View style={deckSt.wrap}>
@@ -1871,7 +1873,8 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           </View>
         </View>
         <View style={{ backgroundColor: "#2C3E50", paddingHorizontal: 10, paddingVertical: 4, alignItems: "flex-end" }}>
-          <Text style={{ color: "white", fontSize: 9, fontWeight: "700" }}>DRIVER →</Text>
+         <Text style={{ color: "white", fontSize: 9, fontWeight: "700" }}>{t?.driver||"DRIVER →"}</Text>
+
         </View>
         <View style={{ flexDirection: "row", paddingHorizontal: 10, paddingTop: 6, paddingBottom: 2 }}>
           <View style={{ width: 44, alignItems: "center" }}>
@@ -1952,11 +1955,11 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           borderTopWidth: 0.5, borderTopColor: "#F0F0F0", backgroundColor: "#FAFAFA",
         }}>
           {[
-            { bg: "#FFFFFF", border: "#CCC", label: "Available" },
-            { bg: "#27AE60", border: "transparent", label: "Selected" },
-            { bg: "#F39C12", border: "transparent", label: "Booked (M)" },
-            { bg: "#9B59B6", border: "transparent", label: "Booked (F)" },
-            { bg: "#E0E0E0", border: "#9E9E9E", label: "Blocked" },
+            { bg: "#FFFFFF", border: "#CCC", label: t?.available||"Available" },
+{ bg: "#27AE60", border: "transparent", label: t?.selected2||"Selected" },
+{ bg: "#F39C12", border: "transparent", label: t?.bookedMale||"Booked (M)" },
+{ bg: "#9B59B6", border: "transparent", label: t?.bookedFemale||"Booked (F)" },
+{ bg: "#E0E0E0", border: "#9E9E9E", label: t?.blocked||"Blocked" },
           ].map(item => (
             <View key={item.label} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <View style={{
@@ -1974,7 +1977,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
 const SleeperDeckSection = ({
   leftLower, leftUpper, rightLower, rightUpper,
   bookedSeats, selectedSeats, onToggle,
-  seatPrice, seatGenderMap, blockedSeats = [],
+  seatPrice, seatGenderMap, blockedSeats = [], t,
 }) => {
 
   // ── Dynamic sizing ──────────────────────────────────────────
@@ -2105,8 +2108,8 @@ const isSelected = selectedSeats.includes(String(id));
         borderBottomColor: "#E0E0E0",
       }}>
         <Text style={{ fontSize: 13, fontWeight: "700", color: "#2C3E50" }}>
-          🛏 AC Sleeper
-        </Text>
+  🛏 {t?.acSleeper||"AC Sleeper"}
+</Text>
         <View style={{
           backgroundColor:   "#EAFAF1",
           borderRadius:      20,
@@ -2143,8 +2146,8 @@ const isSelected = selectedSeats.includes(String(id));
           borderBottomColor: "#FFE082",
         }}>
           <Text style={{ fontSize: 11, fontWeight: "700", color: "#E65100" }}>
-            ₹{seatPrice} / seat
-          </Text>
+  ₹{seatPrice} {t?.perSeatLabel||"/ seat"}
+</Text>
         </View>
       )}
 
@@ -2963,19 +2966,19 @@ console.log("🎫 Gender map:", bGenderMap);
   }
 };
 
-  const SeatInfoModal = ({ visible, onClose }) => (
+  const SeatInfoModal = ({ visible, onClose ,t}) => (
     <Modal visible={visible} transparent animationType="slide">
       <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.5)", justifyContent:"flex-end" }}>
         <View style={{ backgroundColor:"white", borderRadius:16, padding:20, margin:12 }}>
-          <Text style={{ fontSize:18, fontWeight:"700", marginBottom:16 }}>Seat Guide</Text>
+         <Text style={{ fontSize:18, fontWeight:"700", marginBottom:16 }}>{t?.seatGuide||"Seat Guide"}</Text>
           {[
-            { icon:"💺", color:"#FFFFFF", border:"#ddd",    label:"Available (Seater)" },
-            { icon:"🛏️", color:"#FFFFFF", border:"#ddd",    label:"Available (Sleeper)" },
-            { icon:"💺", color:"#4CAF50", border:"#388E3C", label:"Selected (Seater)" },
-            { icon:"🛏️", color:"#4CAF50", border:"#388E3C", label:"Selected (Sleeper)" },
-            { icon:"💺", color:"#F39C12", border:"#F39C12", label:"Male Booked" },
-            { icon:"🛏️", color:"#7B1FA2", border:"#4A148C", label:"Female Booked" },
-            { icon:"💺", color:"#9E9E9E", border:"#616161", label:"Blocked" },
+           { icon:"💺", color:"#FFFFFF", border:"#ddd",    label:t?.seatInfoAvailable||"Available (Seater)" },
+{ icon:"🛏️", color:"#FFFFFF", border:"#ddd",    label:t?.available||"Available (Sleeper)" },
+{ icon:"💺", color:"#4CAF50", border:"#388E3C", label:t?.seatInfoSelectedSeater||"Selected (Seater)" },
+{ icon:"🛏️", color:"#4CAF50", border:"#388E3C", label:t?.seatInfoSelectedSleeper||"Selected (Sleeper)" },
+{ icon:"💺", color:"#F39C12", border:"#F39C12", label:t?.seatInfoMaleBooked||"Male Booked" },
+{ icon:"🛏️", color:"#7B1FA2", border:"#4A148C", label:t?.seatInfoFemaleBooked||"Female Booked" },
+{ icon:"💺", color:"#9E9E9E", border:"#616161", label:t?.seatInfoBlocked||"Blocked" },
           ].map(item => (
             <View key={item.label} style={{ flexDirection:"row", alignItems:"center", marginBottom:12 }}>
               <View style={{ width:44, height:44, borderRadius:8, backgroundColor:item.color, borderWidth:1.5, borderColor:item.border, alignItems:"center", justifyContent:"center", marginRight:14 }}>
@@ -2985,7 +2988,7 @@ console.log("🎫 Gender map:", bGenderMap);
             </View>
           ))}
           <TouchableOpacity style={{ backgroundColor:"#C0392B", borderRadius:10, padding:14, alignItems:"center", marginTop:8 }} onPress={onClose}>
-            <Text style={{ color:"white", fontWeight:"700", fontSize:15 }}>Got it!</Text>
+           <Text style={{ color:"white", fontWeight:"700", fontSize:15 }}>{t?.seatGuideGotIt||"Got it!"}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -3579,13 +3582,14 @@ const API_BASE = Platform.OS === "web"
         </View>
         <Text style={s.splashTitle}>SHAHAJI</Text>
         <Text style={s.splashTitleSub}>TRAVELS</Text>
-        <Text style={s.splashSub}>Your Journey Begins Here</Text>
+       <Text style={s.splashSub}>{t?.safeComfortable||"Your Journey Begins Here"}</Text>
       </View>
       <View style={s.splashDots}>
         <ActivityIndicator color="rgba(255,255,255,0.8)" size="small"/>
       </View>
       <View style={{ position:"absolute", bottom:25, width:"100%", alignItems:"center", paddingHorizontal:20 }}>
-        <Text style={{ color:"#fff", fontSize:15, fontWeight:"bold", textAlign:"center" }}>Developed by Digambar Barge</Text>
+       <Text style={{ color:"#fff", fontSize:15, fontWeight:"bold", textAlign:"center" }}>{t?.developedBy||"Developed by Mr. Digambar Barge"}</Text>
+
         <Text style={{ color:"#fff", fontSize:13, fontWeight:"bold", opacity:0.9, marginTop:2 }}>digubarge123@gmail.com</Text>
         <Text style={{ color:"#fff", fontSize:13, fontWeight:"bold", opacity:0.9 }}>9021694503</Text>
       </View>
@@ -3930,28 +3934,21 @@ if (screen === "home") {
 ListEmptyComponent={
   <View style={{ alignItems: "center", marginTop: 80, paddingHorizontal: 24 }}>
     <Text style={{ fontSize: 56, marginBottom: 12 }}>🚌</Text>
-    <Text style={{
-      fontSize: 18, fontWeight: "700", color: "#1C1C1E",
-      textAlign: "center", marginBottom: 8,
-    }}>
-      Bus Not Found
-    </Text>
-    <Text style={{
-      fontSize: 13, color: "#8E8E93", textAlign: "center", lineHeight: 20,
-    }}>
-      {`No buses available from\n${search.from} → ${search.to}\non ${search.date}`}
-    </Text>
-    <TouchableOpacity
-      style={{
-        marginTop: 20, backgroundColor: "#C0392B", borderRadius: 12,
-        paddingHorizontal: 24, paddingVertical: 12,
-      }}
-      onPress={() => setScreen("home")}
-    >
-      <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
-        ← Change Date / Route
-      </Text>
-    </TouchableOpacity>
+    <Text style={{ fontSize: 18, fontWeight: "700", color: "#1C1C1E", textAlign: "center", marginBottom: 8 }}>
+  {t.busNotFound||"Bus Not Found"}
+</Text>
+<Text style={{ fontSize: 13, color: "#8E8E93", textAlign: "center", lineHeight: 20 }}>
+  {`${t.noBuses||"No buses available"}\n${search.from} → ${search.to}\n${search.date}`}
+</Text>
+<TouchableOpacity
+  style={{ marginTop: 20, backgroundColor: "#C0392B", borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}
+  onPress={() => setScreen("home")}
+>
+  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
+    {t.changeRoute||"← Change Date / Route"}
+  </Text>
+</TouchableOpacity>
+
   </View>
 }
          renderItem={({item:bus})=>(
@@ -4097,7 +4094,8 @@ ListEmptyComponent={
   otpVerifying={otpVerifying}
   otpSending={otpSending}
   otpResendTimer={otpResendTimer}
-onVerify={async () => {
+  t={t}
+  onVerify={async () => {
   if (!otpValue || otpValue.length < 6)
     return showAlert("OTP Error", "6 अंकी OTP enter करा.");
   setOtpVerifying(true);
@@ -4232,18 +4230,16 @@ onVerify={async () => {
         />
  
  
-        <ConfirmBookingModal
-          visible={showConfirmModal}
-          onCancel={()=>setShowConfirmModal(false)}
-          onConfirm={() => {
-  setShowConfirmModal(false);
-  doBooking();
-}}
-          selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
-          paymentMethod={paymentMethod} selectedBus={selectedBus}
-          passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}
-          selectedDropping={selectedDropping} search={search} seatGenderMap={seatGenderMap}
-        />
+      <ConfirmBookingModal
+  visible={showConfirmModal}
+  onCancel={()=>setShowConfirmModal(false)}
+  onConfirm={() => { setShowConfirmModal(false); doBooking(); }}
+  selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
+  paymentMethod={paymentMethod} selectedBus={selectedBus}
+  passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}
+  selectedDropping={selectedDropping} search={search} seatGenderMap={seatGenderMap}
+  t={t}
+/>
         <SectionHeader title={selectedBus?.name||"Book Ticket"}
           subtitle={`${search.from} → ${search.to} · ${search.date}`} onBack={()=>setScreen("buslist")}/>
         <View style={s.bookingTimeStrip}>
@@ -4284,9 +4280,9 @@ onVerify={async () => {
                <View style={{ flexDirection:"row", paddingHorizontal:10, paddingVertical:8, gap:10, alignItems:"flex-start" }}>
                 <View style={{flex:1,minWidth:0}}>
                 
-<DeckSection
-  title="Lower Deck"
+<DeckSection title={t.lowerBerth||"Lower Deck"}
   isSleeper={false}
+  t={t}
   seatPrice={Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0}
   sleeperPrice={Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0}
   availCount={LOWER_SEATS.flat().filter(id =>
@@ -4306,7 +4302,9 @@ onVerify={async () => {
 
                 </View>
                 <View style={{flex:1,minWidth:0}}>
-                  <DeckSection title="Upper Deck (Sleeper)" isSleeper={true}
+                 <DeckSection title={t.upperBerth||"Upper Deck (Sleeper)"} isSleeper={true} t={t}
+
+
                     seatPrice={Number(selectedBus?.seaterPrice)||Number(selectedBus?.price)||0}
                     sleeperPrice={Number(selectedBus?.sleeperPrice)||Number(selectedBus?.price)||0}
                     availCount={UPPER_SEATS.flat().filter(id=>id&&id!==""&&!bookedSeats.includes(id)&&!selectedSeats.includes(id)).length}
@@ -4388,7 +4386,8 @@ onVerify={async () => {
       <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.55)",justifyContent:"flex-end"}}>
         <View style={{backgroundColor:"#fff",borderTopLeftRadius:24,borderTopRightRadius:24,paddingBottom:36}}>
           <View style={{backgroundColor:C.red,borderTopLeftRadius:24,borderTopRightRadius:24,padding:18,flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
-            <Text style={{color:"#fff",fontSize:16,fontWeight:"700"}}>{"🚌 Trip Details"}</Text>
+           <Text style={{color:"#fff",fontSize:16,fontWeight:"700"}}>{"🚌 "}{t.tripDetails||"Trip Details"}</Text>
+
             <TouchableOpacity onPress={()=>setTripDetailsVisible(false)} style={{width:30,height:30,borderRadius:15,backgroundColor:"rgba(255,255,255,0.2)",justifyContent:"center",alignItems:"center"}}>
               <Text style={{color:"#fff",fontWeight:"700",fontSize:16}}>{"✕"}</Text>
             </TouchableOpacity>
@@ -4396,37 +4395,38 @@ onVerify={async () => {
           <ScrollView contentContainerStyle={{padding:18}}>
             <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",backgroundColor:"#FFF5F5",borderRadius:14,padding:16,marginBottom:12,borderWidth:1,borderColor:"#FFE0E0"}}>
               <View>
-                <Text style={{fontSize:10,color:C.red,fontWeight:"700",letterSpacing:1}}>{"FROM"}</Text>
+                <Text style={{fontSize:10,color:C.red,fontWeight:"700",letterSpacing:1}}>{t.fromLabel||"FROM"}</Text>
                 <Text style={{fontSize:22,fontWeight:"800",color:"#1C1C1E",marginTop:2}}>{search?.from}</Text>
                 <Text style={{fontSize:11,color:"#888",marginTop:2}}>{selectedBoarding?.name||"—"}</Text>
               </View>
               <Text style={{fontSize:24}}>{"→"}</Text>
               <View style={{alignItems:"flex-end"}}>
-                <Text style={{fontSize:10,color:C.red,fontWeight:"700",letterSpacing:1}}>{"TO"}</Text>
+               <Text style={{fontSize:10,color:C.red,fontWeight:"700",letterSpacing:1}}>{t.toLabel||"TO"}</Text>
+
                 <Text style={{fontSize:22,fontWeight:"800",color:"#1C1C1E",marginTop:2}}>{search?.to}</Text>
                 <Text style={{fontSize:11,color:"#888",marginTop:2}}>{selectedDropping?.name||"—"}</Text>
               </View>
             </View>
             <View style={{flexDirection:"row",gap:10,marginBottom:12}}>
               <View style={{flex:1,backgroundColor:"#F2F2F7",borderRadius:12,padding:14}}>
-                <Text style={{fontSize:10,color:"#888",fontWeight:"600"}}>{"DEPARTURE"}</Text>
+                <Text style={{fontSize:10,color:"#888",fontWeight:"600"}}>{t.departureLabel||"DEPARTURE"}</Text>
                 <Text style={{fontSize:22,fontWeight:"800",color:"#1C1C1E",marginTop:4}}>{selectedBus?.departure||"--:--"}</Text>
                 <Text style={{fontSize:11,color:"#888",marginTop:2}}>{search?.date}</Text>
               </View>
               <View style={{flex:1,backgroundColor:"#F2F2F7",borderRadius:12,padding:14,alignItems:"flex-end"}}>
-                <Text style={{fontSize:10,color:"#888",fontWeight:"600"}}>{"ARRIVAL"}</Text>
+                <Text style={{fontSize:10,color:"#888",fontWeight:"600"}}>{t.arrivalLabel||"ARRIVAL"}</Text>
                 <Text style={{fontSize:22,fontWeight:"800",color:"#1C1C1E",marginTop:4}}>{selectedBus?.arrival||"--:--"}</Text>
                 <Text style={{fontSize:11,color:"#888",marginTop:2}}>{search?.date}</Text>
               </View>
             </View>
             {[
-              ["🚌 Bus Name",   selectedBus?.name||"—"],
-              ["🏷 Bus Type",   selectedBus?.type||"—"],
-              ["🔢 Bus Number", selectedBus?.number||selectedBus?.busNumber||selectedBus?.numberPlate||"—"],
-             
-              ["💺 Seats",      selectedSeats?.join(", ")||"—"],
-              ["💰 Total Fare", "₹"+getFinalAmount()],
-              ["💳 Payment",    paymentMethod||"—"],
+              [`🚌 ${t.busName||"Bus Name"}`,   selectedBus?.name||"—"],
+[`🏷 ${t.busType||"Bus Type"}`,   selectedBus?.type||"—"],
+[`🔢 ${t.busNumber||"Bus Number"}`, selectedBus?.number||selectedBus?.busNumber||selectedBus?.numberPlate||"—"],
+[`💺 ${t.seatLabel||"Seats"}`,    selectedSeats?.join(", ")||"—"],
+[`💰 ${t.totalFareLabel||"Total Fare"}`, "₹"+getFinalAmount()],
+[`💳 ${t.paymentLabel||"Payment"}`, paymentMethod||"—"],
+
             ].map(([label,value])=>(
               <View key={label} style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",paddingVertical:11,borderBottomWidth:0.5,borderBottomColor:"#F0F0F0"}}>
                 <Text style={{fontSize:13,color:"#666"}}>{label}</Text>
@@ -4435,165 +4435,522 @@ onVerify={async () => {
             ))}
           </ScrollView>
           <TouchableOpacity style={{backgroundColor:C.red,borderRadius:14,margin:16,paddingVertical:15,alignItems:"center"}} onPress={()=>setTripDetailsVisible(false)}>
-            <Text style={{color:"#fff",fontWeight:"700",fontSize:15}}>{"Close"}</Text>
+           <Text style={{color:"#fff",fontWeight:"700",fontSize:15}}>{t.close||"Close"}</Text>
+
           </TouchableOpacity>
         </View>
       </View>
     </Modal>
 
     {/* ── Edit Contact Modal ── */}
-    <Modal visible={editContactVisible} transparent animationType="slide">
-      <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":undefined} style={{flex:1}}>
-        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.55)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#fff",borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:40}}>
-            <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <Text style={{fontSize:18,fontWeight:"700",color:"#1C1C1E"}}>{"✏️ Edit Contact"}</Text>
-              <TouchableOpacity onPress={()=>setEditContactVisible(false)}>
-                <Text style={{color:"#888",fontSize:16}}>{"✕"}</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={{fontSize:12,fontWeight:"600",color:"#888",marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>{"Mobile Number"}</Text>
-            <View style={{flexDirection:"row",borderWidth:1.5,borderColor:"#E0E0E0",borderRadius:12,marginBottom:16,overflow:"hidden"}}>
-              <View style={{backgroundColor:"#F5F5F5",paddingHorizontal:12,justifyContent:"center"}}>
-                <Text style={{fontSize:14,color:"#555",fontWeight:"600"}}>{"+"+"91"}</Text>
-              </View>
-              <TextInput
-                style={{flex:1,paddingHorizontal:14,paddingVertical:13,fontSize:15,color:"#1C1C1E"}}
-                value={passengerInfo.phone||""}
-                onChangeText={v=>setPassengerInfo(p=>({...p,phone:v.replace(/\D/g,"").slice(0,10)}))}
-                keyboardType="phone-pad"
-                maxLength={10}
-                placeholder="10-digit number"
-                placeholderTextColor="#aaa"
-              />
-            </View>
-            <Text style={{fontSize:12,fontWeight:"600",color:"#888",marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>{"Email Address"}</Text>
-            <TextInput
-              style={{borderWidth:1.5,borderColor:"#E0E0E0",borderRadius:12,paddingHorizontal:14,paddingVertical:13,fontSize:15,color:"#1C1C1E",marginBottom:24}}
-              value={passengerInfo.email||""}
-              onChangeText={v=>setPassengerInfo(p=>({...p,email:v}))}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="you@email.com"
-              placeholderTextColor="#aaa"
-            />
-            <TouchableOpacity
-              style={{backgroundColor:C.red,borderRadius:14,paddingVertical:16,alignItems:"center"}}
-              onPress={()=>setEditContactVisible(false)}
-            >
-              <Text style={{color:"#fff",fontWeight:"700",fontSize:15}}>{"Save Changes ✓"}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+   <Modal visible={editContactVisible} transparent animationType="slide">
+  <KeyboardAvoidingView
+    behavior={Platform.OS === "ios" ? "padding" : undefined}
+    style={{ flex: 1 }}
+  >
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.55)",
+        justifyContent: "flex-end",
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          padding: 24,
+          paddingBottom: 40,
+        }}
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#1C1C1E",
+            }}
+          >
+            {"✏️ "}
+            {t.editContact || "Edit Contact"}
+          </Text>
 
-    {/* ── Add Passenger Modal ── */}
-    <Modal visible={addPassengerVisible} transparent animationType="slide">
-      <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":undefined} style={{flex:1}}>
-        <View style={{flex:1,backgroundColor:"rgba(0,0,0,0.55)",justifyContent:"flex-end"}}>
-          <View style={{backgroundColor:"#fff",borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:40}}>
-            <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <Text style={{fontSize:18,fontWeight:"700",color:"#1C1C1E"}}>{"👤 Add Passenger"}</Text>
-              <TouchableOpacity onPress={()=>setAddPassengerVisible(false)}>
-                <Text style={{color:"#888",fontSize:16}}>{"✕"}</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={{fontSize:12,color:"#888",marginBottom:20}}>
-              {"Seat: "}
-              <Text style={{color:C.red,fontWeight:"700"}}>{selectedSeats?.[passengers.length]||"—"}</Text>
-            </Text>
-            <Text style={{fontSize:12,fontWeight:"600",color:"#888",marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>{"Full Name *"}</Text>
-            <TextInput
-              style={{borderWidth:1.5,borderColor:"#E0E0E0",borderRadius:12,paddingHorizontal:14,paddingVertical:13,fontSize:15,color:"#1C1C1E",marginBottom:16}}
-              value={newPassForm.name}
-              onChangeText={v=>setNewPassForm(p=>({...p,name:v}))}
-              placeholder="Passenger full name"
-              placeholderTextColor="#aaa"
-            />
-            <View style={{flexDirection:"row",gap:12,marginBottom:20}}>
-              <View style={{flex:1}}>
-                <Text style={{fontSize:12,fontWeight:"600",color:"#888",marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>{"Age *"}</Text>
-                <TextInput
-                  style={{borderWidth:1.5,borderColor:"#E0E0E0",borderRadius:12,paddingHorizontal:14,paddingVertical:13,fontSize:15,color:"#1C1C1E",textAlign:"center"}}
-                  value={newPassForm.age}
-                  onChangeText={v=>setNewPassForm(p=>({...p,age:v.replace(/\D/g,"")}))}
-                  keyboardType="numeric"
-                  maxLength={3}
-                  placeholder="Age"
-                  placeholderTextColor="#aaa"
-                />
-              </View>
-              {/* Phone input in passenger section */}
-                <View style={{marginTop:8,borderWidth:0.5,borderColor:
-                  overridePhones.includes(currentPhone) ? "#22c55e" : "#eee",
-                  borderRadius:6,overflow:"hidden"}}>
-                  <TextInput
-                    style={{fontSize:12,color:"#1C1C1E",padding:6,backgroundColor:
-                      overridePhones.includes(currentPhone) ? "#EAFAF1" : "#fff"}}
-                    placeholder="Phone number *"
-                    value={passengerInfo.phone||""}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    onChangeText={v=>{
-                      const cleaned = v.replace(/\D/g,"").slice(0,10);
-                      setPassengerInfo(p=>({...p,phone:cleaned}));
-                      if (cleaned.length === 10) {
-                        const overrides = (cashSettings.cashOverridePhones||[])
-                          .map(p=>String(p).replace(/\D/g,""));
-                        const isOverride = overrides.includes(cleaned);
-                        const globalCash = cashSettings.cashPaymentEnabled === true;
-                        if (isOverride || globalCash) setPaymentMethod("Cash");
-                        else if (paymentMethod === "Cash") setPaymentMethod("QR_UPI");
-                      }
-                    }}
-                    placeholderTextColor={C.textSub}
-                  />
-                </View>
-                {overridePhones.includes(currentPhone) && (
-                  <Text style={{fontSize:10,color:"#22c55e",marginTop:3,fontWeight:"600"}}>
-                    ✅ Cash payment available for this number
-                  </Text>
-                )}
-              <View style={{flex:2}}>
-                <Text style={{fontSize:12,fontWeight:"600",color:"#888",marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>{"Gender *"}</Text>
-                <View style={{flexDirection:"row",gap:6}}>
-                  {["Male","Female","Other"].map(g=>(
-                    <TouchableOpacity key={g}
-                      style={{flex:1,borderWidth:1.5,borderColor:newPassForm.gender===g?C.red:"#E0E0E0",borderRadius:10,paddingVertical:11,alignItems:"center",backgroundColor:newPassForm.gender===g?"#FFF5F5":"#fff"}}
-                      onPress={()=>setNewPassForm(p=>({...p,gender:g}))}>
-                      <Text style={{fontSize:11,fontWeight:"700",color:newPassForm.gender===g?C.red:"#888"}}>{g[0]}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-            <View style={{backgroundColor:"#F2F2F7",borderRadius:10,padding:12,flexDirection:"row",alignItems:"center",gap:8,marginBottom:20}}>
-              <Text style={{fontSize:16}}>{"💺"}</Text>
-              <Text style={{fontSize:13,color:"#555"}}>
-                {"Seat "}
-                <Text style={{fontWeight:"700",color:C.red}}>{selectedSeats?.[passengers.length]||"Auto"}</Text>
-                {" assign होईल"}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={{backgroundColor:C.red,borderRadius:14,paddingVertical:16,alignItems:"center"}}
-              onPress={()=>{
-                if(!newPassForm.name.trim()) return showAlert("Error","Passenger name enter kara.");
-                if(!newPassForm.age.trim()) return showAlert("Error","Age enter kara.");
-                setPassengers(prev=>[...prev,{...newPassForm,id:Date.now()}]);
-                if(passengers.length===0) setPassengerInfo(p=>({...p,name:newPassForm.name,age:newPassForm.age,gender:newPassForm.gender}));
-                setNewPassForm({name:"",age:"",gender:"Male"});
-                setAddPassengerVisible(false);
-                showAlert("✅ Added!",newPassForm.name+" added successfully.");
+          <TouchableOpacity onPress={() => setEditContactVisible(false)}>
+            <Text style={{ color: "#888", fontSize: 16 }}>{"✕"}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Mobile Label */}
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "600",
+            color: "#888",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          {t.mobileNumber2 || "Mobile Number"}
+        </Text>
+
+        {/* Mobile Input */}
+        <View
+          style={{
+            flexDirection: "row",
+            borderWidth: 1.5,
+            borderColor: "#E0E0E0",
+            borderRadius: 12,
+            marginBottom: 16,
+            overflow: "hidden",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#F5F5F5",
+              paddingHorizontal: 12,
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#555",
+                fontWeight: "600",
               }}
             >
-              <Text style={{color:"#fff",fontWeight:"700",fontSize:15}}>{"Add Passenger ✓"}</Text>
-            </TouchableOpacity>
+              +91
+            </Text>
+          </View>
+
+          <TextInput
+            style={{
+              flex: 1,
+              paddingHorizontal: 14,
+              paddingVertical: 13,
+              fontSize: 15,
+              color: "#1C1C1E",
+            }}
+            value={passengerInfo.phone || ""}
+            onChangeText={(v) =>
+              setPassengerInfo((p) => ({
+                ...p,
+                phone: v.replace(/\D/g, "").slice(0, 10),
+              }))
+            }
+            keyboardType="phone-pad"
+            maxLength={10}
+            placeholder="10-digit number"
+            placeholderTextColor="#aaa"
+          />
+        </View>
+
+        {/* Email Label */}
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "600",
+            color: "#888",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          {t.emailAddress || "Email Address"}
+        </Text>
+
+        {/* Email Input */}
+        <TextInput
+          style={{
+            borderWidth: 1.5,
+            borderColor: "#E0E0E0",
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 13,
+            fontSize: 15,
+            color: "#1C1C1E",
+            marginBottom: 24,
+          }}
+          value={passengerInfo.email || ""}
+          onChangeText={(v) =>
+            setPassengerInfo((p) => ({
+              ...p,
+              email: v,
+            }))
+          }
+          keyboardType="email-address"
+          autoCapitalize="none"
+          placeholder="you@email.com"
+          placeholderTextColor="#aaa"
+        />
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: C.red,
+            borderRadius: 14,
+            paddingVertical: 16,
+            alignItems: "center",
+          }}
+          onPress={() => setEditContactVisible(false)}
+        >
+          <Text
+            style={{
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: 15,
+            }}
+          >
+            {t.saveChanges || "Save Changes ✓"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </KeyboardAvoidingView>
+</Modal>
+
+    {/* ── Add Passenger Modal ── */}
+   <Modal visible={addPassengerVisible} transparent animationType="slide">
+  <KeyboardAvoidingView
+    behavior={Platform.OS === "ios" ? "padding" : undefined}
+    style={{ flex: 1 }}
+  >
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.55)",
+        justifyContent: "flex-end",
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          padding: 24,
+          paddingBottom: 40,
+        }}
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 6,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#1C1C1E",
+            }}
+          >
+            {"👤 "}
+            {t.addPassenger || "Add Passenger"}
+          </Text>
+
+          <TouchableOpacity onPress={() => setAddPassengerVisible(false)}>
+            <Text style={{ color: "#888", fontSize: 16 }}>{"✕"}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Seat */}
+        <Text style={{ fontSize: 12, color: "#888", marginBottom: 20 }}>
+          {t.seatLabel || "Seat"}:{" "}
+          <Text style={{ color: C.red, fontWeight: "700" }}>
+            {selectedSeats?.[passengers.length] || "—"}
+          </Text>
+        </Text>
+
+        {/* Full Name */}
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: "600",
+            color: "#888",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          {t.fullName || "Full Name *"}
+        </Text>
+
+        <TextInput
+          style={{
+            borderWidth: 1.5,
+            borderColor: "#E0E0E0",
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 13,
+            fontSize: 15,
+            color: "#1C1C1E",
+            marginBottom: 16,
+          }}
+          value={newPassForm.name}
+          onChangeText={(v) =>
+            setNewPassForm((p) => ({
+              ...p,
+              name: v,
+            }))
+          }
+          placeholder="Passenger full name"
+          placeholderTextColor="#aaa"
+        />
+
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
+          {/* Age */}
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                color: "#888",
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              {t.age || "Age"} *
+            </Text>
+
+            <TextInput
+              style={{
+                borderWidth: 1.5,
+                borderColor: "#E0E0E0",
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 13,
+                fontSize: 15,
+                color: "#1C1C1E",
+                textAlign: "center",
+              }}
+              value={newPassForm.age}
+              onChangeText={(v) =>
+                setNewPassForm((p) => ({
+                  ...p,
+                  age: v.replace(/\D/g, ""),
+                }))
+              }
+              keyboardType="numeric"
+              maxLength={3}
+              placeholder="Age"
+              placeholderTextColor="#aaa"
+            />
+          </View>
+
+          {/* Phone Input */}
+          <View
+            style={{
+              marginTop: 8,
+              borderWidth: 0.5,
+              borderColor: overridePhones.includes(currentPhone)
+                ? "#22c55e"
+                : "#eee",
+              borderRadius: 6,
+              overflow: "hidden",
+            }}
+          >
+            <TextInput
+              style={{
+                fontSize: 12,
+                color: "#1C1C1E",
+                padding: 6,
+                backgroundColor: overridePhones.includes(currentPhone)
+                  ? "#EAFAF1"
+                  : "#fff",
+              }}
+              placeholder="Phone number *"
+              value={passengerInfo.phone || ""}
+              keyboardType="phone-pad"
+              maxLength={10}
+              onChangeText={(v) => {
+                const cleaned = v.replace(/\D/g, "").slice(0, 10);
+
+                setPassengerInfo((p) => ({
+                  ...p,
+                  phone: cleaned,
+                }));
+
+                if (cleaned.length === 10) {
+                  const overrides = (
+                    cashSettings.cashOverridePhones || []
+                  ).map((p) => String(p).replace(/\D/g, ""));
+
+                  const isOverride = overrides.includes(cleaned);
+
+                  const globalCash =
+                    cashSettings.cashPaymentEnabled === true;
+
+                  if (isOverride || globalCash)
+                    setPaymentMethod("Cash");
+                  else if (paymentMethod === "Cash")
+                    setPaymentMethod("QR_UPI");
+                }
+              }}
+              placeholderTextColor={C.textSub}
+            />
+          </View>
+
+          {overridePhones.includes(currentPhone) && (
+            <Text
+              style={{
+                fontSize: 10,
+                color: "#22c55e",
+                marginTop: 3,
+                fontWeight: "600",
+              }}
+            >
+              ✅ Cash payment available for this number
+            </Text>
+          )}
+
+          {/* Gender */}
+          <View style={{ flex: 2 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                color: "#888",
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              {t.gender || "Gender"} *
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {["Male", "Female", "Other"].map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1.5,
+                    borderColor:
+                      newPassForm.gender === g ? C.red : "#E0E0E0",
+                    borderRadius: 10,
+                    paddingVertical: 11,
+                    alignItems: "center",
+                    backgroundColor:
+                      newPassForm.gender === g ? "#FFF5F5" : "#fff",
+                  }}
+                  onPress={() =>
+                    setNewPassForm((p) => ({
+                      ...p,
+                      gender: g,
+                    }))
+                  }
+                >
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color:
+                        newPassForm.gender === g ? C.red : "#888",
+                    }}
+                  >
+                    {g[0]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        {/* Seat Assign Note */}
+        <View
+          style={{
+            backgroundColor: "#F2F2F7",
+            borderRadius: 10,
+            padding: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ fontSize: 16 }}>{"💺"}</Text>
+
+          <Text style={{ fontSize: 13, color: "#555" }}>
+            {t.seatLabel || "Seat"}{" "}
+            <Text style={{ fontWeight: "700", color: C.red }}>
+              {selectedSeats?.[passengers.length] || "Auto"}
+            </Text>{" "}
+            {t.seatAssignNote || "assign होईल"}
+          </Text>
+        </View>
+
+        {/* Add Button */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: C.red,
+            borderRadius: 14,
+            paddingVertical: 16,
+            alignItems: "center",
+          }}
+          onPress={() => {
+            if (!newPassForm.name.trim())
+              return showAlert(
+                "Error",
+                "Passenger name enter kara."
+              );
+
+            if (!newPassForm.age.trim())
+              return showAlert("Error", "Age enter kara.");
+
+            setPassengers((prev) => [
+              ...prev,
+              { ...newPassForm, id: Date.now() },
+            ]);
+
+            if (passengers.length === 0)
+              setPassengerInfo((p) => ({
+                ...p,
+                name: newPassForm.name,
+                age: newPassForm.age,
+                gender: newPassForm.gender,
+              }));
+
+            setNewPassForm({
+              name: "",
+              age: "",
+              gender: "Male",
+            });
+
+            setAddPassengerVisible(false);
+
+            showAlert(
+              "✅ Added!",
+              newPassForm.name + " added successfully."
+            );
+          }}
+        >
+          <Text
+            style={{
+              color: "#fff",
+              fontWeight: "700",
+              fontSize: 15,
+            }}
+          >
+            {t.addPassenger || "Add Passenger"} ✓
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </KeyboardAvoidingView>
+</Modal>
 
     {/* ── Main Content ── */}
     <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":undefined} style={{flex:1}}>
@@ -4822,10 +5179,10 @@ onVerify={async () => {
     </View>
     <View>
       <Text style={{ fontSize: 16, fontWeight: "800", color: "#1A1A2E", letterSpacing: -0.3 }}>
-        Select Payment
+        {t.selectPayment||"Select Payment"}
       </Text>
       <Text style={{ fontSize: 11, color: "#8E8E93", marginTop: 1 }}>
-        256-bit SSL · PCI DSS Compliant
+        {t.sslNote||"256-bit SSL · PCI DSS Compliant"}
       </Text>
     </View>
   </View>
@@ -4867,19 +5224,19 @@ onVerify={async () => {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
             <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E" }}>
-              Scan & Pay
+              {t.scanAndPay||"Scan & Pay"}
             </Text>
             <View style={{
               backgroundColor: "#C0392B", borderRadius: 20,
               paddingHorizontal: 8, paddingVertical: 2,
             }}>
               <Text style={{ fontSize: 9, fontWeight: "800", color: "#fff", letterSpacing: 0.5 }}>
-                ★ RECOMMENDED
+                {t.recommended||"★ RECOMMENDED"}
               </Text>
             </View>
           </View>
           <Text style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>
-            No extra charges · Instant confirmation
+            {t.noExtraCharges||"No extra charges · Instant confirmation"}
           </Text>
           {/* UPI App logos row */}
           <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
@@ -4934,7 +5291,7 @@ onVerify={async () => {
         }}>
           <Text style={{ fontSize: 13 }}>💡</Text>
           <Text style={{ fontSize: 12, color: "#B03A2E", flex: 1, lineHeight: 17 }}>
-            Proceed केल्यावर QR screen येईल. Pay करून UTR टाका.
+            {t.proceedQRNote||"Proceed केल्यावर QR screen येईल. Pay करून UTR टाका."}
           </Text>
         </View>
       )}
@@ -4965,10 +5322,10 @@ onVerify={async () => {
       }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 18, fontWeight: "800", color: "#1A1A2E", letterSpacing: -0.4 }}>
-            UPI Payment
+            {t.upiPayment||"UPI Payment"}
           </Text>
           <Text style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-            Scan · Pay · Confirm
+            {t.scanPayConfirm||"Scan · Pay · Confirm"}
           </Text>
         </View>
         <TouchableOpacity
@@ -5013,7 +5370,7 @@ onVerify={async () => {
 
           <View>
             <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "700", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 4 }}>
-              Total to Pay
+              {t.totalToPay||"Total to Pay"}
             </Text>
             <Text style={{ fontSize: 38, fontWeight: "900", color: "#FFFFFF", letterSpacing: -1 }}>
               ₹{getFinalAmount()}
@@ -5030,7 +5387,7 @@ onVerify={async () => {
             alignItems: "center",
             borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
           }}>
-            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "700", letterSpacing: 1 }}>ROUTE</Text>
+            <Text style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "700", letterSpacing: 1 }}>{t.popularRoutes||"ROUTE"}</Text>
             <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff", marginTop: 4 }}>{search.from}</Text>
             <Text style={{ fontSize: 16, color: "#C0392B", marginVertical: 1 }}>↓</Text>
             <Text style={{ fontSize: 13, fontWeight: "800", color: "#fff" }}>{search.to}</Text>
@@ -5047,7 +5404,7 @@ onVerify={async () => {
           elevation: 2,
         }}>
           <Text style={{ fontSize: 13, fontWeight: "700", color: "#1A1A2E", marginBottom: 16, letterSpacing: -0.2 }}>
-            Scan with any UPI app
+            {t.scanWithAny||"Scan with any UPI app"}
           </Text>
 
           {qrSettings?.qrImageBase64 ? (
@@ -5108,7 +5465,7 @@ onVerify={async () => {
               <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>@</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>UPI ID</Text>
+              <Text style={{ fontSize: 10, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" }}>{t.upiIdLabel2||"UPI ID"}</Text>
               <Text style={{ fontSize: 15, fontWeight: "800", color: "#1A1A2E", marginTop: 1 }}>
                 {qrSettings?.upiId || "digubarge123@okaxis"}
               </Text>
@@ -5141,7 +5498,7 @@ onVerify={async () => {
       marginBottom: 4,
     }}
   >
-    Open Directly in App
+    {t.openDirectly||"Open Directly in App"}
   </Text>
 
   <Text
@@ -5151,7 +5508,7 @@ onVerify={async () => {
       marginBottom: 14,
     }}
   >
-    ₹{getFinalAmount()} auto-filled · Pay करा · UTR enter करा
+    ₹{getFinalAmount()} {t.openDirectlySub||"auto-filled · Pay करा · UTR enter करा"}
   </Text>
 
   <View style={{ gap: 8 }}>
@@ -5414,14 +5771,14 @@ onVerify={async () => {
           marginBottom: 14, borderWidth: 1, borderColor: "#EBEBEB", elevation: 1,
         }}>
           <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 14 }}>
-            How to Pay
+            {t.howToPay||"How to Pay"}
           </Text>
           {[
-            { n: "1", text: "Open GPay / PhonePe / Paytm" },
-            { n: "2", text: "Scan QR code or enter UPI ID" },
-            { n: "3", text: `Enter amount ₹${getFinalAmount()}` },
-            { n: "4", text: "Complete payment & note UTR number" },
-            { n: "5", text: "Enter UTR below to confirm booking" },
+            { n: "1", text: t.howToPayStep1||"Open GPay / PhonePe / Paytm" },
+            { n: "2", text: t.howToPayStep2||"Scan QR code or enter UPI ID" },
+            { n: "3", text: `${t.enterFrom||"Enter amount"} ₹${getFinalAmount()}` },
+            { n: "4", text: t.howToPayStep4||"Complete payment & note UTR number" },
+            { n: "5", text: t.howToPayStep5||"Enter UTR below to confirm booking" },
           ].map((step, i) => (
             <View key={i} style={{
               flexDirection: "row", gap: 12,
@@ -5451,10 +5808,10 @@ onVerify={async () => {
           elevation: 1,
         }}>
           <Text style={{ fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 2, letterSpacing: -0.2 }}>
-            Enter UTR / Transaction ID
+            {t.enterUtrTitle||"Enter UTR / Transaction ID"}
           </Text>
           <Text style={{ fontSize: 11, color: "#999", marginBottom: 14 }}>
-            Found in your UPI app's payment history
+            {t.enterUtrSub||"Found in your UPI app's payment history"}
           </Text>
 
           <View style={{
@@ -5478,7 +5835,7 @@ onVerify={async () => {
                 fontWeight: "700", letterSpacing: 1.5,
                 backgroundColor: "#FFFFFF",
               }}
-              placeholder="e.g. 407311234567"
+              placeholder={t.utrPlaceholder||"e.g. 407311234567"}
               placeholderTextColor="#C7C7CC"
               value={qrUtrNumber}
               onChangeText={setQrUtrNumber}
@@ -5513,7 +5870,7 @@ onVerify={async () => {
             color: qrUtrNumber.trim().length >= 6 ? "#fff" : "#aaa",
             fontSize: 15, fontWeight: "800", letterSpacing: 0.3,
           }}>
-            {qrUtrNumber.trim().length >= 6 ? "✓  Confirm & Submit Booking" : "Enter UTR to Continue"}
+            {qrUtrNumber.trim().length >= 6 ? (t.confirmSubmit||"✓  Confirm & Submit Booking") : (t.enterUtrToContinue||"Enter UTR to Continue")}
           </Text>
         </TouchableOpacity>
 
@@ -5521,7 +5878,7 @@ onVerify={async () => {
           style={{ alignItems: "center", paddingVertical: 12 }}
           onPress={() => setShowQRModal(false)}
         >
-          <Text style={{ color: "#999", fontWeight: "600", fontSize: 13 }}>Cancel</Text>
+          <Text style={{ color: "#999", fontWeight: "600", fontSize: 13 }}>{t.cancelLabel||"Cancel"}</Text>
         </TouchableOpacity>
 
         {/* ── WARNING ── */}
@@ -5533,7 +5890,7 @@ onVerify={async () => {
         }}>
           <Text style={{ fontSize: 16 }}>⚠️</Text>
           <Text style={{ fontSize: 12, color: "#795548", lineHeight: 19, flex: 1 }}>
-            Admin will verify your payment within 15–30 minutes. Incorrect UTR will result in cancellation.
+            {t.utrWarning||"Admin will verify your payment within 15–30 minutes. Incorrect UTR will result in cancellation."}
           </Text>
         </View>
 
@@ -5580,7 +5937,7 @@ onVerify={async () => {
 
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E", marginBottom: 4 }}>
-            Debit / Credit Card
+            {t.debitCreditCard||"Debit / Credit Card"}
           </Text>
           {/* Card network logos */}
           <View style={{ flexDirection: "row", gap: 5 }}>
@@ -5708,7 +6065,7 @@ onVerify={async () => {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>Razorpay</Text>
-          <Text style={{ fontSize: 11, color: "#999", marginTop: 1 }}>All methods + 2% gateway fee</Text>
+          <Text style={{ fontSize: 11, color: "#999", marginTop: 1 }}>{t.razorpayNote||"All methods + 2% gateway fee"}</Text>
         </View>
         <View style={{
           width: 22, height: 22, borderRadius: 11,
@@ -5728,7 +6085,7 @@ onVerify={async () => {
         }}>
           <Text style={{ fontSize: 13 }}>⚠️</Text>
           <Text style={{ fontSize: 12, color: "#795548", flex: 1, lineHeight: 18 }}>
-            2% payment gateway charge applies.{" "}
+            {t.razorpayWarning||"2% payment gateway charge applies."}{" "}
             Base: ₹{getTotalAmount()} → You Pay: ₹{Math.round(getTotalAmount() * 1.02)}
           </Text>
         </View>
@@ -5775,8 +6132,8 @@ onVerify={async () => {
           }} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>Pay at Boarding</Text>
-          <Text style={{ fontSize: 11, color: "#999", marginTop: 1 }}>Cash to driver · No charges</Text>
+          <Text style={{ fontSize: 14, fontWeight: "700", color: "#1A1A2E" }}>{t.cashLabel||"Pay at Boarding"}</Text>
+          <Text style={{ fontSize: 11, color: "#999", marginTop: 1 }}>{t.cashSubLabel||"Cash to driver · No charges"}</Text>
         </View>
         <View style={{
           width: 22, height: 22, borderRadius: 11,
@@ -5803,10 +6160,10 @@ onVerify={async () => {
       <Text style={{ fontSize: 16 }}>⚠️</Text>
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, fontWeight: "700", color: "#E65100", marginBottom: 4 }}>
-          Cash Payment Unavailable
+          {t.cashUnavailableTitle||"Cash Payment Unavailable"}
         </Text>
         <Text style={{ fontSize: 12, color: "#795548", lineHeight: 18, marginBottom: 10 }}>
-          Please use UPI or Card. To enable cash, contact the operator.
+          {t.cashUnavailableMsg||"Please use UPI or Card. To enable cash, contact the operator."}
         </Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <TouchableOpacity onPress={callOperator} style={{
@@ -5832,9 +6189,9 @@ onVerify={async () => {
     flexDirection: "row", justifyContent: "center", gap: 16,
   }}>
     {[
-      { icon: "🔒", text: "SSL Secure" },
-      { icon: "✅", text: "PCI DSS" },
-      { icon: "🛡️", text: "100% Safe" },
+      { icon: "🔒", text: t.sslSecure||"SSL Secure" },
+      { icon: "✅", text: t.pciDss||"PCI DSS" },
+      { icon: "🛡️", text: t.safe100||"100% Safe" },
     ].map(badge => (
       <View key={badge.text} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
         <Text style={{ fontSize: 12 }}>{badge.icon}</Text>
@@ -5866,8 +6223,8 @@ onVerify={async () => {
     </KeyboardAvoidingView>
   </>
 )}
+ <SeatInfoModal visible={showSeatInfo} onClose={()=>setShowSeatInfo(false)} t={t}/>
 
- <SeatInfoModal visible={showSeatInfo} onClose={()=>setShowSeatInfo(false)}/>
       </SafeAreaView>
     );
   }
@@ -5892,12 +6249,10 @@ onVerify={async () => {
   }}>
     <Text style={{fontSize:52}}>⏳</Text>
     <Text style={{fontSize:20,fontWeight:"800",color:"#E65100",marginTop:10}}>
-      Payment Verification Pending
+      {t.pendingTitle||"Payment Verification Pending"}
     </Text>
     <Text style={{fontSize:13,color:"#555",textAlign:"center",marginTop:8,lineHeight:20}}>
-      Admin तुमचे QR payment verify करत आहे.{"\n"}
-      15-30 minutes मध्ये booking confirm होईल.{"\n"}
-      Booking ID note करून ठेवा:
+      {t.pendingMsg||"Admin तुमचे QR payment verify करत आहे.\n15-30 minutes मध्ये booking confirm होईल.\nBooking ID note करून ठेवा:"}
     </Text>
     <View style={{
       backgroundColor:"#fff",borderRadius:12,paddingHorizontal:20,paddingVertical:10,
@@ -5908,7 +6263,7 @@ onVerify={async () => {
       </Text>
     </View>
     <Text style={{fontSize:11,color:"#888",marginTop:8}}>
-      Customer care: 9021694503
+      {t.customerCareNote||"Customer care: 9021694503"}
     </Text>
   </View>
 ) : (
@@ -5950,15 +6305,15 @@ onVerify={async () => {
             </View>
             <View style={s.ticketDivider}/>
             {[
-              ["Date",      ticket?.date||search.date],
-              ["Bus",       busName],
-              ["Bus No", selectedBus?.number || selectedBus?.busNumber || selectedBus?.numberPlate || "—"],
-              ["Passenger", ticket?.passengers?.[0]?.name||ticket?.customerName||user?.name],
-              ["Phone",     ticket?.passengers?.[0]?.phone||ticket?.mobile||user?.phone],
-              ["Seats",     seats],
-              ["Boarding",  ticket?.boardingPoint],
-              ["Dropping",  ticket?.droppingPoint],
-              ["Payment",   ticket?.paymentMode||paymentMethod||"Cash"],
+              [t.date||"Date",                ticket?.date||search.date],
+              [t.busLabel||"Bus",             busName],
+              [t.busNo||"Bus No",             selectedBus?.number||selectedBus?.busNumber||selectedBus?.numberPlate||"—"],
+              [t.passengerName||"Passenger",  ticket?.passengers?.[0]?.name||ticket?.customerName||user?.name],
+              [t.phoneLabel||"Phone",         ticket?.passengers?.[0]?.phone||ticket?.mobile||user?.phone],
+              [t.seatLabel||"Seats",          seats],
+              [t.boardingLabel||"Boarding",   ticket?.boardingPoint],
+              [t.droppingLabel||"Dropping",   ticket?.droppingPoint],
+              [t.payment||"Payment",          ticket?.paymentMode||paymentMethod||"Cash"],
             ].map(([label,value])=>(
               <View key={label} style={s.ticketRow}>
                 <Text style={s.ticketRowLabel}>{label}</Text>
@@ -5966,21 +6321,21 @@ onVerify={async () => {
               </View>
             ))}
             <View style={s.ticketAmountBox}>
-              <Text style={s.ticketAmountLabel}>AMOUNT PAID</Text>
+              <Text style={s.ticketAmountLabel}>{t.amountPaid||"AMOUNT PAID"}</Text>
               <Text style={s.ticketAmountValue}>₹{ticket?.amount}</Text>
             </View>
           </View>
-          <PrimaryButton title="📄 Download Ticket PDF"
+          <PrimaryButton title={t.downloadPdf||"📄 Download Ticket PDF"}
            onPress={()=>shareTicketPDF(ticket, user, selectedBus, showAlert, setLoading, setLoadMsg)}
             style={{marginTop:16}}/>
             
           <TouchableOpacity style={[s.primaryBtn,{marginTop:10,backgroundColor:C.white,borderWidth:1.5,borderColor:C.border}]}
             onPress={()=>{setSelectedSeats([]);setSelectedBus(null);setTicket(null);setScreen("home");}}>
-            <Text style={[s.primaryBtnText,{color:C.text}]}>← Back to Home</Text>
+            <Text style={[s.primaryBtnText,{color:C.text}]}>{t.backHome||"← Back to Home"}</Text>
             {/* ✅ ADD THIS — ticket screen la, Back to Home button nantarcha */}
 <View style={s.devCard}>
   <Text style={s.devCardTitle}>🛠 Developed by</Text>
-  <Text style={s.devCardName}>Mr. Digambar Barge</Text>
+  <Text style={s.devCardName}>{t.developedBy||"Mr. Digambar Barge"}</Text>
   <View style={s.devCardRow}>
     <Text style={s.devCardInfo}>📞 9021694503</Text>
     <Text style={s.devCardInfo}>✉️ digubarge123@gmail.com</Text>
