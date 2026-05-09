@@ -1705,8 +1705,11 @@ const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getF
             </TouchableOpacity>
             <TouchableOpacity
               style={{ flex: 2, backgroundColor: C.red, borderRadius: 14, paddingVertical: 15, alignItems: "center" }}
-              onPress={onConfirm} activeOpacity={0.85}>
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 }}>{t?.confirmBtn||"Confirm Booking ✓"}</Text>
+              onPress={onConfirm}
+              activeOpacity={0.85}>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 0.3 }}>
+                {t?.confirmBtn||"Confirm Booking ✓"}
+              </Text>
             </TouchableOpacity>
           </View>
  
@@ -3246,22 +3249,15 @@ const handleConfirmBooking = async () => {
 }
 
   // ── Cash → OTP ──────────────────────────────────────────────────
-  if (paymentMethod === "Cash") {
-    setOtpValue("");
-    setOtpSending(true);
-    try {
-      await sendOtp(passengerInfo.phone);
-      setOtpSending(false);
-      setShowOtpModal(true);
-      startOtpTimer();
-    } catch (err) {
-      setOtpSending(false);
-      showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
-    }
+  // ── QR/UPI → OTP नाही, थेट QR modal ──────────────────────────
+  if (paymentMethod === "QR_UPI") {
+    setShowQRModal(true);
+    setQrUtrNumber("");
+    setQrPaymentDone(false);
     return;
   }
 
-  // ── Other (Razorpay etc.) ────────────────────────────────────────
+  // ── बाकी सर्व (Cash, Razorpay) → OTP पहिले ──────────────────
   setOtpValue("");
   setOtpSending(true);
   try {
@@ -4096,25 +4092,27 @@ ListEmptyComponent={
   otpResendTimer={otpResendTimer}
   t={t}
   onVerify={async () => {
-  if (!otpValue || otpValue.length < 6)
-    return showAlert("OTP Error", "6 अंकी OTP enter करा.");
-  setOtpVerifying(true);
-  try {
-    await verifyOtp(otpValue, passengerInfo.phone);
-    setOtpVerifying(false);
-    setShowOtpModal(false);
+    if (!otpValue || otpValue.length < 6)
+      return showAlert("OTP Error", "6 अंकी OTP enter करा.");
+    setOtpVerifying(true);
+    try {
+      await verifyOtp(otpValue, passengerInfo.phone);
+      setOtpVerifying(false);
+      setShowOtpModal(false);
 
-    if (paymentMethod === "Cash") {
-      setShowConfirmModal(true);
-    } else {
+      // OTP verify झाल्यावर payment method नुसार proceed
+      // OTP verify झाल्यावर थेट booking
+    if (paymentMethod === "Razorpay") {
       handleRazorpayPayment();
+    } else {
+      doBooking();
     }
-  } catch (err) {
-    setOtpVerifying(false);
-    showAlert("❌ OTP चुकीचा", err?.message || "Invalid OTP.");
-  }
-}}
-
+        
+    } catch (err) {
+      setOtpVerifying(false);
+      showAlert("❌ OTP चुकीचा", err?.message || "Invalid OTP.");
+    }
+  }}
   onResend={async () => {
     if (otpResendTimer > 0) return;
     setOtpSending(true);
@@ -4233,7 +4231,21 @@ ListEmptyComponent={
       <ConfirmBookingModal
   visible={showConfirmModal}
   onCancel={()=>setShowConfirmModal(false)}
-  onConfirm={() => { setShowConfirmModal(false); doBooking(); }}
+  onConfirm={async () => {
+    setShowConfirmModal(false);
+    // Confirm modal नंतर OTP पाठवा
+    setOtpValue("");
+    setOtpSending(true);
+    try {
+      await sendOtp(passengerInfo.phone);
+      setOtpSending(false);
+      setShowOtpModal(true);
+      startOtpTimer();
+    } catch (err) {
+      setOtpSending(false);
+      showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
+    }
+  }}
   selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
   paymentMethod={paymentMethod} selectedBus={selectedBus}
   passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}

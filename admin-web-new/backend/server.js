@@ -2255,9 +2255,145 @@ app.post("/api/popular-routes/reorder", async (req, res) => {
     res.json({ success: true, message: "Reordered" });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
+// ─── MSG91 OTP ────────────────────────────────────────────────────
+const MSG91_AUTH_KEY    = process.env.MSG91_AUTH_KEY    || "";
+const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID || "";
 
+const otpStore   = {};
+const OTP_EXPIRY = 5 * 60 * 1000;  // 5 minutes
+const MAX_RETRIES = 3;
+
+function isValidIndianPhone(phone) {
+  return /^[6-9]\d{9}$/.test(String(phone).replace(/\D/g, "").slice(-10));
+}
+
+app.post("/api/otp/send", async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const cleaned = String(phone || "").replace(/\D/g, "").slice(-10);
+
+    if (!isValidIndianPhone(cleaned)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit Indian mobile number enter करा.",
+      });
+    }
+
+    // 30 second rate limit
+    const existing = otpStore[cleaned];
+    if (existing && Date.now() < existing.sentAt + 30000) {
+      const waitSec = Math.ceil((existing.sentAt + 30000 - Date.now()) / 1000);
+      return res.status(429).json({
+        success: false,
+        message: `${waitSec} seconds नंतर resend करा.`,
+      });
+    }
+
+    const otp    = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = Date.now() + OTP_EXPIRY;
+
+    // MSG91 पाठवा
+    if (MSG91_AUTH_KEY && MSG91_TEMPLATE_ID) {
+      try {
+        const msg91Url =
+          `https://control.msg91.com/api/v5/otp` +
+          `?template_id=${MSG91_TEMPLATE_ID}` +
+          `&mobile=91${cleaned}` +
+          `&authkey=${MSG91_AUTH_KEY}` +
+          `&otp=${otp}`;
+
+        const response = await fetch(msg91Url, { method: "POST" });
+        const data     = await response.json();
+
+        if (data.type !== "success") {
+          console.error("MSG91 error:", data);
+          throw new Error(data.message || "MSG91 send failed");
+        }
+        console.log(`✅ MSG91 OTP sent to ${cleaned}`);
+      } catch (msg91Err) {
+        // MSG91 fail झाल्यास terminal ला fallback
+        console.error("MSG91 failed, console fallback:", msg91Err.message);
+        console.log(`\n🔐 OTP for ${cleaned}: ${otp}\n`);
+      }
+    } else {
+      // Dev mode — no MSG91 keys
+      console.log(`\n🔐 ================================`);
+      console.log(`📱 OTP for ${cleaned}: ${otp}`);
+      console.log(`⏰ Valid for 5 minutes`);
+      console.log(`🔐 ================================\n`);
+    }
+
+    otpStore[cleaned] = { otp, expiry, retries: 0, sentAt: Date.now() };
+    res.json({ success: true, message: "OTP sent successfully." });
+
+  } catch (err) {
+    console.error("OTP send error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "OTP पाठवता आला नाही. पुन्हा try करा.",
+    });
+  }
+});
+
+app.post("/api/otp/verify", (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    const cleaned = String(phone || "").replace(/\D/g, "").slice(-10);
+
+    if (!cleaned || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP required.",
+      });
+    }
+
+    const record = otpStore[cleaned];
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP सापडला नाही. पुन्हा send करा.",
+      });
+    }
+
+    if (Date.now() > record.expiry) {
+      delete otpStore[cleaned];
+      return res.status(400).json({
+        success: false,
+        message: "OTP expire झाला. नवीन OTP मागवा.",
+        errorCode: "OTP_EXPIRED",
+      });
+    }
+
+    if (record.retries >= MAX_RETRIES) {
+      delete otpStore[cleaned];
+      return res.status(429).json({
+        success: false,
+        message: "खूप जास्त चुकीचे attempts. नवीन OTP मागवा.",
+        errorCode: "MAX_RETRIES",
+      });
+    }
+
+    if (String(record.otp) !== String(otp).trim()) {
+      otpStore[cleaned].retries += 1;
+      const left = MAX_RETRIES - otpStore[cleaned].retries;
+      return res.status(400).json({
+        success: false,
+        message: `चुकीचा OTP. ${left} attempt${left !== 1 ? "s" : ""} शिल्लक.`,
+        errorCode: "WRONG_OTP",
+        attemptsLeft: left,
+      });
+    }
+
+    delete otpStore[cleaned];
+    res.json({ success: true, message: "OTP verified successfully." });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // ─── BOOKING OTP ─────────────────────────────────────────────────
-const otpStore = {}; // { phone: { otp, expiry } }
+ // { phone: { otp, expiry } }
 // ─── SEAT LOCK ROUTES ─────────────────────────────────────────────
 app.post("/api/seats/lock", async (req, res) => {
   try {
@@ -2416,42 +2552,7 @@ app.post("/api/bookings/:id/upi-reject", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
-app.post("/api/otp/send", (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ success: false, message: "Phone required" });
-  
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
-  const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
-  
-  otpStore[phone] = { otp, expiry };
-  
-  // ✅ Terminal मध्ये print होईल
-  console.log(`\n🔐 ================================`);
-  console.log(`📱 OTP for ${phone}: ${otp}`);
-  console.log(`⏰ Valid for 5 minutes`);
-  console.log(`🔐 ================================\n`);
-  
-  res.json({ success: true, message: "OTP sent (check terminal)" });
-});
 
-app.post("/api/otp/verify", (req, res) => {
-  const { phone, otp } = req.body;
-  if (!phone || !otp) 
-    return res.status(400).json({ success: false, message: "Phone and OTP required" });
-  
-  const record = otpStore[phone];
-  if (!record) 
-    return res.status(400).json({ success: false, message: "OTP not sent. Please resend." });
-  if (Date.now() > record.expiry) {
-    delete otpStore[phone];
-    return res.status(400).json({ success: false, message: "OTP expired. Please resend." });
-  }
-  if (record.otp !== String(otp).trim()) 
-    return res.status(400).json({ success: false, message: "चुकीचा OTP. पुन्हा try करा." });
-  
-  delete otpStore[phone]; // use once
-  res.json({ success: true, message: "OTP verified successfully" });
-});
 // ─── DASHBOARD & REPORTS ─────────────────────────────────────────
 app.get("/api/dashboard", async (req, res) => {
   try {
