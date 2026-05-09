@@ -3234,11 +3234,11 @@ const handleConfirmBooking = async () => {
 
   // ── QR/UPI ──────────────────────────────────────────────────────
   if (paymentMethod === "QR_UPI") {
-    setShowQRModal(true);
-    setQrUtrNumber("");
-    setQrPaymentDone(false);
-    return;
-  }
+  setShowQRModal(true);
+  setQrUtrNumber("");
+  setQrPaymentDone(false);
+  return;
+}
 
   // ── Cash → OTP ──────────────────────────────────────────────────
   if (paymentMethod === "Cash") {
@@ -4400,12 +4400,13 @@ onPress={async () => {
   const upiId = qrSettings?.upiId;
   
   if (!upiId) {
-    showAlert("Error", "UPI ID set नाही. Admin panel मध्ये set करा.");
+    showAlert("Error", "UPI ID set नाही.");
     return;
   }
 
   const upiName = qrSettings?.upiName || "Shahaji Travels";
-  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR&tn=ShahajiTravels`;
+  // ✅ Phone number UPI format (9766775660@ybl)
+  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${Number(amt).toFixed(2)}&cu=INR&mode=00&purpose=00`;
 
   console.log("🔗 Opening UPI:", upiId, "Amount:", amt);
 
