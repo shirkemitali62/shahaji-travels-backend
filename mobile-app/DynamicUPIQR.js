@@ -196,13 +196,21 @@ export default function DynamicUPIQR({
             {/* Generated QR */}
             {upiString && !qrError ? (
               <View style={styles.qrWrapper}>
-                <QRCode
+               
+  <QRCode
                   value={upiString}
-                  size={200}
+                  size={260}
                   color="#1A1A2E"
                   backgroundColor="#FFFFFF"
                   onError={() => setQrError(true)}
                   ecl="M"
+                  getRef={(ref) => {
+                    if (ref) {
+                      ref.toDataURL((data) => {
+                        global._qrDataUrl = data;
+                      });
+                    }
+                  }}
                 />
               </View>
             ) : (
@@ -216,7 +224,39 @@ export default function DynamicUPIQR({
                 </Text>
               </View>
             )}
- 
+ {/* Download QR Button */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#1A1A2E",
+                borderRadius: 12,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+                marginBottom: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+              onPress={() => {
+                if (Platform.OS === "web") {
+                  if (global._qrDataUrl) {
+                    const a = document.createElement("a");
+                    a.href = "data:image/png;base64," + global._qrDataUrl;
+                    a.download = "shahaji_upi_qr.png";
+                    a.click();
+                  } else {
+                    alert("QR load होत आहे, थोडं थांबा आणि पुन्हा try करा.");
+                  }
+                }
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>⬇️</Text>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                QR Download करा
+              </Text>
+            </TouchableOpacity>
+
+            {/* Amount chip under QR */}
+            <View style={styles.amountChip}></View>
             {/* Amount chip under QR */}
             <View style={styles.amountChip}>
               <Text style={styles.amountChipText}>₹{displayAmount.toLocaleString("en-IN")}</Text>
@@ -243,6 +283,7 @@ export default function DynamicUPIQR({
               </TouchableOpacity>
             </View>
           </View>
+          
  
           {/* ── MANUAL PAYMENT INSTRUCTIONS ── */}
 <View style={{
@@ -274,8 +315,7 @@ export default function DynamicUPIQR({
   </Text>
 </View>
 
-{/* ── UPI APP BUTTONS ──────────────────────────────────── */}
-          <View style={styles.appsCard}></View>
+
  
           {/* ── HOW TO PAY ───────────────────────────────────────── */}
           <View style={styles.stepsCard}>
