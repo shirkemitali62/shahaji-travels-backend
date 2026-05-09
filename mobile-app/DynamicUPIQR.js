@@ -105,14 +105,13 @@ export default function DynamicUPIQR({
       Alert.alert("UPI Error", "UPI ID configured नाही.");
       return;
     }
-
-    const amt = parseFloat(amount).toFixed(2);
+const amt = parseFloat(amount).toFixed(2);
     console.log("Formatted Amount:", amt);
 
     const encodedName = encodeURIComponent(payeeName || "Merchant");
     const encodedNote = encodeURIComponent(note || "Payment");
 
-    const upiLink = `upi://pay?pa=${upiId}&pn=${encodedName}&am=${amt}&cu=INR&tn=${encodedNote}`;
+    const upiLink = `upi://pay?pa=${upiId}&pn=${encodedName}&am=${amt}&cu=INR`;
     console.log("UPI Link:", upiLink);
 
     try {
