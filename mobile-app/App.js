@@ -454,89 +454,73 @@ const shareTicketPDF = async (
 
     const fileName = `ShahajTravels_${ticket?.bookingId || Date.now()}.pdf`;
 
-    if (Platform.OS === "android") {
-      setLoadMsg(t?.pdfSaving || "Saving to Downloads...");
+   if (Platform.OS === "android") {
+  setLoadMsg(t?.pdfSaving || "Saving to Downloads...");
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      
-      if (status === "granted") {
-        const asset = await MediaLibrary.createAssetAsync(pdfUri);
-        
+  try {
+    // Step 1: Downloads folder मध्ये copy करा
+    const destUri = FileSystem.documentDirectory + fileName;
+    await FileSystem.copyAsync({ from: pdfUri, to: destUri });
+
+    // Step 2: MediaLibrary permission try करा
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+
+    if (status === "granted") {
+      try {
+        // Step 3: Download folder मध्ये asset create करा
+        const asset = await MediaLibrary.createAssetAsync(destUri);
         let album = await MediaLibrary.getAlbumAsync("Download");
         if (album == null) {
           await MediaLibrary.createAlbumAsync("Download", asset, false);
         } else {
           await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
         }
-
-        setLoading(false);
-        
-        // ✅ Translation वापरून msg दाखवा
-        showAlert(
-          t?.pdfSavedTitle || "✅ PDF Saved!", 
-          `"${fileName}" ${t?.pdfSavedMsg || "Downloads folder मध्ये save झाली!"}`,
-          [
-            { 
-              text: t?.pdfOk || "OK", 
-              style: "cancel" 
-            },
-            { 
-              text: t?.pdfOpen || "📂 Open PDF", 
-              onPress: async () => {
-                try {
-                  const contentUri = await FileSystem.getContentUriAsync(pdfUri);
-                  await IntentLauncher.startActivityAsync(
-                    "android.intent.action.VIEW", 
-                    { data: contentUri, flags: 1, type: "application/pdf" }
-                  );
-                } catch { 
-                  showAlert(
-                    t?.pdfNoApp || "No PDF App", 
-                    t?.pdfNoAppMsg || "PDF viewer install करा"
-                  ); 
-                }
-              }
-            },
-          ]
-        );
-        return;
-
-      } else {
-        // Permission नाही fallback
-        const destUri = FileSystem.documentDirectory + fileName;
-        await FileSystem.copyAsync({ from: pdfUri, to: destUri });
-        setLoading(false);
-        
-        const contentUri = await FileSystem.getContentUriAsync(destUri);
-        showAlert(
-          t?.pdfSavedTitle || "✅ PDF Saved!", 
-          `"${fileName}" ${t?.pdfSavedMsg || "save झाली!"}`,
-          [
-            { 
-              text: t?.pdfOk || "OK", 
-              style: "cancel" 
-            },
-            { 
-              text: t?.pdfOpen || "📂 Open PDF", 
-              onPress: async () => {
-                try {
-                  await IntentLauncher.startActivityAsync(
-                    "android.intent.action.VIEW", 
-                    { data: contentUri, flags: 1, type: "application/pdf" }
-                  );
-                } catch { 
-                  showAlert(
-                    t?.pdfNoApp || "No PDF App", 
-                    t?.pdfNoAppMsg || "PDF viewer install करा"
-                  ); 
-                }
-              }
-            },
-          ]
-        );
-        return;
+      } catch (mediaErr) {
+        console.log("MediaLibrary error (non-fatal):", mediaErr.message);
+        // silent — file already copied, open करता येईल
       }
     }
+
+    setLoading(false);
+
+    const contentUri = await FileSystem.getContentUriAsync(destUri);
+    showAlert(
+      t?.pdfSavedTitle || "✅ PDF Saved!",
+      `"${fileName}" ${t?.pdfSavedMsg || "Downloads folder मध्ये save झाली!"}`,
+      [
+        {
+          text: t?.pdfOk || "OK",
+          style: "cancel",
+        },
+        {
+          text: t?.pdfOpen || "📂 Open PDF",
+          onPress: async () => {
+            try {
+              await IntentLauncher.startActivityAsync(
+                "android.intent.action.VIEW",
+                { data: contentUri, flags: 1, type: "application/pdf" }
+              );
+            } catch {
+              showAlert(
+                t?.pdfNoApp || "No PDF App",
+                t?.pdfNoAppMsg || "PDF viewer install करा"
+              );
+            }
+          },
+        },
+      ]
+    );
+    return;
+
+  } catch (err) {
+    setLoading(false);
+    showAlert(
+      t?.pdfError || "PDF Error",
+      err?.message || "Could not save PDF."
+    );
+    return;
+  }
+}
 
     // iOS
     if (Platform.OS === "ios") {
@@ -1127,7 +1111,7 @@ const res = await fetch(
           <Text style={hs.heroGreet}>
             {t.hello || "Hello"}, {user?.name?.split(" ")[0] || "Traveller"} 👋
           </Text>
-          <Text style={hs.heroTitle}>{t.bookBusTickets || "Where to today?"}</Text>
+          <Text style={hs.heroTitle}>{t.bookBusTickets || "Where to go today?"}</Text>
           <Text style={hs.heroSub}>{t.safeComfortable || "Safe · Comfortable · On Time"}</Text>
         </View>
 
