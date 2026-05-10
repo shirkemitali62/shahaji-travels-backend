@@ -157,11 +157,16 @@ const upiPaymentSchema = new mongoose.Schema({
 }, { timestamps: true });
  
 // UTR unique index (prevent duplicate payments)
-upiPaymentSchema.index({ utr: 1 }, { 
-  unique: true, 
-  sparse: true,
-  partialFilterExpression: { utr: { $exists: true, $ne: "" } }  // ✅ empty string exclude
-});
+upiPaymentSchema.index(
+  { utr: 1 }, 
+  { 
+    unique: true, 
+    sparse: true,
+    partialFilterExpression: { 
+      utr: { $exists: true, $ne: "" } 
+    } 
+  }
+);
  
 const UPIPayment = mongoose.models.UPIPayment || mongoose.model("UPIPayment", upiPaymentSchema);
 
@@ -3766,7 +3771,21 @@ app.post("/api/upi/verify-payment", async (req, res) => {
   }
 });
 // server.js मध्ये एकदा add करा, run करा, मग काढा
-
+app.get("/api/fix-upi-payments", async (req, res) => {
+  try {
+    // Empty UTR असलेले records delete करा
+    const result = await UPIPayment.deleteMany({ 
+      $or: [
+        { utr: "" },
+        { utr: null },
+        { utr: { $exists: false } }
+      ]
+    });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
  
 // ── GET /api/upi/payment-status/:bookingId ───────────────────────────────────
 // Poll this to check if admin manually confirmed payment
@@ -4142,25 +4161,6 @@ app.delete("/api/admin/:id", async (req, res) => {
     res.json({ success: true });
   } catch(err) { res.status(500).json({ message: err.message }); }
 });
-app.get("/api/fix-upi-payments", async (req, res) => {
-  try {
-    const result = await UPIPayment.deleteMany({ 
-      $or: [
-        { utr: "" },
-        { utr: null },
-        { utr: { $exists: false } }
-      ]
-    });
-    res.json({ 
-      success: true, 
-      deleted: result.deletedCount,
-      message: `${result.deletedCount} empty UTR records deleted!`
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // ─── 404 & ERROR ──────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ message:`Route ${req.method} ${req.path} not found` });
