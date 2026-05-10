@@ -3654,12 +3654,14 @@ app.post("/api/upi/verify-payment", async (req, res) => {
     const { bookingId, utr, amount } = req.body;
 
     if (!bookingId || !utr) {
-      return res.status(400).json({ success: false, message: "bookingId and utr are required" });
+      return res.status(400).json({ 
+        success: false, 
+        message: "bookingId and utr are required" 
+      });
     }
 
     const cleanUTR = utr.trim().toUpperCase().replace(/\s+/g, "");
 
-    // ✅ Empty UTR check
     if (!cleanUTR || cleanUTR.length < 6) {
       return res.status(400).json({
         success: false,
@@ -3668,16 +3670,12 @@ app.post("/api/upi/verify-payment", async (req, res) => {
       });
     }
 
-    if (!isValidUTR(cleanUTR)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid UTR format.",
-        errorCode: "INVALID_UTR_FORMAT"
-      });
-    }
-
-    // ✅ Duplicate UTR check आधी करा
-    const existingUTR = await UPIPayment.findOne({ utr: cleanUTR });
+    // ✅ Duplicate UTR check
+    const existingUTR = await UPIPayment.findOne({ 
+      utr: cleanUTR,
+      status: { $in: ["pending", "success"] }
+    });
+    
     if (existingUTR && existingUTR.bookingId !== bookingId) {
       return res.status(400).json({
         success: false,
@@ -3686,56 +3684,35 @@ app.post("/api/upi/verify-payment", async (req, res) => {
       });
     }
 
+    // ✅ Payment record create/update - PENDING ठेवा
     let payment = await UPIPayment.findOne({ bookingId });
     if (!payment) {
       payment = new UPIPayment({
         bookingId,
         amount: Number(amount || 0),
-        status: "pending",
+        status: "pending",  // ✅ PENDING - auto confirm नाही
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        // ✅ utr आधी set करू नका
-      });
-      await payment.save();
-    }
-
-    if (payment.status === "success") {
-      return res.json({
-        success: true,
-        alreadyVerified: true,
-        message: "Payment already verified.",
-        payment
       });
     }
 
-    if (new Date() > payment.expiresAt) {
-      payment.status = "expired";
-      await payment.save();
-      return res.status(400).json({
-        success: false,
-        message: "Payment session expired.",
-        errorCode: "PAYMENT_EXPIRED"
-      });
-    }
-
-    // ✅ UTR set करा आणि save करा
+    // ✅ UTR save करा पण status PENDING ठेवा
     payment.utr = cleanUTR;
-    payment.status = "success";
-    payment.verifiedAt = new Date();
+    payment.status = "pending";  // ✅ SUCCESS नाही - PENDING
     
     try {
       await payment.save();
     } catch (saveErr) {
-      // ✅ Duplicate key error handle करा
       if (saveErr.code === 11000) {
         return res.status(400).json({
           success: false,
-          message: "हा UTR already use झाला आहे. दुसरा UTR enter करा.",
+          message: "हा UTR already use झाला आहे.",
           errorCode: "DUPLICATE_UTR"
         });
       }
       throw saveErr;
     }
 
+    // ✅ Booking PENDING ठेवा - Confirmed करू नका
     const booking = await Booking.findOne({
       $or: [
         { bookingCode: bookingId },
@@ -3744,22 +3721,37 @@ app.post("/api/upi/verify-payment", async (req, res) => {
     });
 
     if (booking) {
-      booking.paymentStatus = "Paid";
-      booking.bookingStatus = "Confirmed";
-      booking.conductorNote = `UPI UTR: ${cleanUTR}`;
+      booking.conductorNote = `UTR: ${cleanUTR} — Admin verify pending`;
+      booking.paymentStatus = "Pending";   // ✅ Pending
+      booking.bookingStatus = "Pending";   // ✅ Pending
       await booking.save();
     }
 
+    // ✅ Admin ला notification
+    try {
+      await sendFCMToAll(
+        "💰 UTR Submitted — Verify करा!",
+        `UTR: ${cleanUTR} | ₹${amount} | Booking: ${bookingId}`
+      );
+      await Notification.create({
+        title: "💰 QR Payment — UTR Submitted",
+        message: `UTR: ${cleanUTR} submit झाला. Admin verify करा. Booking: ${bookingId}`,
+        type: "alert",
+        source: "admin_manual",
+      });
+    } catch (_) {}
+
+    // ✅ Frontend ला SUCCESS return करा पण booking PENDING आहे
     res.json({
       success: true,
-      message: "Payment verified! Booking confirmed.",
+      pending: true,   // ✅ pending flag
+      message: "UTR submitted! Admin verify केल्यावर booking confirm होईल.",
       payment,
       booking: booking || null,
       bookingId,
     });
 
   } catch (err) {
-    // ✅ Global duplicate key error catch
     if (err.code === 11000) {
       return res.status(400).json({
         success: false,

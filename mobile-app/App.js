@@ -3179,17 +3179,16 @@ if (allBlocked.includes(String(id))) {
 const handleQRBooking = async (utrFromComponent) => {
   const utrToUse = utrFromComponent || qrUtrNumber;
   if (!utrToUse.trim() || utrToUse.trim().length < 6) {
-    return showAlert("UTR Error", "Valid UTR number enter करा (minimum 6 digits).");
+    return showAlert("UTR Error", "Valid UTR number enter करा.");
   }
 
-  // ── Validate UTR format ──────────────────────────────────────────
   const cleanUTR = utrToUse.trim().toUpperCase().replace(/\s+/g, "");
   if (!/^[A-Z0-9]{6,35}$/.test(cleanUTR)) {
     return showAlert("UTR Error", "UTR मध्ये फक्त letters आणि numbers असावेत.");
   }
 
   setLoading(true);
-  setLoadMsg("Payment verify करत आहे...");
+  setLoadMsg("UTR submit करत आहे...");
 
   try {
     const bookingPayload = {
@@ -3218,9 +3217,9 @@ const handleQRBooking = async (utrFromComponent) => {
       totalAmount:   getFinalAmount(),
       paymentMode:   "QR_UPI",
       paymentMethod: "QR_UPI",
-      paymentStatus: "Pending",
-      bookingStatus: "Pending",
-      conductorNote: `UTR: ${cleanUTR}`,
+      paymentStatus: "Pending",   // ✅ Pending
+      bookingStatus: "Pending",   // ✅ Pending
+      conductorNote: `UTR: ${cleanUTR} — Verify pending`,
     };
 
     // Step 1: Create booking
@@ -3231,7 +3230,7 @@ const handleQRBooking = async (utrFromComponent) => {
 
     if (!savedBookingId) throw new Error("Booking ID मिळाला नाही.");
 
-    // Step 2: Verify UTR on backend
+    // Step 2: UTR submit to backend
     const verifyRes = await fetch(`${API_BASE}/api/upi/verify-payment`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
@@ -3246,7 +3245,7 @@ const handleQRBooking = async (utrFromComponent) => {
     setLoading(false);
 
     if (verifyData.success) {
-      // ✅ Payment verified — show confirmed ticket
+      // ✅ PENDING ticket दाखवा - Confirmed नाही
       setTicket({
         ...bookingPayload,
         bookingId:     savedBookingId,
@@ -3261,54 +3260,29 @@ const handleQRBooking = async (utrFromComponent) => {
         date:          search.date,
         amount:        getFinalAmount(),
         paymentMode:   "QR_UPI",
-        bookingStatus: "Confirmed",
-        paymentStatus: "Paid",
-      });
-
-      setBookedSeats(prev => [...prev, ...selectedSeats]);
-      setBookedSeatMap(prev => {
-        const updated = { ...prev };
-        selectedSeats.forEach(id => {
-          updated[id] = seatGenderMap[id] || "Male";
-        });
-        return updated;
+        bookingStatus: "Pending",    // ✅ Pending
+        paymentStatus: "Pending",    // ✅ Pending
       });
 
       setShowQRModal(false);
       setQrUtrNumber("");
-
-      // Local notification
-      try {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "🎫 Booking Confirmed!",
-            body:  `Seats: ${selectedSeats.join(", ")} | ₹${getFinalAmount()} | ${search.date}`,
-            data:  { screen: "ticket" },
-          },
-          trigger: null,
-        });
-      } catch (_) {}
-
-      setScreen("ticket");
+      setScreen("ticket");  // ✅ Pending ticket screen दाखवा
 
     } else {
-      // ❌ UTR verify failed — booking pending, show error
       const errMap = {
         DUPLICATE_UTR:      "हा UTR already दुसऱ्या booking साठी use झाला आहे.",
         PAYMENT_EXPIRED:    "Payment session expire झाला. नवीन booking करा.",
-        AMOUNT_MISMATCH:    verifyData.message,
-        INVALID_UTR_FORMAT: "UTR format चुकीचा आहे. UPI app मधून copy करा.",
+        INVALID_UTR_FORMAT: "UTR format चुकीचा आहे.",
       };
-
       showAlert(
-        "UTR Verify Failed",
-        errMap[verifyData.errorCode] || verifyData.message || "UTR verify होऊ शकला नाही."
+        "UTR Error",
+        errMap[verifyData.errorCode] || verifyData.message || "UTR submit होऊ शकला नाही."
       );
     }
 
   } catch (err) {
     setLoading(false);
-    showAlert("Error", err?.message || "Could not complete booking.");
+    showAlert("Error", err?.message || "Could not submit UTR.");
   }
 };
 const handleConfirmBooking = async () => {
