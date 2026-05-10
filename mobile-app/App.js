@@ -1711,7 +1711,12 @@ const ConfirmBookingModal = ({ visible, onCancel, onConfirm, selectedSeats, getF
   );
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+   <Modal 
+  visible={visible} 
+  transparent 
+  animationType="fade"
+  statusBarTranslucent={true}
+  hardwareAccelerated={true}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 16 }}>
         <View style={{ backgroundColor: "#fff", borderRadius: 24, width: "100%", maxWidth: 420, overflow: "hidden", maxHeight: "92%" }}>
 
@@ -4158,7 +4163,9 @@ ListEmptyComponent={
       await verifyOtp(otpValue, passengerInfo.phone);
       setOtpVerifying(false);
       setShowOtpModal(false);
-
+// ✅ Android modal close होण्यासाठी wait
+      await new Promise(resolve => setTimeout(resolve, 350));
+      setShowConfirmModal(true);
       // ✅ OTP verify नंतर Confirm Modal दाखवा
       setShowConfirmModal(true);
 
@@ -4283,13 +4290,13 @@ ListEmptyComponent={
   onCancel={()=>setShowConfirmModal(false)}
  onConfirm={async () => {
     setShowConfirmModal(false);
-    
+    await new Promise(resolve => setTimeout(resolve, 200));
     if (paymentMethod === "Razorpay") {
       handleRazorpayPayment();
     } else {
       doBooking();
     }
-}}
+  }}
   selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
   paymentMethod={paymentMethod} selectedBus={selectedBus}
   passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}
