@@ -3179,16 +3179,16 @@ if (allBlocked.includes(String(id))) {
 const handleQRBooking = async (utrFromComponent) => {
   const utrToUse = utrFromComponent || qrUtrNumber;
   if (!utrToUse.trim() || utrToUse.trim().length < 6) {
-    return showAlert("UTR Error", "Valid UTR number enter करा.");
+    return showAlert("UTR Error", "Please enter a valid UTR number.");
   }
 
   const cleanUTR = utrToUse.trim().toUpperCase().replace(/\s+/g, "");
   if (!/^[A-Z0-9]{6,35}$/.test(cleanUTR)) {
-    return showAlert("UTR Error", "UTR मध्ये फक्त letters आणि numbers असावेत.");
+    return showAlert("UTR Error", "UTR should contain only letters and numbers.");
   }
 
   setLoading(true);
-  setLoadMsg("UTR submit करत आहे...");
+  setLoadMsg("Submitting UTR...");
 
   try {
     const bookingPayload = {
@@ -4159,20 +4159,14 @@ ListEmptyComponent={
       setOtpVerifying(false);
       setShowOtpModal(false);
 
-      // OTP verify झाल्यावर payment method नुसार proceed
-      // OTP verify झाल्यावर थेट booking
-    if (paymentMethod === "Razorpay") {
-      handleRazorpayPayment();
-    } else {
-      doBooking();
-    }
-        
+      // ✅ OTP verify नंतर Confirm Modal दाखवा
+      setShowConfirmModal(true);
 
     } catch (err) {
       setOtpVerifying(false);
       showAlert("❌ OTP चुकीचा", err?.message || "Invalid OTP.");
     }
-  }}
+}}
   onResend={async () => {
     if (otpResendTimer > 0) return;
     setOtpSending(true);
@@ -4287,21 +4281,15 @@ ListEmptyComponent={
       <ConfirmBookingModal
   visible={showConfirmModal}
   onCancel={()=>setShowConfirmModal(false)}
-  onConfirm={async () => {
+ onConfirm={async () => {
     setShowConfirmModal(false);
-    // Confirm modal नंतर OTP पाठवा
-    setOtpValue("");
-    setOtpSending(true);
-    try {
-      await sendOtp(passengerInfo.phone);
-      setOtpSending(false);
-      setShowOtpModal(true);
-      startOtpTimer();
-    } catch (err) {
-      setOtpSending(false);
-      showAlert("OTP Error", err?.message || "OTP पाठवता आला नाही.");
+    
+    if (paymentMethod === "Razorpay") {
+      handleRazorpayPayment();
+    } else {
+      doBooking();
     }
-  }}
+}}
   selectedSeats={selectedSeats} getFinalAmount={getFinalAmount}
   paymentMethod={paymentMethod} selectedBus={selectedBus}
   passengerInfo={passengerInfo} selectedBoarding={selectedBoarding}
@@ -5794,7 +5782,7 @@ ListEmptyComponent={
               <Text style={s.ticketAmountValue}>₹{ticket?.amount}</Text>
             </View>
           </View>
-         // App.js मध्ये ticket screen वर button:
+
 <PrimaryButton 
   title={t.downloadPdf || "📄 Download Ticket PDF"}
   onPress={() => shareTicketPDF(

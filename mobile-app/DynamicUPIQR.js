@@ -1,11 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// FILE: DynamicUPIQR.jsx
-// Dynamic UPI QR Payment Component — Production Ready
-// ✅ Multilingual: English / मराठी / हिंदी
-// Compatible with Expo / React Native
-//
-// Install dependency first:
-//   npx expo install react-native-qrcode-svg react-native-svg
+// FILE: DynamicUPIQR.jsx — RED/WHITE THEME  |  QR → BLACK
 // ════════════════════════════════════════════════════════════════════
 
 import React, { useState, useCallback, useMemo } from "react";
@@ -16,14 +10,12 @@ import {
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
 
-// ─── DEFAULT CONFIG ───────────────────────────────────────────────
 const DEFAULT_UPI_CONFIG = {
   upiId:     "kumarbarge14@okhdfcbank",
   payeeName: "KUMAR BARGE",
   note:      "Shahaji Travels Booking",
 };
 
-// ─── UPI LINK BUILDER ─────────────────────────────────────────────
 function buildUPILink({ upiId, payeeName, amount, note }) {
   if (!upiId || !upiId.includes("@")) return null;
   const amt = parseFloat(amount);
@@ -37,9 +29,6 @@ function buildUPILink({ upiId, payeeName, amount, note }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ════════════════════════════════════════════════════════════════════
 export default function DynamicUPIQR({
   amount        = 0,
   upiId         = DEFAULT_UPI_CONFIG.upiId,
@@ -50,7 +39,6 @@ export default function DynamicUPIQR({
   date          = "",
   onUTRSubmit,
   onCancel,
-  qrImageBase64 = null,
   t             = {},
 }) {
   const [utrValue, setUtrValue] = useState("");
@@ -69,33 +57,14 @@ export default function DynamicUPIQR({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      Alert.alert("Copy Failed", "Could not copy to clipboard.");
+      Alert.alert("Copy Failed", "Could not copy.");
     }
   }, [upiId]);
-
-  const handleOpenUPIApp = useCallback(async () => {
-    const amt  = String(Math.round(parseFloat(amount)));
-    const pa   = upiId.trim();
-    const pn   = encodeURIComponent(payeeName || "Merchant");
-    const link = `upi://pay?pa=${pa}&pn=${pn}&am=${amt}&cu=INR`;
-    try {
-      if (Platform.OS === "web") { window.location.href = link; return; }
-      const canOpen = await Linking.canOpenURL(link).catch(() => true);
-      if (!canOpen) {
-        Alert.alert("UPI App Not Found", `Pay manually:\nUPI ID: ${pa}\nAmount: ₹${amt}`);
-        return;
-      }
-      await Linking.openURL(link);
-      setTimeout(() => setStep("utr"), 2000);
-    } catch {
-      Alert.alert("Payment Error", `Manual Pay:\nUPI ID: ${pa}\nAmount: ₹${amt}`);
-    }
-  }, [upiId, payeeName, amount]);
 
   const handleSubmitUTR = useCallback(() => {
     const clean = utrValue.trim().toUpperCase().replace(/\s+/g, "");
     if (clean.length < 8) {
-      Alert.alert("Invalid UTR", "Please enter a valid UTR / Transaction ID (minimum 8 characters).");
+      Alert.alert("Invalid UTR", "Minimum 8 characters enter करा.");
       return;
     }
     if (onUTRSubmit) onUTRSubmit(clean);
@@ -111,7 +80,7 @@ export default function DynamicUPIQR({
       keyboardShouldPersistTaps="handled"
     >
 
-      {/* ── AMOUNT HERO ── */}
+      {/* ── AMOUNT HERO — RED ── */}
       <View style={styles.amountHero}>
         <Text style={styles.amountLabel}>{t.totalToPay || "TOTAL TO PAY"}</Text>
         <Text style={styles.amountValue}>₹{displayAmount.toLocaleString("en-IN")}</Text>
@@ -121,7 +90,9 @@ export default function DynamicUPIQR({
             {date  ? <Text style={styles.routeDate}>{date}</Text>  : null}
           </View>
         ) : null}
-        {bookingId ? <Text style={styles.bookingIdText}>Booking: {bookingId}</Text> : null}
+        {bookingId ? (
+          <Text style={styles.bookingIdText}>Booking: {bookingId}</Text>
+        ) : null}
       </View>
 
       {/* ── STEP TABS ── */}
@@ -145,10 +116,9 @@ export default function DynamicUPIQR({
         ))}
       </View>
 
-      {/* ══════════════ STEP 1: SCAN & PAY ══════════════ */}
+      {/* ══════════════ STEP 1: SCAN ══════════════ */}
       {step === "scan" && (
         <>
-          {/* QR CARD */}
           <View style={styles.qrCard}>
             <Text style={styles.qrCardHeading}>
               {t.scanWithAny || "Scan with any UPI app"}
@@ -158,43 +128,20 @@ export default function DynamicUPIQR({
               <View style={styles.qrWrapper}>
                 <QRCode
                   value={upiString}
-                  size={260}
-                  color="#1A1A2E"
+                  size={240}
+                  color="#000000"          // ✅ BLACK QR dots
                   backgroundColor="#FFFFFF"
                   onError={() => setQrError(true)}
                   ecl="M"
-                  getRef={(ref) => {
-                    if (ref) ref.toDataURL((data) => { global._qrDataUrl = data; });
-                  }}
                 />
               </View>
             ) : (
               <View style={styles.qrFallback}>
                 <Text style={{ fontSize: 40, marginBottom: 8 }}>📱</Text>
                 <Text style={styles.qrFallbackText}>
-                  {upiString ? "QR rendering failed. Use the UPI ID below." : "UPI ID is not configured."}
+                  QR load होऊ शकला नाही. खाली UPI ID वापरा.
                 </Text>
               </View>
-            )}
-
-            {/* Download QR (web only) */}
-            {Platform.OS === "web" && (
-              <TouchableOpacity
-                style={styles.downloadBtn}
-                onPress={() => {
-                  if (global._qrDataUrl) {
-                    const a = document.createElement("a");
-                    a.href = "data:image/png;base64," + global._qrDataUrl;
-                    a.download = "shahaji_upi_qr.png";
-                    a.click();
-                  } else {
-                    alert("QR load होत आहे, थोडं थांबा.");
-                  }
-                }}
-              >
-                <Text style={{ fontSize: 16 }}>⬇️</Text>
-                <Text style={styles.downloadBtnText}>QR Download </Text>
-              </TouchableOpacity>
             )}
 
             {/* Amount chip */}
@@ -224,11 +171,12 @@ export default function DynamicUPIQR({
             </View>
           </View>
 
-          {/* MANUAL PAYMENT INSTRUCTIONS */}
+          {/* HOW TO PAY */}
           <View style={styles.manualBox}>
             <Text style={styles.manualTitle}>💡 {t.howToPay || "How to Pay"}</Text>
             <Text style={styles.manualText}>
-              {"1️⃣ " + (t.howToPayStep1 || "Open GPay / PhonePe / Paytm") + "\n\n2️⃣ " + (t.howToPayStep2 || "New Payment → Enter UPI ID:") + "\n"}
+              {"1️⃣ " + (t.howToPayStep1 || "Open GPay / PhonePe / Paytm") + "\n\n"}
+              {"2️⃣ " + (t.howToPayStep2 || "New Payment → Enter UPI ID:") + "\n"}
             </Text>
             <View style={styles.manualUpiRow}>
               <Text style={styles.manualUpiId} numberOfLines={1}>{upiId}</Text>
@@ -237,18 +185,16 @@ export default function DynamicUPIQR({
                 style={[styles.manualCopyBtn, copied && { backgroundColor: "#27AE60" }]}
               >
                 <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
-                  {copied ? "✓ Copied" : "Copy"}
+                  {copied ? "✓" : "Copy"}
                 </Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.manualText}>
-              {"3️⃣ " + (t.howToPayStep3 || "Amount: ₹") + displayAmount +
-              "\n\n4️⃣ " + (t.howToPayStep4 || "Pay करा → UTR / Transaction ID copy करा") +
-              "\n\n5️⃣ " + (t.howToPayStep5 || "खाली UTR paste करा → Booking Confirmed ✅")}
+              {"3️⃣ Amount: ₹" + displayAmount + "\n\n"}
+              {"4️⃣ " + (t.howToPayStep4 || "Pay करा → UTR copy करा") + "\n\n"}
+              {"5️⃣ " + (t.howToPayStep5 || "खाली UTR paste करा → Booking Confirmed ✅")}
             </Text>
           </View>
-
-         {/* HOW TO PAY STEPS — same as manual box, no duplicate */}
 
           {/* NEXT BUTTON */}
           <TouchableOpacity
@@ -263,7 +209,7 @@ export default function DynamicUPIQR({
         </>
       )}
 
-      {/* ══════════════ STEP 2: ENTER UTR ══════════════ */}
+      {/* ══════════════ STEP 2: UTR ══════════════ */}
       {step === "utr" && (
         <>
           <View style={styles.utrCard}>
@@ -272,12 +218,11 @@ export default function DynamicUPIQR({
             </View>
 
             <Text style={styles.utrTitle}>{t.enterUtrTitle || "Enter UTR Number"}</Text>
-         
-<Text style={styles.utrSub}>
-  {t.paymentOf || "Payment of "}
-  <Text style={{ color: "#C0392B", fontWeight: "700" }}>₹{displayAmount}</Text>
-  {t.completeEnterUtr || " complete झाल्यावर\nUTR / Transaction ID enter करा"}
-</Text>
+            <Text style={styles.utrSub}>
+              {t.paymentOf || "Payment of "}
+              <Text style={{ color: "#C0392B", fontWeight: "700" }}>₹{displayAmount}</Text>
+              {t.completeEnterUtr || " complete झाल्यावर\nUTR / Transaction ID enter करा"}
+            </Text>
 
             {bookingId ? (
               <View style={styles.bookingChip}>
@@ -287,11 +232,11 @@ export default function DynamicUPIQR({
             ) : null}
 
             <View style={styles.utrInputLabel}>
-              <Text style={styles.utrInputLabelText}>UTR / Transaction ID *</Text>
+              <Text style={styles.utrInputLabelText}>UTR / TRANSACTION ID *</Text>
             </View>
 
             <View style={[styles.utrInputBox, isUTRValid && styles.utrInputBoxValid]}>
-              <View style={[styles.utrInputPrefix, isUTRValid && { backgroundColor: "#1A1A2E" }]}>
+              <View style={[styles.utrInputPrefix, isUTRValid && { backgroundColor: "#C0392B" }]}>
                 <Text style={{ fontSize: 16, color: isUTRValid ? "#fff" : "#999" }}>🔢</Text>
               </View>
               <TextInput
@@ -316,7 +261,7 @@ export default function DynamicUPIQR({
             </View>
 
             <Text style={styles.utrHint}>
-              {t.enterUtrSub || "Where to find UTR: UPI App → Transaction History → tap payment → Share/Copy"}
+              {t.enterUtrSub || "UPI App → Transaction History → payment tap करा → Share/Copy"}
             </Text>
 
             <TouchableOpacity
@@ -340,7 +285,7 @@ export default function DynamicUPIQR({
           <View style={styles.warningBox}>
             <Text style={{ fontSize: 16 }}>⚠️</Text>
             <Text style={styles.warningText}>
-              {t.utrWarning || "Admin will verify your UTR within 15–30 minutes. Incorrect UTR will result in cancellation. Contact 9021694503 for help."}
+              {t.utrWarning || "Admin 15-30 मिनिटांत UTR verify करेल. चुकीचा UTR असल्यास booking cancel होईल."}
             </Text>
           </View>
         </>
@@ -372,178 +317,255 @@ export default function DynamicUPIQR({
 }
 
 // ════════════════════════════════════════════════════════════════════
-// STYLES
+// STYLES — RED/WHITE THEME  |  QR color handled via prop (BLACK)
 // ════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16, paddingBottom: 48, paddingTop: 8,
-    backgroundColor: "#F5F6FA",
+    backgroundColor: "#F8F9FA",
   },
+
+  // ── Amount Hero — RED ──
   amountHero: {
-    backgroundColor: "#1A1A2E", borderRadius: 20, padding: 22,
+    backgroundColor: "#C0392B",
+    borderRadius: 20, padding: 22,
     marginBottom: 14, alignItems: "center",
   },
   amountLabel: {
-    fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "700",
-    letterSpacing: 1.5, marginBottom: 6, textTransform: "uppercase",
+    fontSize: 11, color: "rgba(255,255,255,0.75)",
+    fontWeight: "700", letterSpacing: 1.5,
+    marginBottom: 6, textTransform: "uppercase",
   },
-  amountValue: { fontSize: 40, fontWeight: "900", color: "#FFFFFF", letterSpacing: -1 },
+  amountValue: {
+    fontSize: 42, fontWeight: "900",
+    color: "#FFFFFF", letterSpacing: -1,
+  },
   routePill: {
-    marginTop: 10, backgroundColor: "rgba(255,255,255,0.08)",
+    marginTop: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
-    alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.3)",
   },
   routeText: { fontSize: 13, fontWeight: "700", color: "#fff" },
-  routeDate: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 },
-  bookingIdText: { fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 8 },
+  routeDate: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  bookingIdText: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8 },
+
+  // ── Step Tabs ──
   stepTabs: { flexDirection: "row", gap: 8, marginBottom: 14 },
   stepTab: {
     flex: 1, flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#FFFFFF", borderRadius: 14, padding: 12,
     borderWidth: 1.5, borderColor: "#E5E5EA",
   },
-  stepTabActive: { backgroundColor: "#FFF5F5", borderColor: "#C0392B" },
+  stepTabActive: {
+    backgroundColor: "#FDECEA",
+    borderColor: "#C0392B",
+  },
   stepNum: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: "#EBEBEB", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#E5E5EA",
+    justifyContent: "center", alignItems: "center",
   },
   stepNumActive: { backgroundColor: "#C0392B" },
   stepNumText: { fontSize: 11, fontWeight: "800", color: "#888" },
   stepLabel: { fontSize: 12, fontWeight: "700", color: "#888" },
   stepLabelActive: { color: "#C0392B" },
+
+  // ── QR Card ──
   qrCard: {
     backgroundColor: "#FFFFFF", borderRadius: 20, padding: 20,
-    marginBottom: 12, alignItems: "center", borderWidth: 1, borderColor: "#EBEBEB",
+    marginBottom: 12, alignItems: "center",
+    borderWidth: 1, borderColor: "#F5C6C2",
     elevation: 2,
   },
-  qrCardHeading: { fontSize: 14, fontWeight: "800", color: "#1A1A2E", marginBottom: 18 },
+  qrCardHeading: {
+    fontSize: 14, fontWeight: "800",
+    color: "#C0392B",
+    marginBottom: 18,
+  },
   qrWrapper: {
     padding: 14, borderRadius: 16, backgroundColor: "#FFFFFF",
-    borderWidth: 3, borderColor: "#1A1A2E", elevation: 4,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12, shadowRadius: 12, marginBottom: 14,
+    borderWidth: 3, borderColor: "#C0392B",   // ✅ RED border, QR inside is BLACK
+    elevation: 4, marginBottom: 14,
   },
   qrFallback: {
-    width: 220, height: 220, backgroundColor: "#F8F9FA", borderRadius: 16,
-    justifyContent: "center", alignItems: "center",
-    borderWidth: 2, borderColor: "#E5E5E5", borderStyle: "dashed", marginBottom: 14,
+    width: 220, height: 220, backgroundColor: "#FDECEA",
+    borderRadius: 16, justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: "#F5C6C2",
+    borderStyle: "dashed", marginBottom: 14,
   },
-  qrFallbackText: { fontSize: 12, color: "#999", textAlign: "center", paddingHorizontal: 12 },
-  downloadBtn: {
-    backgroundColor: "#1A1A2E", borderRadius: 12,
-    paddingHorizontal: 20, paddingVertical: 10, marginBottom: 12,
-    flexDirection: "row", alignItems: "center", gap: 8,
+  qrFallbackText: {
+    fontSize: 12, color: "#C0392B",
+    textAlign: "center", paddingHorizontal: 12,
   },
-  downloadBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  // Amount chip
   amountChip: {
-    backgroundColor: "#F5F6FA", borderRadius: 10,
-    paddingHorizontal: 20, paddingVertical: 8, marginBottom: 14,
+    backgroundColor: "#FDECEA", borderRadius: 10,
+    paddingHorizontal: 20, paddingVertical: 8,
+    marginBottom: 14, borderWidth: 1, borderColor: "#F5C6C2",
   },
-  amountChipText: { fontSize: 16, fontWeight: "800", color: "#C0392B" },
+  amountChipText: {
+    fontSize: 16, fontWeight: "800", color: "#C0392B",
+  },
+
+  // UPI ID row
   upiIdRow: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#F5F6FA", borderRadius: 12, padding: 14,
-    width: "100%", borderWidth: 1, borderColor: "#EBEBEB",
+    backgroundColor: "#FFF5F5", borderRadius: 12, padding: 14,
+    width: "100%", borderWidth: 1, borderColor: "#F5C6C2",
   },
   upiAtBadge: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: "#1A1A2E",
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: "#C0392B",
     justifyContent: "center", alignItems: "center",
   },
   upiAtText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  upiIdLabel: { fontSize: 9, color: "#999", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
-  upiIdValue: { fontSize: 14, fontWeight: "800", color: "#1A1A2E", marginTop: 1 },
+  upiIdLabel: {
+    fontSize: 9, color: "#C0392B", fontWeight: "700",
+    letterSpacing: 0.8, textTransform: "uppercase",
+  },
+  upiIdValue: { fontSize: 14, fontWeight: "800", color: "#1C1C1E", marginTop: 1 },
   upiNameValue: { fontSize: 11, color: "#888", marginTop: 1 },
   copyBtn: {
-    borderRadius: 10, borderWidth: 1.5, borderColor: "#1A1A2E",
+    borderRadius: 10, borderWidth: 1.5,
+    borderColor: "#C0392B",
     paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "#fff",
   },
   copyBtnCopied: { backgroundColor: "#27AE60", borderColor: "#27AE60" },
-  copyBtnText: { fontSize: 12, fontWeight: "700", color: "#1A1A2E" },
+  copyBtnText: { fontSize: 12, fontWeight: "700", color: "#C0392B" },
+
+  // How to Pay box
   manualBox: {
-    backgroundColor: "#FFF8E1", borderRadius: 16, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: "#FFE082",
+    backgroundColor: "#FDECEA",
+    borderRadius: 16, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: "#F5C6C2",
   },
-  manualTitle: { fontSize: 14, fontWeight: "800", color: "#E65100", marginBottom: 10 },
+  manualTitle: {
+    fontSize: 14, fontWeight: "800",
+    color: "#C0392B",
+    marginBottom: 10,
+  },
   manualText: { fontSize: 13, color: "#555", lineHeight: 24 },
   manualUpiRow: {
     backgroundColor: "#fff", borderRadius: 10, padding: 10, marginVertical: 6,
-    borderWidth: 1, borderColor: "#FFE082",
+    borderWidth: 1, borderColor: "#F5C6C2",
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   manualUpiId: { fontSize: 14, fontWeight: "800", color: "#C0392B", flex: 1 },
   manualCopyBtn: {
-    backgroundColor: "#1A1A2E", borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: "#C0392B",
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  stepsCard: {
-    backgroundColor: "#FFFFFF", borderRadius: 20, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: "#EBEBEB", elevation: 1,
-  },
-  stepsHeading: { fontSize: 13, fontWeight: "800", color: "#1A1A2E", marginBottom: 14 },
-  stepRow: { flexDirection: "row", gap: 12, marginBottom: 12, alignItems: "flex-start" },
-  stepBadge: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: "#1A1A2E",
-    justifyContent: "center", alignItems: "center", flexShrink: 0,
-  },
-  stepBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
-  stepText: { fontSize: 13, color: "#444", lineHeight: 22, flex: 1, marginTop: 3 },
+
+  // Primary Button
   primaryBtn: {
-    backgroundColor: "#1A1A2E", borderRadius: 16, paddingVertical: 18,
+    backgroundColor: "#C0392B",
+    borderRadius: 16, paddingVertical: 18,
     alignItems: "center", marginBottom: 12, elevation: 3,
   },
-  primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
+  primaryBtnText: {
+    color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.3,
+  },
+
+  // UTR Card
   utrCard: {
     backgroundColor: "#FFFFFF", borderRadius: 20, padding: 20,
-    marginBottom: 12, borderWidth: 1, borderColor: "#EBEBEB",
+    marginBottom: 12, borderWidth: 1, borderColor: "#F5C6C2",
     alignItems: "center", elevation: 2,
   },
   utrIcon: {
-    width: 76, height: 76, borderRadius: 38, backgroundColor: "#FDECEA",
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: "#FDECEA",
     justifyContent: "center", alignItems: "center", marginBottom: 14,
     borderWidth: 1.5, borderColor: "#F5C6C2",
   },
-  utrTitle: { fontSize: 20, fontWeight: "800", color: "#1C1C1E", marginBottom: 8 },
-  utrSub: { fontSize: 13, color: "#666", textAlign: "center", lineHeight: 21, marginBottom: 16 },
+  utrTitle: {
+    fontSize: 20, fontWeight: "800",
+    color: "#1C1C1E", marginBottom: 8,
+  },
+  utrSub: {
+    fontSize: 13, color: "#666",
+    textAlign: "center", lineHeight: 21, marginBottom: 16,
+  },
   bookingChip: {
-    backgroundColor: "#E8F4FE", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
-    alignItems: "center", borderWidth: 1.5, borderStyle: "dashed", borderColor: "#0A84FF",
+    backgroundColor: "#FDECEA", borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1.5, borderStyle: "dashed",
+    borderColor: "#C0392B",
     marginBottom: 16, width: "100%",
   },
-  bookingChipLabel: { fontSize: 9, fontWeight: "700", color: "#0A84FF", letterSpacing: 2 },
-  bookingChipValue: { fontSize: 17, fontWeight: "700", color: "#0070D0", letterSpacing: 2, marginTop: 2 },
-  utrInputLabel: { width: "100%", marginBottom: 8 },
-  utrInputLabelText: { fontSize: 12, fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: 0.5 },
-  utrInputBox: {
-    flexDirection: "row", borderWidth: 2, borderColor: "#EBEBEB",
-    borderRadius: 14, overflow: "hidden", backgroundColor: "#F5F6FA",
-    width: "100%", marginBottom: 8,
+  bookingChipLabel: {
+    fontSize: 9, fontWeight: "700",
+    color: "#C0392B", letterSpacing: 2,
   },
-  utrInputBoxValid: { borderColor: "#1A1A2E" },
-  utrInputPrefix: { paddingHorizontal: 14, justifyContent: "center", backgroundColor: "#EBEBEB", minHeight: 52 },
+  bookingChipValue: {
+    fontSize: 17, fontWeight: "700",
+    color: "#96281B", letterSpacing: 2, marginTop: 2,
+  },
+
+  // UTR Input
+  utrInputLabel: { width: "100%", marginBottom: 8 },
+  utrInputLabelText: {
+    fontSize: 12, fontWeight: "700",
+    color: "#888", textTransform: "uppercase", letterSpacing: 0.5,
+  },
+  utrInputBox: {
+    flexDirection: "row", borderWidth: 2,
+    borderColor: "#E5E5EA",
+    borderRadius: 14, overflow: "hidden",
+    backgroundColor: "#FAFAFA", width: "100%", marginBottom: 8,
+  },
+  utrInputBoxValid: { borderColor: "#C0392B" },
+  utrInputPrefix: {
+    paddingHorizontal: 14, justifyContent: "center",
+    backgroundColor: "#F5C6C2", minHeight: 52,
+  },
   utrInput: {
     flex: 1, paddingHorizontal: 14, paddingVertical: 15,
-    fontSize: 16, color: "#1A1A2E", fontWeight: "700",
+    fontSize: 16, color: "#1C1C1E", fontWeight: "700",
     letterSpacing: 1.5, backgroundColor: "#FFFFFF",
   },
-  utrCheck: { paddingHorizontal: 14, justifyContent: "center", backgroundColor: "#EAFAF1" },
-  utrHint: { fontSize: 11, color: "#999", lineHeight: 16, textAlign: "center", marginBottom: 20, width: "100%" },
+  utrCheck: {
+    paddingHorizontal: 14, justifyContent: "center",
+    backgroundColor: "#EAFAF1",
+  },
+  utrHint: {
+    fontSize: 11, color: "#999", lineHeight: 16,
+    textAlign: "center", marginBottom: 20, width: "100%",
+  },
+
+  // Verify Button
   verifyBtn: {
-    backgroundColor: "#1A1A2E", borderRadius: 16, paddingVertical: 18,
+    backgroundColor: "#C0392B",
+    borderRadius: 16, paddingVertical: 18,
     alignItems: "center", width: "100%", marginBottom: 12, elevation: 3,
   },
-  verifyBtnDisabled: { backgroundColor: "#EBEBEB", elevation: 0 },
+  verifyBtnDisabled: { backgroundColor: "#E5E5EA", elevation: 0 },
   verifyBtnText: { color: "#fff", fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
+
   backLink: { paddingVertical: 10 },
-  backLinkText: { fontSize: 13, color: "#888", fontWeight: "600" },
+  backLinkText: { fontSize: 13, color: "#C0392B", fontWeight: "600" },
+
+  // Warning box
   warningBox: {
     backgroundColor: "#FFF8E1", borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: "#FFE082",
-    flexDirection: "row", gap: 10, alignItems: "flex-start", marginBottom: 14,
+    flexDirection: "row", gap: 10,
+    alignItems: "flex-start", marginBottom: 14,
   },
   warningText: { fontSize: 12, color: "#795548", lineHeight: 19, flex: 1 },
+
   cancelBtn: { alignItems: "center", paddingVertical: 14, marginBottom: 8 },
-  cancelText: { fontSize: 13, color: "#999", fontWeight: "600" },
-  badgeRow: { flexDirection: "row", justifyContent: "center", gap: 16, paddingBottom: 8 },
+  cancelText: { fontSize: 13, color: "#C0392B", fontWeight: "600" },
+
+  // Security badges
+  badgeRow: {
+    flexDirection: "row", justifyContent: "center",
+    gap: 16, paddingBottom: 8,
+  },
   badge: { flexDirection: "row", alignItems: "center", gap: 4 },
   badgeText: { fontSize: 11, color: "#999", fontWeight: "600" },
 });
