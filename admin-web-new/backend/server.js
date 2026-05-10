@@ -157,7 +157,11 @@ const upiPaymentSchema = new mongoose.Schema({
 }, { timestamps: true });
  
 // UTR unique index (prevent duplicate payments)
-upiPaymentSchema.index({ utr: 1 }, { unique: true, sparse: true });
+upiPaymentSchema.index({ utr: 1 }, { 
+  unique: true, 
+  sparse: true,
+  partialFilterExpression: { utr: { $exists: true, $ne: "" } }  // ✅ empty string exclude
+});
  
 const UPIPayment = mongoose.models.UPIPayment || mongoose.model("UPIPayment", upiPaymentSchema);
 
@@ -3643,12 +3647,21 @@ app.post("/api/upi/init-payment", async (req, res) => {
 app.post("/api/upi/verify-payment", async (req, res) => {
   try {
     const { bookingId, utr, amount } = req.body;
- 
+
     if (!bookingId || !utr) {
       return res.status(400).json({ success: false, message: "bookingId and utr are required" });
     }
 
     const cleanUTR = utr.trim().toUpperCase().replace(/\s+/g, "");
+
+    // ✅ Empty UTR check
+    if (!cleanUTR || cleanUTR.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid UTR enter करा.",
+        errorCode: "INVALID_UTR_FORMAT"
+      });
+    }
 
     if (!isValidUTR(cleanUTR)) {
       return res.status(400).json({
@@ -3658,15 +3671,26 @@ app.post("/api/upi/verify-payment", async (req, res) => {
       });
     }
 
-    // ✅ Payment record नसेल तर auto-create करा
+    // ✅ Duplicate UTR check आधी करा
+    const existingUTR = await UPIPayment.findOne({ utr: cleanUTR });
+    if (existingUTR && existingUTR.bookingId !== bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: "हा UTR already दुसऱ्या booking साठी use झाला आहे.",
+        errorCode: "DUPLICATE_UTR"
+      });
+    }
+
     let payment = await UPIPayment.findOne({ bookingId });
     if (!payment) {
-      payment = await UPIPayment.create({
+      payment = new UPIPayment({
         bookingId,
         amount: Number(amount || 0),
         status: "pending",
         expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        // ✅ utr आधी set करू नका
       });
+      await payment.save();
     }
 
     if (payment.status === "success") {
@@ -3683,15 +3707,29 @@ app.post("/api/upi/verify-payment", async (req, res) => {
       await payment.save();
       return res.status(400).json({
         success: false,
-        message: "Payment session expired. Please start a new booking.",
+        message: "Payment session expired.",
         errorCode: "PAYMENT_EXPIRED"
       });
     }
 
-    payment.utr        = cleanUTR;
-    payment.status     = "success";
+    // ✅ UTR set करा आणि save करा
+    payment.utr = cleanUTR;
+    payment.status = "success";
     payment.verifiedAt = new Date();
-    await payment.save();
+    
+    try {
+      await payment.save();
+    } catch (saveErr) {
+      // ✅ Duplicate key error handle करा
+      if (saveErr.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: "हा UTR already use झाला आहे. दुसरा UTR enter करा.",
+          errorCode: "DUPLICATE_UTR"
+        });
+      }
+      throw saveErr;
+    }
 
     const booking = await Booking.findOne({
       $or: [
@@ -3705,31 +3743,44 @@ app.post("/api/upi/verify-payment", async (req, res) => {
       booking.bookingStatus = "Confirmed";
       booking.conductorNote = `UPI UTR: ${cleanUTR}`;
       await booking.save();
-
-      try {
-        await sendFCMToAll(
-          "💰 UPI Payment Verified!",
-          `${booking.passengerName} | ₹${payment.amount} | UTR: ${cleanUTR.slice(0, 12)}...`
-        );
-        await Notification.create({
-          title:   "💰 UPI Payment Confirmed",
-          message: `${booking.passengerName} ने ₹${payment.amount} pay केले. UTR: ${cleanUTR}`,
-          type:    "info",
-        });
-      } catch (_) {}
     }
 
     res.json({
-      success:   true,
-      message:   "Payment verified! Booking confirmed.",
+      success: true,
+      message: "Payment verified! Booking confirmed.",
       payment,
-      booking:   booking || null,
+      booking: booking || null,
       bookingId,
     });
+
   } catch (err) {
+    // ✅ Global duplicate key error catch
+    if (err.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: "हा UTR already use झाला आहे.",
+        errorCode: "DUPLICATE_UTR"
+      });
+    }
     res.status(500).json({ success: false, message: err.message });
   }
-});;
+});
+// server.js मध्ये एकदा add करा, run करा, मग काढा
+app.get("/api/fix-upi-payments", async (req, res) => {
+  try {
+    // Empty UTR असलेले records delete करा
+    const result = await UPIPayment.deleteMany({ 
+      $or: [
+        { utr: "" },
+        { utr: null },
+        { utr: { $exists: false } }
+      ]
+    });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
  
 // ── GET /api/upi/payment-status/:bookingId ───────────────────────────────────
 // Poll this to check if admin manually confirmed payment
