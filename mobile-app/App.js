@@ -1889,10 +1889,13 @@ const Seat = ({ id, booked, selected, blocked, female, onPress, price, isSleeper
     );
   }
 
-  const bg = selected
+// REPLACE:
+  const bg = blocked
+  ? "#E0E0E0"
+  : selected && female === "Female"
+  ? "#8E44AD"
+  : selected
   ? "#27AE60"
-  : blocked
-  ? "#9E9E9E"
   : booked && female === "Female"
   ? "#9B59B6"
   : booked
@@ -1991,7 +1994,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           blocked={!!leftId && blockedUpper.includes(String(leftId).trim().toUpperCase())}
           booked={!!leftId && bookedUpper.includes(String(leftId).trim().toUpperCase())}
           selected={!!leftId && selectedUpper.includes(String(leftId).trim().toUpperCase())}
-          female={String(seatGenderMap?.[leftId]) === "Female" ? "Female" : "Male"}
+          female={seatGenderMap?.[leftId] || bookedSeatMap?.[leftId] || "Male"}
           onPress={onToggle}
           price={price}
         />
@@ -2006,7 +2009,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           blocked={!!right1 && blockedUpper.includes(String(right1).trim().toUpperCase())}
           booked={!!right1 && bookedUpper.includes(String(right1).trim().toUpperCase())}
           selected={!!right1 && selectedUpper.includes(String(right1).trim().toUpperCase())}
-          female={String(seatGenderMap?.[right1]) === "Female" ? "Female" : "Male"}
+         female={seatGenderMap?.[leftId] || bookedSeatMap?.[leftId] || "Male"}
           onPress={onToggle}
           price={price}
         />
@@ -2016,7 +2019,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           blocked={!!right2 && blockedUpper.includes(String(right2).trim().toUpperCase())}
           booked={!!right2 && bookedUpper.includes(String(right2).trim().toUpperCase())}
           selected={!!right2 && selectedUpper.includes(String(right2).trim().toUpperCase())}
-          female={String(seatGenderMap?.[right2]) === "Female" ? "Female" : "Male"}
+         female={seatGenderMap?.[leftId] || bookedSeatMap?.[leftId] || "Male"}
           onPress={onToggle}
           price={price}
         />
@@ -3099,36 +3102,40 @@ const openWhatsApp = () => {
     ];
   };
 
+  // REPLACE ENTIRE toggleSeat function:
   const toggleSeat = useCallback((id) => {
   const _seatsArr = Array.isArray(selectedBus?.seats) ? selectedBus.seats : [];
-const _blockedFromSeats = _seatsArr
-  .filter(s => s && s.isBlocked === true)
-  .map(s => String(s.seatNo));
-const _blockedFromArr = Array.isArray(selectedBus?.blockedSeats)
-  ? selectedBus.blockedSeats.map(String)
-  : [];
-const allBlocked = [...new Set([..._blockedFromArr, ..._blockedFromSeats])];
-console.log("🔴 allBlocked:", allBlocked, "seat clicked:", String(id));
-if (allBlocked.includes(String(id))) {
-  showAlert("Seat Unavailable", "This seat has been blocked by the operator.");
-  return;
-}
+  const _blockedFromSeats = _seatsArr
+    .filter(s => s && s.isBlocked === true)
+    .map(s => String(s.seatNo));
+  const _blockedFromArr = Array.isArray(selectedBus?.blockedSeats)
+    ? selectedBus.blockedSeats.map(String)
+    : [];
+  const allBlocked = [...new Set([..._blockedFromArr, ..._blockedFromSeats])];
+  if (allBlocked.includes(String(id))) {
+    showAlert("Seat Unavailable", "This seat has been blocked by the operator.");
+    return;
+  }
+  // Already selected → deselect
   if (selectedSeats.includes(id)) {
     setSelectedSeats(p => p.filter(s => s !== id));
     setSeatGenderMap(p => { const n = { ...p }; delete n[id]; return n; });
     return;
   }
   if (selectedSeats.length >= 6) { showAlert(t.errorTitle, t.maxSeats); return; }
+  // Show gender picker for THIS seat
   setGenderPicker({ visible: true, seatId: id });
 }, [selectedSeats, selectedBus, t, showAlert]);
+// REPLACE:
   const handleGenderSelect = useCallback((gender) => {
-    const id = genderPicker.seatId;
-    setGenderPicker({visible:false,seatId:null});
-    if (!id) return;
-    setSelectedSeats(p=>[...p,id]);
-    setSeatGenderMap(p=>({...p,[id]:gender}));
-  }, [genderPicker.seatId]);
-
+    setGenderPicker(prev => {
+      const id = prev.seatId;
+      if (!id) return { visible: false, seatId: null };
+      setSelectedSeats(p => [...p, id]);
+      setSeatGenderMap(p => ({ ...p, [id]: gender }));
+      return { visible: false, seatId: null };
+    });
+  }, []);
   const getTotalAmount = () => {
     if (!selectedBus || !selectedSeats.length) return 0;
     const busType = (selectedBus.type || "").toLowerCase();
