@@ -1059,12 +1059,11 @@ const res = await fetch(
       </Animated.View>
 
       {/* ── NAVBAR ── */}
-   <View style={s.navbar}>
+   
+  <View style={[s.navbar, {flexDirection:"row", alignItems:"center"}]}>
   <TouchableOpacity onPress={openDrawer} style={s.navMenuBtn}>
     <Text style={s.navMenuIcon}>☰</Text>
   </TouchableOpacity>
-
-  {/* Gap between menu and logo */}
   <View style={{ width: 10 }} />
 
   <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
@@ -1940,8 +1939,8 @@ const Seat = ({ id, booked, selected, blocked, female, onPress, price, isSleeper
 const { height } = Dimensions.get("window");
 const DESIGN_HEIGHT = 820; // thoda adjust karu shakto
 const scale = 1;
-const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onToggle, seatPrice, sleeperPrice, isSleeper, seatGenderMap, blockedSeats = [], t }) => (
-  <View style={{ flex: 1, overflow: "visible" }}>
+// REPLACE:
+const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onToggle, seatPrice, sleeperPrice, isSleeper, seatGenderMap, bookedSeatMap = {}, blockedSeats = [], t }) => (  <View style={{ flex: 1, overflow: "visible" }}>
     <View style={{ transform: [{ scale: 1 }], alignSelf: "center" }}>
       <View style={deckSt.wrap}>
         <View style={deckSt.header}>
@@ -2009,7 +2008,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           blocked={!!right1 && blockedUpper.includes(String(right1).trim().toUpperCase())}
           booked={!!right1 && bookedUpper.includes(String(right1).trim().toUpperCase())}
           selected={!!right1 && selectedUpper.includes(String(right1).trim().toUpperCase())}
-         female={seatGenderMap?.[leftId] || bookedSeatMap?.[leftId] || "Male"}
+       female={seatGenderMap?.[right1] || "Male"}
           onPress={onToggle}
           price={price}
         />
@@ -2019,7 +2018,7 @@ const DeckSection = ({ title, availCount, seats, bookedSeats, selectedSeats, onT
           blocked={!!right2 && blockedUpper.includes(String(right2).trim().toUpperCase())}
           booked={!!right2 && bookedUpper.includes(String(right2).trim().toUpperCase())}
           selected={!!right2 && selectedUpper.includes(String(right2).trim().toUpperCase())}
-         female={seatGenderMap?.[leftId] || bookedSeatMap?.[leftId] || "Male"}
+        female={seatGenderMap?.[right2] || "Male"}
           onPress={onToggle}
           price={price}
         />
@@ -4334,9 +4333,11 @@ ListEmptyComponent={
                <View style={{ flexDirection:"row", paddingHorizontal:10, paddingVertical:8, gap:10, alignItems:"flex-start" }}>
                 <View style={{flex:1,minWidth:0}}>
                 
+
 <DeckSection title={t.lowerBerth||"Lower Deck"}
   isSleeper={false}
   t={t}
+  bookedSeatMap={bookedSeatMap}
   seatPrice={Number(selectedBus?.seaterPrice) || Number(selectedBus?.price) || 0}
   sleeperPrice={Number(selectedBus?.sleeperPrice) || Number(selectedBus?.price) || 0}
   availCount={LOWER_SEATS.flat().filter(id =>
@@ -4356,7 +4357,9 @@ ListEmptyComponent={
 
                 </View>
                 <View style={{flex:1,minWidth:0}}>
-                 <DeckSection title={t.upperBerth||"Upper Deck (Sleeper)"} isSleeper={true} t={t}
+                
+<DeckSection title={t.upperBerth||"Upper Deck (Sleeper)"} isSleeper={true} t={t}
+  bookedSeatMap={bookedSeatMap}
 
 
                     seatPrice={Number(selectedBus?.seaterPrice)||Number(selectedBus?.price)||0}
